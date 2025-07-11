@@ -9,9 +9,9 @@ import { checkPermission } from '@/lib/rbac';
 
 export async function POST(req: NextRequest) {
   try {
-    const user = getAuthUserFromRequest(req);
+    const user = await getAuthUser();
 
-    if (!checkPermission(user, ['1'])) {
+    if (!user || !checkPermission(user, ['1'])) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const body = await req.json();
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const user = getAuthUserFromRequest(req);
+    const user = await getAuthUser();
 
     if (!checkPermission(user, ['1'])) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
