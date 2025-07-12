@@ -37,10 +37,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = getAuthUser();
-    if (!checkPermission(user, ['admin'])) {
+    const user = await getAuthUser(); // FIXED: await here
+    if (!user || !checkPermission(user, ['1'])) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
+
     const userId = parseInt(params.id);
     if (isNaN(userId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
@@ -55,11 +56,7 @@ export async function PATCH(
       updates.passwordHash = await hash(body.password, 10);
     }
 
-    const result = await db
-      .update(users)
-      .set(updates)
-      .where(eq(users.id, userId))
-      .returning();
+    const result = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
 
     return NextResponse.json({ message: 'User updated', user: result[0] });
   } catch (err) {
@@ -68,16 +65,16 @@ export async function PATCH(
   }
 }
 
-// DELETE user
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = getAuthUser();
-    if (!checkPermission(user, ['admin'])) {
+    const user = await getAuthUser(); // FIXED: await here
+    if (!user || !checkPermission(user, ['1'])) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
+
     const userId = parseInt(params.id);
     if (isNaN(userId)) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
