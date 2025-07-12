@@ -38,7 +38,7 @@ export type SelectUserLog = InferSelectModel<typeof userLogs>;
 export const departments = pgTable('departments', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
-  headOfDepartmentId: integer('head_of_department_id'), // FK to staff.id
+  headOfDepartmentId: integer('head_of_department_id'),
 });
 export type NewDepartment = InferInsertModel<typeof departments>;
 export type SelectDepartment = InferSelectModel<typeof departments>;
