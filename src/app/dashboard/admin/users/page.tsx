@@ -79,7 +79,6 @@ export default function UsersPage() {
           <div className="flex flex-col items-center  text-lg font-semibold shadow-amber-50 rounded-2xl p-7 bg-[#FF338B]"><BsPeopleFill width={40} height={40}/>Total : {users.length}</div>
           <div className="flex flex-wrap gap-4 items-center">
             <UsersNav />
-
             <button 
               className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-white font-medium flex items-center gap-2 transition-colors"
               onClick={() => setShowAddUser(true)}
