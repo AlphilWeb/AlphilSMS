@@ -19,7 +19,8 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (res?.data?.user?.roleId === 1) {
+      // Check role name string
+      if (res?.data?.user?.role?.toLowerCase() === "admin") {
         router.push("/dashboard/admin");
       } else {
         setError("Access denied: Not an admin user");
