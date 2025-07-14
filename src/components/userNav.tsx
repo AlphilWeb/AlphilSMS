@@ -7,12 +7,12 @@ const UsersNav = () => {
 
   const navItems = [
     { name: 'All', href: '/dashboard/admin/users' },
-    { name: 'Staff', href: '/dashboard/admin/users/staff' },
-    { name: 'Students', href: '/dashboard/admin/users/students' },
+    { name: 'Staff', href: '/dashboard/admin/staff' },
+    { name: 'Students', href: '/dashboard/admin/students' },
   ];
 
   return (
-    <div className="flex gap-4 mb-4 px-6">
+    <div className="flex gap-3 mb-4 items-center">
       {navItems.map((item) => {
         const isActive = pathname === item.href;
         return (
