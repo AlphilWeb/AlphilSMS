@@ -17,6 +17,14 @@ export const users = pgTable('users', {
   roleId: integer('role_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => { // <--- Add a callback function here for constraints
+  return {
+    // Explicit Foreign Key Constraint: users.roleId -> roles.id
+    roleFk: foreignKey({
+      columns: [table.roleId],
+      foreignColumns: [roles.id],
+    }).onDelete('restrict'), // Or 'cascade', 'set null', 'set default'
+  };
 });
 export type NewUser = InferInsertModel<typeof users>;
 export type SelectUser = InferSelectModel<typeof users>;
@@ -29,19 +37,55 @@ export const userLogs = pgTable('user_logs', {
   targetId: integer('target_id'),
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
   description: text('description'),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: userLogs.userId -> users.id
+    userFk: foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+    }).onDelete('cascade'), // If a user is deleted, their logs are deleted
+  };
 });
 export type NewUserLog = InferInsertModel<typeof userLogs>;
 export type SelectUserLog = InferSelectModel<typeof userLogs>;
 
 // --- Academic Structure Tables ---
-
 export const departments = pgTable('departments', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
-  headOfDepartmentId: integer('head_of_department_id'),
+  headOfDepartmentId: integer('head_of_department_id'), // This will be a foreign key to staff.id
 });
 export type NewDepartment = InferInsertModel<typeof departments>;
 export type SelectDepartment = InferSelectModel<typeof departments>;
+
+export const staff = pgTable('staff', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().unique(),
+  departmentId: integer('department_id').notNull(),
+  firstName: varchar('first_name', { length: 100 }).notNull(),
+  lastName: varchar('last_name', { length: 100 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  position: varchar('position', { length: 100 }).notNull(),
+  employmentDocumentsUrl: text('employment_documents_url'),
+  nationalIdPhotoUrl: text('national_id_photo_url'),
+  academicCertificatesUrl: text('academic_certificates_url'),
+  passportPhotoUrl: text('passport_photo_url'),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: staff.userId -> users.id
+    userFk: foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+    }).onDelete('cascade'), // If a user is deleted, their staff record is deleted
+    // Explicit Foreign Key Constraint: staff.departmentId -> departments.id
+    departmentFk: foreignKey({
+      columns: [table.departmentId],
+      foreignColumns: [departments.id],
+    }).onDelete('restrict'),
+  };
+});
+export type NewStaff = InferInsertModel<typeof staff>;
+export type SelectStaff = InferSelectModel<typeof staff>;
 
 export const programs = pgTable('programs', {
   id: serial('id').primaryKey(),
@@ -49,6 +93,14 @@ export const programs = pgTable('programs', {
   name: varchar('name', { length: 255 }).notNull().unique(),
   code: varchar('code', { length: 50 }).notNull().unique(),
   durationSemesters: integer('duration_semesters').notNull(),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: programs.departmentId -> departments.id
+    departmentFk: foreignKey({
+      columns: [table.departmentId],
+      foreignColumns: [departments.id],
+    }).onDelete('restrict'), // Or 'cascade' if deleting a department should delete its programs
+  };
 });
 export type NewProgram = InferInsertModel<typeof programs>;
 export type SelectProgram = InferSelectModel<typeof programs>;
@@ -73,6 +125,16 @@ export const courses = pgTable('courses', {
 }, (table) => {
   return {
     programCodeSemesterIdx: unique('program_code_semester_idx').on(table.programId, table.code, table.semesterId),
+    // Explicit Foreign Key Constraint: courses.programId -> programs.id
+    programFk: foreignKey({
+      columns: [table.programId],
+      foreignColumns: [programs.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: courses.semesterId -> semesters.id
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
   };
 });
 export type NewCourse = InferInsertModel<typeof courses>;
@@ -94,25 +156,33 @@ export const students = pgTable('students', {
   passportPhotoUrl: text('passport_photo_url'),
   idPhotoUrl: text('id_photo_url'),
   certificateUrl: text('certificate_url'),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: students.userId -> users.id
+    userFk: foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+    }).onDelete('cascade'), // If a user is deleted, their student record is deleted
+    // Explicit Foreign Key Constraint: students.programId -> programs.id
+    programFk: foreignKey({
+      columns: [table.programId],
+      foreignColumns: [programs.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: students.departmentId -> departments.id
+    departmentFk: foreignKey({
+      columns: [table.departmentId],
+      foreignColumns: [departments.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: students.currentSemesterId -> semesters.id
+    currentSemesterFk: foreignKey({
+      columns: [table.currentSemesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
+  };
 });
 export type NewStudent = InferInsertModel<typeof students>;
 export type SelectStudent = InferSelectModel<typeof students>;
 
-export const staff = pgTable('staff', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().unique(),
-  departmentId: integer('department_id').notNull(),
-  firstName: varchar('first_name', { length: 100 }).notNull(),
-  lastName: varchar('last_name', { length: 100 }).notNull(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  position: varchar('position', { length: 100 }).notNull(),
-  employmentDocumentsUrl: text('employment_documents_url'),
-  nationalIdPhotoUrl: text('national_id_photo_url'),
-  academicCertificatesUrl: text('academic_certificates_url'),
-  passportPhotoUrl: text('passport_photo_url'),
-});
-export type NewStaff = InferInsertModel<typeof staff>;
-export type SelectStaff = InferSelectModel<typeof staff>;
 
 // --- Academic Records Tables ---
 
@@ -125,6 +195,21 @@ export const enrollments = pgTable('enrollments', {
 }, (table) => {
   return {
     studentCourseSemesterIdx: unique('student_course_semester_idx').on(table.studentId, table.courseId, table.semesterId),
+    // Explicit Foreign Key Constraint: enrollments.studentId -> students.id
+    studentFk: foreignKey({
+      columns: [table.studentId],
+      foreignColumns: [students.id],
+    }).onDelete('cascade'),
+    // Explicit Foreign Key Constraint: enrollments.courseId -> courses.id
+    courseFk: foreignKey({
+      columns: [table.courseId],
+      foreignColumns: [courses.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: enrollments.semesterId -> semesters.id
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
   };
 });
 export type NewEnrollment = InferInsertModel<typeof enrollments>;
@@ -138,6 +223,14 @@ export const grades = pgTable('grades', {
   totalScore: numeric('total_score', { precision: 5, scale: 2 }),
   letterGrade: varchar('letter_grade', { length: 5 }),
   gpa: numeric('gpa', { precision: 3, scale: 2 }),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: grades.enrollmentId -> enrollments.id
+    enrollmentFk: foreignKey({
+      columns: [table.enrollmentId],
+      foreignColumns: [enrollments.id],
+    }).onDelete('cascade'),
+  };
 });
 export type NewGrade = InferInsertModel<typeof grades>;
 export type SelectGrade = InferSelectModel<typeof grades>;
@@ -153,6 +246,16 @@ export const transcripts = pgTable('transcripts', {
 }, (table) => {
   return {
     studentSemesterTranscriptIdx: unique('student_semester_transcript_idx').on(table.studentId, table.semesterId),
+    // Explicit Foreign Key Constraint: transcripts.studentId -> students.id
+    studentFk: foreignKey({
+      columns: [table.studentId],
+      foreignColumns: [students.id],
+    }).onDelete('cascade'),
+    // Explicit Foreign Key Constraint: transcripts.semesterId -> semesters.id
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
   };
 });
 export type NewTranscript = InferInsertModel<typeof transcripts>;
@@ -170,6 +273,21 @@ export const timetables = pgTable('timetables', {
 }, (table) => {
   return {
     semesterCourseDayTimeIdx: unique('semester_course_day_time_idx').on(table.semesterId, table.courseId, table.dayOfWeek, table.startTime),
+    // Explicit Foreign Key Constraint: timetables.semesterId -> semesters.id
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: timetables.courseId -> courses.id
+    courseFk: foreignKey({
+      columns: [table.courseId],
+      foreignColumns: [courses.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: timetables.lecturerId -> staff.id
+    lecturerFk: foreignKey({
+      columns: [table.lecturerId],
+      foreignColumns: [staff.id],
+    }).onDelete('restrict'),
   };
 });
 export type NewTimetable = InferInsertModel<typeof timetables>;
@@ -186,6 +304,16 @@ export const feeStructures = pgTable('fee_structures', {
 }, (table) => {
   return {
     programSemesterFeeIdx: unique('program_semester_fee_idx').on(table.programId, table.semesterId),
+    // Explicit Foreign Key Constraint: feeStructures.programId -> programs.id
+    programFk: foreignKey({
+      columns: [table.programId],
+      foreignColumns: [programs.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: feeStructures.semesterId -> semesters.id
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
   };
 });
 export type NewFeeStructure = InferInsertModel<typeof feeStructures>;
@@ -202,6 +330,24 @@ export const invoices = pgTable('invoices', {
   dueDate: date('due_date', { mode: 'string' }).notNull(),
   issuedDate: timestamp('issued_date', { withTimezone: true }).defaultNow().notNull(),
   status: varchar('status', { length: 50 }).notNull(),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: invoices.studentId -> students.id
+    studentFk: foreignKey({
+      columns: [table.studentId],
+      foreignColumns: [students.id],
+    }).onDelete('cascade'),
+    // Explicit Foreign Key Constraint: invoices.semesterId -> semesters.id
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: invoices.feeStructureId -> feeStructures.id
+    feeStructureFk: foreignKey({
+      columns: [table.feeStructureId],
+      foreignColumns: [feeStructures.id],
+    }).onDelete('set null'), // If a fee structure is deleted, set to null
+  };
 });
 export type NewInvoice = InferInsertModel<typeof invoices>;
 export type SelectInvoice = InferSelectModel<typeof invoices>;
@@ -214,6 +360,19 @@ export const payments = pgTable('payments', {
   paymentMethod: varchar('payment_method', { length: 50 }).notNull(),
   transactionDate: timestamp('transaction_date', { withTimezone: true }).defaultNow().notNull(),
   referenceNumber: varchar('reference_number', { length: 255 }).unique(),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: payments.invoiceId -> invoices.id
+    invoiceFk: foreignKey({
+      columns: [table.invoiceId],
+      foreignColumns: [invoices.id],
+    }).onDelete('cascade'),
+    // Explicit Foreign Key Constraint: payments.studentId -> students.id
+    studentFk: foreignKey({
+      columns: [table.studentId],
+      foreignColumns: [students.id],
+    }).onDelete('restrict'), // Should restrict deletion of student if payments exist
+  };
 });
 export type NewPayment = InferInsertModel<typeof payments>;
 export type SelectPayment = InferSelectModel<typeof payments>;
@@ -225,11 +384,20 @@ export const staffSalaries = pgTable('staff_salaries', {
   paymentDate: date('payment_date', { mode: 'string' }).notNull(),
   description: text('description'),
   status: varchar('status', { length: 50 }).notNull(),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: staffSalaries.staffId -> staff.id
+    staffFk: foreignKey({
+      columns: [table.staffId],
+      foreignColumns: [staff.id],
+    }).onDelete('cascade'),
+  };
 });
 export type NewStaffSalary = InferInsertModel<typeof staffSalaries>;
 export type SelectStaffSalary = InferSelectModel<typeof staffSalaries>;
 
-// --- Relations for Drizzle ORM ---
+// --- Drizzle Relations (these are still important for querying) ---
+// Keep all your existing relations definitions as they are, they are correct for Drizzle queries.
 
 export const rolesRelations = relations(roles, ({ many }) => ({
   users: many(users),
@@ -423,7 +591,7 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     fields: [payments.invoiceId],
     references: [invoices.id],
   }),
-  student: one(students, { 
+  student: one(students, {
     fields: [payments.studentId],
     references: [students.id],
   }),
