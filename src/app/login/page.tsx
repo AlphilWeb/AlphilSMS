@@ -1,3 +1,4 @@
+// app/login/page.tsx (updated)
 "use client";
 
 import { useState } from "react";
@@ -19,11 +20,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      // Check role name string
       if (res?.data?.user?.role?.toLowerCase() === "admin") {
         router.push("/dashboard/admin");
+      } else if (res?.data?.user?.role?.toLowerCase() === "student") {
+        router.push("/dashboard/student");
       } else {
-        setError("Access denied: Not an admin user");
+        setError("Access denied: Invalid user role");
       }
     } catch (err: any) {
       setError(err.message || "Login failed");
@@ -36,7 +38,7 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="bg-white p-6 rounded shadow-md w-full max-w-md"
       >
-        <h2 className="text-2xl font-bold mb-4 text-emerald-800">Admin Login</h2>
+        <h2 className="text-2xl font-bold mb-4 text-emerald-800">Login</h2>
 
         {error && <p className="text-red-600 mb-2 text-sm">{error}</p>}
 
