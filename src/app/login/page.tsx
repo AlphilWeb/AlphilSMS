@@ -11,26 +11,45 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    try {
-      const res = await fetchAPI("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
 
-      if (res?.data?.user?.role?.toLowerCase() === "admin") {
+  try {
+    const res = await fetchAPI("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+    const role = res?.data?.user?.role?.toLowerCase();
+
+    switch (role) {
+      case "admin":
         router.push("/dashboard/admin");
-      } else if (res?.data?.user?.role?.toLowerCase() === "student") {
+        break;
+      case "student":
         router.push("/dashboard/student");
-      } else {
+        break;
+      case "registrar":
+        router.push("/dashboard/registrar");
+        break;
+      case "hod":
+        router.push("/dashboard/department-head");
+        break;
+      case "bursar":
+        router.push("/dashboard/finance");
+        break;
+      case "lecturer":
+        router.push("/dashboard/lecturer");
+        break;
+      default:
         setError("Access denied: Invalid user role");
-      }
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+        break;
     }
-  };
+  } catch (err: any) {
+    setError(err.message || "Login failed");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-emerald-950">
