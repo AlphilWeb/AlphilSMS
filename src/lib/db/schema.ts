@@ -1,5 +1,6 @@
-import { pgTable, serial, text, timestamp, unique, index, foreignKey, integer, numeric, date, time, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, unique, index, foreignKey, integer, numeric, date, time, varchar, boolean } from 'drizzle-orm/pg-core';
 import { relations, InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import { file } from 'zod';
 
 // --- Core Tables ---
 
@@ -118,6 +119,7 @@ export const courses = pgTable('courses', {
   id: serial('id').primaryKey(),
   programId: integer('program_id').notNull(),
   semesterId: integer('semester_id').notNull(),
+  lecturerId: integer('lecturer_id').notNull(), // Added lecturerId field
   name: varchar('name', { length: 255 }).notNull(),
   code: varchar('code', { length: 50 }).notNull(),
   credits: numeric('credits', { precision: 4, scale: 2 }).notNull(),
@@ -135,10 +137,122 @@ export const courses = pgTable('courses', {
       columns: [table.semesterId],
       foreignColumns: [semesters.id],
     }).onDelete('restrict'),
+    // Explicit Foreign Key Constraint: courses.lecturerId -> staff.id
+    lecturerFk: foreignKey({
+      columns: [table.lecturerId],
+      foreignColumns: [staff.id],
+    }).onDelete('restrict'),
   };
 });
 export type NewCourse = InferInsertModel<typeof courses>;
 export type SelectCourse = InferSelectModel<typeof courses>;
+
+// Course Content/Materials
+export const courseMaterials = pgTable('course_materials', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull(),
+  uploadedById: integer('uploaded_by_id').notNull(), // staff
+  title: varchar('title', { length: 255 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // e.g., 'notes', 'presentation', 'video'
+  fileUrl: text('file_url').notNull(),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    courseFk: foreignKey({ columns: [table.courseId], foreignColumns: [courses.id] }).onDelete('cascade'),
+    uploadedByFk: foreignKey({ columns: [table.uploadedById], foreignColumns: [staff.id] }).onDelete('set null'),
+  };
+});
+export type NewCourseMaterial = InferInsertModel<typeof courseMaterials>;
+export type SelectCourseMaterial = InferSelectModel<typeof courseMaterials>;
+
+// Assignments
+export const assignments = pgTable('assignments', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull(),
+  assignedById: integer('assigned_by_id').notNull(), // staff
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  fileUrl: text('file_url'), // Optional: if there's an attachment
+  dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
+  assignedDate: timestamp('assigned_date', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    courseFk: foreignKey({ columns: [table.courseId], foreignColumns: [courses.id] }).onDelete('cascade'),
+    assignedByFk: foreignKey({ columns: [table.assignedById], foreignColumns: [staff.id] }).onDelete('set null'),
+  };
+});
+export type NewAssignment = InferInsertModel<typeof assignments>;
+export type SelectAssignment = InferSelectModel<typeof assignments>;
+
+// Quizzes
+export const quizzes = pgTable('quizzes', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull(),
+  createdById: integer('created_by_id').notNull(), // staff
+  title: varchar('title', { length: 255 }).notNull(),
+  instructions: text('instructions'),
+  fileUrl: text('file_url').notNull(),
+  totalMarks: integer('total_marks').notNull(),
+  quizDate: timestamp('quiz_date', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    courseFk: foreignKey({ columns: [table.courseId], foreignColumns: [courses.id] }).onDelete('cascade'),
+    createdByFk: foreignKey({ columns: [table.createdById], foreignColumns: [staff.id] }).onDelete('set null'),
+  };
+});
+export type NewQuiz = InferInsertModel<typeof quizzes>;
+export type SelectQuiz = InferSelectModel<typeof quizzes>;
+
+export const assignmentSubmissions = pgTable('assignment_submissions', {
+  id: serial('id').primaryKey(),
+  assignmentId: integer('assignment_id').notNull(),
+  studentId: integer('student_id').notNull(),
+  fileUrl: text('file_url').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+  remarks: text('remarks'),
+  grade: numeric('grade', { precision: 5, scale: 2 }),
+}, (table) => {
+  return {
+    assignmentFk: foreignKey({ columns: [table.assignmentId], foreignColumns: [assignments.id] }).onDelete('cascade'),
+    studentFk: foreignKey({ columns: [table.studentId], foreignColumns: [students.id] }).onDelete('cascade'),
+  };
+});
+export type NewAssignmentSubmission = InferInsertModel<typeof assignmentSubmissions>;
+export type SelectAssignmentSubmission = InferSelectModel<typeof assignmentSubmissions>;
+
+export const quizSubmissions = pgTable('quiz_submissions', {
+  id: serial('id').primaryKey(),
+  quizId: integer('quiz_id').notNull(),
+  studentId: integer('student_id').notNull(),
+  fileUrl: text('file_url').notNull(),
+  score: numeric('score', { precision: 5, scale: 2 }),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+  feedback: text('feedback'),
+}, (table) => {
+  return {
+    quizFk: foreignKey({ columns: [table.quizId], foreignColumns: [quizzes.id] }).onDelete('cascade'),
+    studentFk: foreignKey({ columns: [table.studentId], foreignColumns: [students.id] }).onDelete('cascade'),
+  };
+});
+export type NewQuizSubmission = InferInsertModel<typeof quizSubmissions>;
+export type SelectQuizSubmission = InferSelectModel<typeof quizSubmissions>;
+
+export const materialViews = pgTable('material_views', {
+  id: serial('id').primaryKey(),
+  materialId: integer('material_id').notNull(),
+  studentId: integer('student_id').notNull(),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }).defaultNow().notNull(),
+  interactionType: varchar('interaction_type', { length: 50 }).notNull(), // e.g. 'viewed', 'downloaded'
+}, (table) => {
+  return {
+    materialFk: foreignKey({ columns: [table.materialId], foreignColumns: [courseMaterials.id] }).onDelete('cascade'),
+    studentFk: foreignKey({ columns: [table.studentId], foreignColumns: [students.id] }).onDelete('cascade'),
+  };
+});
+export type NewMaterialView = InferInsertModel<typeof materialViews>;
+export type SelectMaterialView = InferSelectModel<typeof materialViews>;
+
 
 // --- User Type Tables ---
 
@@ -217,7 +331,7 @@ export type SelectEnrollment = InferSelectModel<typeof enrollments>;
 
 export const grades = pgTable('grades', {
   id: serial('id').primaryKey(),
-  enrollmentId: integer('enrollment_id').notNull().unique(),
+  enrollmentId: integer('enrollment_id').unique(),
   catScore: numeric('cat_score', { precision: 5, scale: 2 }),
   examScore: numeric('exam_score', { precision: 5, scale: 2 }),
   totalScore: numeric('total_score', { precision: 5, scale: 2 }),
@@ -398,6 +512,47 @@ export type SelectStaffSalary = InferSelectModel<typeof staffSalaries>;
 
 // --- Drizzle Relations (these are still important for querying) ---
 // Keep all your existing relations definitions as they are, they are correct for Drizzle queries.
+// Add to your schema file
+export const academicCalendarEvents = pgTable('academic_calendar_events', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  startDate: timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: timestamp('end_date', { withTimezone: true }).notNull(),
+  eventType: varchar('event_type', { length: 50 }).notNull(), // 'holiday', 'exam', 'registration', 'break', 'other'
+  semesterId: integer('semester_id').notNull(),
+  isRecurring: boolean('is_recurring').default(false),
+  recurringPattern: text('recurring_pattern'), // e.g., 'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO'
+  location: varchar('location', { length: 255 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  createdById: integer('created_by_id').notNull(), // staff ID who created it
+}, (table) => {
+  return {
+    semesterFk: foreignKey({
+      columns: [table.semesterId],
+      foreignColumns: [semesters.id],
+    }).onDelete('cascade'),
+    createdByFk: foreignKey({
+      columns: [table.createdById],
+      foreignColumns: [staff.id],
+    }).onDelete('set null'),
+  };
+});
+
+export type NewAcademicCalendarEvent = InferInsertModel<typeof academicCalendarEvents>;
+export type SelectAcademicCalendarEvent = InferSelectModel<typeof academicCalendarEvents>;
+
+// Add to your relations
+export const academicCalendarEventsRelations = relations(academicCalendarEvents, ({ one }) => ({
+  semester: one(semesters, {
+    fields: [academicCalendarEvents.semesterId],
+    references: [semesters.id],
+  }),
+  createdBy: one(staff, {
+    fields: [academicCalendarEvents.createdById],
+    references: [staff.id],
+  }),
+}));
 
 export const rolesRelations = relations(roles, ({ many }) => ({
   users: many(users),
@@ -465,9 +620,81 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
     fields: [courses.semesterId],
     references: [semesters.id],
   }),
+  lecturer: one(staff, {  // Added lecturer relation
+    fields: [courses.lecturerId],
+    references: [staff.id],
+  }),
   enrollments: many(enrollments),
   timetables: many(timetables),
 }));
+
+export const courseMaterialsRelations = relations(courseMaterials, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseMaterials.courseId],
+    references: [courses.id],
+  }),
+  uploadedBy: one(staff, {
+    fields: [courseMaterials.uploadedById],
+    references: [staff.id],
+  }),
+}));
+
+export const assignmentsRelations = relations(assignments, ({ one }) => ({
+  course: one(courses, {
+    fields: [assignments.courseId],
+    references: [courses.id],
+  }),
+  assignedBy: one(staff, {
+    fields: [assignments.assignedById],
+    references: [staff.id],
+  }),
+}));
+
+export const quizzesRelations = relations(quizzes, ({ one }) => ({
+  course: one(courses, {
+    fields: [quizzes.courseId],
+    references: [courses.id],
+  }),
+  createdBy: one(staff, {
+    fields: [quizzes.createdById],
+    references: [staff.id],
+  }),
+}));
+
+export const assignmentSubmissionsRelations = relations(assignmentSubmissions, ({ one }) => ({
+  assignment: one(assignments, {
+    fields: [assignmentSubmissions.assignmentId],
+    references: [assignments.id],
+  }),
+  student: one(students, {
+    fields: [assignmentSubmissions.studentId],
+    references: [students.id],
+  }),
+}));
+
+export const quizSubmissionsRelations = relations(quizSubmissions, ({ one }) => ({
+  quiz: one(quizzes, {
+    fields: [quizSubmissions.quizId],
+    references: [quizzes.id],
+  }),
+  student: one(students, {
+    fields: [quizSubmissions.studentId],
+    references: [students.id],
+  }),
+}));
+
+export const materialViewsRelations = relations(materialViews, ({ one }) => ({
+  material: one(courseMaterials, {
+    fields: [materialViews.materialId],
+    references: [courseMaterials.id],
+  }),
+  student: one(students, {
+    fields: [materialViews.studentId],
+    references: [students.id],
+  }),
+}));
+
+
 
 export const studentsRelations = relations(students, ({ one, many }) => ({
   user: one(users, {
@@ -502,6 +729,7 @@ export const staffRelations = relations(staff, ({ one, many }) => ({
     references: [departments.id],
   }),
   departmentsHeaded: many(departments), // For head_of_department_id
+  courses: many(courses), // Added courses relation
   timetables: many(timetables),
   staffSalaries: many(staffSalaries),
 }));
