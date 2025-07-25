@@ -10,7 +10,7 @@ export const checkPermission = (
   user: AuthPayload | null,
   allowedRoles: string[]
 ) => {
-  if (!user) return false;
+  if (!user) return false; 
   const userRole = capitalize(user.role);
   const allowed = allowedRoles.map(r => capitalize(r));
   return allowed.includes(userRole);
