@@ -2,44 +2,66 @@
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
+import { redirect } from 'next/navigation';
 
-const secret = process.env.JWT_SECRET!;
+const secret = process.env.JWT_SECRET as string;
+
+if (!secret) {
+  throw new Error('JWT_SECRET environment variable is not set');
+}
 
 export type AuthPayload = {
   userId: number;
   email: string;
-  role: string; // role name, e.g., "Admin", "Staff", "Student"
-  departmentId?: number | null; // <-- ADDED THIS LINE
+  role: string;
+  departmentId?: number | null;
 };
 
-export class ActionError extends Error {
+export class AuthError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'ActionError';
+    this.name = 'AuthError';
   }
 }
 
-export function createToken(payload: AuthPayload) {
-  return jwt.sign(payload, secret, { expiresIn: '30m' });
+export function createToken(payload: AuthPayload): string {
+  return jwt.sign(payload, secret, { expiresIn: '12h' });
 }
 
-export async function getAuthUser(): Promise<AuthPayload | null> {
+export async function verifyToken(token: string): Promise<AuthPayload> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) return null;
     return jwt.verify(token, secret) as AuthPayload;
-  } catch {
-    return null;
+  } catch (error) {
+    throw new AuthError('Invalid or expired token');
   }
 }
 
-export async function getAuthUserFromCookie(): Promise<AuthPayload | null> {
+export async function getAuthUser(): Promise<AuthPayload> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
-    if (!token) return null;
-    return jwt.verify(token, secret) as AuthPayload;
+    
+    if (!token) {
+      redirect('/login');
+      throw new AuthError('No token found');
+    }
+
+    return await verifyToken(token);
+  } catch (error) {
+    // Clear invalid token
+    (await
+      // Clear invalid token
+      cookies()).set('token', '', { expires: new Date(0) });
+    redirect('/login');
+    throw error;
+  }
+}
+
+export async function getAuthUserSafe(): Promise<AuthPayload | null> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    return token ? await verifyToken(token) : null;
   } catch {
     return null;
   }
@@ -48,7 +70,7 @@ export async function getAuthUserFromCookie(): Promise<AuthPayload | null> {
 export function getAuthUserFromRequest(req: NextRequest): AuthPayload | null {
   try {
     const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    if (!authHeader?.startsWith('Bearer ')) return null;
     const token = authHeader.split(' ')[1];
     return jwt.verify(token, secret) as AuthPayload;
   } catch {
@@ -56,30 +78,18 @@ export function getAuthUserFromRequest(req: NextRequest): AuthPayload | null {
   }
 }
 
-/**
- * Check if user has one of the allowed roles.
- * Capitalizes role names for consistent comparison.
- */
 export async function checkAuthAndPermissions(allowedRoles: string[]): Promise<AuthPayload> {
   const authUser = await getAuthUser();
 
-  if (!authUser) {
-    throw new ActionError('Unauthorized: You must be logged in to perform this action.');
-  }
-
-  // Normalize: capitalize both sides for safe comparison
-  const userRoleCapitalized = capitalize(authUser.role);
-
-  const allowedCapitalized = allowedRoles.map(r => capitalize(r));
-
-  if (!allowedCapitalized.includes(userRoleCapitalized)) {
-    throw new ActionError(`Forbidden: Your role (${authUser.role}) does not have permission to perform this action.`);
+  if (!allowedRoles.some(role => 
+    authUser.role.toLowerCase() === role.toLowerCase()
+  )) {
+    throw new AuthError(`Forbidden: Role ${authUser.role} not allowed`);
   }
 
   return authUser;
 }
 
-function capitalize(str: string) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+export async function clearAuthCookies() {
+  (await cookies()).set('token', '', { expires: new Date(0) });
 }
