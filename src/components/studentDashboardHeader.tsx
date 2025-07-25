@@ -1,9 +1,8 @@
-// components/studentDashboardHeader.tsx
-"use client"
+'use client';
 
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import {
   FiBell,
   FiChevronDown,
@@ -17,23 +16,33 @@ import {
   FiLogOut,
   FiDollarSign,
   FiUser
-} from "react-icons/fi";
-import { HiOutlineDocumentReport } from "react-icons/hi";
-import { useState } from "react";
+} from 'react-icons/fi';
+import { HiOutlineDocumentReport } from 'react-icons/hi';
+import { useState, useEffect } from 'react';
+import { getStudentHeaderData, StudentHeaderData } from '@/lib/actions/student.dashboard.header.action';
+import { logoutStudent } from '@/lib/actions/student.dashboard.header.action';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function StudentDashboardHeader() {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [studentData, setStudentData] = useState<StudentHeaderData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock student data
-  const currentUser = {
-    name: "John Student",
-    role: "Student",
-    program: "BSc Computer Science",
-    avatar: "/default-avatar.jpg" // Replace with actual user image path
-  };
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await getStudentHeaderData();
+        setStudentData(data);
+      } catch (error) {
+        console.error('Failed to load student data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
-  // Main navigation items
   const navItems = [
     {
       category: "Overview",
@@ -53,16 +62,13 @@ export default function StudentDashboardHeader() {
     {
       category: "Registration",
       items: [
-        { href: "/dashboard/student/enrollment", icon: <FiFileText className="w-5 h-5" />, label: "Course Enrollment" },
         { href: "/dashboard/student/academic-calendar", icon: <FiCalendar className="w-5 h-5" />, label: "Academic Calendar" }
       ]
     },
     {
       category: "Finance",
       items: [
-        { href: "/dashboard/student/invoices", icon: <FiFileText className="w-5 h-5" />, label: "Invoices" },
         { href: "/dashboard/student/payments", icon: <FiDollarSign className="w-5 h-5" />, label: "Payment History" },
-        { href: "/dashboard/student/financial-aid", icon: <FiDollarSign className="w-5 h-5" />, label: "Financial Aid" }
       ]
     },
     {
@@ -74,42 +80,61 @@ export default function StudentDashboardHeader() {
     }
   ];
 
-  return (
-    <>
-      {/* Header */}
+  if (loading) {
+    return (
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-3 flex items-center justify-between">
-          {/* Logo/Branding */}
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-10 w-10 rounded" />
+            <Skeleton className="h-6 w-48 hidden md:block" />
+          </div>
+          <div className="flex items-center space-x-6">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 w-32 hidden md:block" />
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  if (!studentData) {
+    return <div className="p-4 text-red-500">Failed to load user data</div>;
+  }
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Image
-              src="/logo.png"
-              alt="Alphil Training College"
+              src="/favicon.ico"
+              alt="College Logo"
               width={40}
               height={40}
               className="h-10 w-auto"
+              priority
             />
             <h1 className="text-xl font-bold text-gray-800 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
-          {/* User controls */}
           <div className="flex items-center space-x-6">
-            {/* Notifications */}
             <button className="relative p-1 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100">
-              <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                3
-              </span>
+              {studentData.notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {studentData.notificationCount}
+                </span>
+              )}
               <FiBell className="w-6 h-6" />
             </button>
 
-            {/* User profile dropdown */}
             <div className="relative">
-              <button
+              <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-2 focus:outline-none"
               >
                 <div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
                   <Image
-                    src={currentUser.avatar}
+                    src={studentData.avatar}
                     alt="User avatar"
                     width={32}
                     height={32}
@@ -117,23 +142,23 @@ export default function StudentDashboardHeader() {
                   />
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-gray-800">{currentUser.name}</p>
-                  <p className="text-xs text-gray-500">{currentUser.role}</p>
+                  <p className="text-sm font-medium text-gray-800">{studentData.name}</p>
+                  <p className="text-xs text-gray-500">Student</p>
                 </div>
                 <FiChevronDown className="hidden md:block w-4 h-4 text-gray-500" />
               </button>
 
-              {/* Dropdown menu */}
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                   <div className="px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
-                    <p className="text-sm text-gray-500 truncate">{currentUser.program}</p>
+                    <p className="text-sm font-medium text-gray-900">{studentData.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{studentData.program}</p>
                   </div>
                   <div className="py-1">
                     <Link
                       href="/dashboard/student/profile"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsDropdownOpen(false)}
                     >
                       <FiUser className="mr-3 h-5 w-5 text-gray-400" />
                       My Profile
@@ -141,6 +166,7 @@ export default function StudentDashboardHeader() {
                     <Link
                       href="/dashboard/student/settings"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsDropdownOpen(false)}
                     >
                       <FiSettings className="mr-3 h-5 w-5 text-gray-400" />
                       Settings
@@ -148,13 +174,16 @@ export default function StudentDashboardHeader() {
                   </div>
                   <div className="border-t border-gray-100"></div>
                   <div className="py-1">
-                    <Link
-                      href="/logout"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        logoutStudent();
+                      }}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                       <FiLogOut className="mr-3 h-5 w-5 text-gray-400" />
                       Sign out
-                    </Link>
+                    </button>
                   </div>
                 </div>
               )}
@@ -163,11 +192,8 @@ export default function StudentDashboardHeader() {
         </div>
       </header>
 
-      {/* Sidebar */}
-      {/* Reverted to fixed positioning as per working admin example */}
       <aside className="fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform -translate-x-full md:translate-x-0 border-r border-gray-200 bg-white overflow-y-auto">
         <div className="px-4 py-6">
-          {/* Navigation */}
           <nav className="space-y-8">
             {navItems.map((section) => (
               <div key={section.category} className="space-y-2">
