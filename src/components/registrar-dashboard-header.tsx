@@ -7,13 +7,10 @@ import {
   FiBell, 
   FiChevronDown, 
   FiHome, 
-  FiUsers, 
   FiBook, 
-  FiDollarSign, 
   FiCalendar,
   FiFileText,
   FiClock,
-  FiLayers,
   FiPieChart,
   FiSettings,
   FiLogOut

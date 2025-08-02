@@ -16,7 +16,6 @@ import {
   FiLogOut,
   FiUser,
   FiBook,
-  FiEye,
   FiBookOpen,
   FiTrendingUp,
   FiBarChart2,

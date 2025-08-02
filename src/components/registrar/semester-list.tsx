@@ -1,4 +1,3 @@
-// components/registrar/semesters/semesters-list.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,12 +5,24 @@ import { FiEdit, FiCalendar, FiTrash2, FiPlus } from 'react-icons/fi';
 import { deleteSemester } from '@/lib/actions/semester.action';
 import SemesterForm from './semester-form';
 
-export default function SemestersList({ semesters }: { semesters: any[] }) {
-  const [editSemester, setEditSemester] = useState<any | null>(null);
+type Semester = {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+};
+
+type FormStatus = {
+  success: string | null;
+  error: string | null;
+};
+
+export default function SemestersList({ semesters }: { semesters: Semester[] }) {
+  const [editSemester, setEditSemester] = useState<Semester | null>(null);
   const [showAddSemester, setShowAddSemester] = useState(false);
-  const [formStatus, setFormStatus] = useState<{ success: string | null; error: string | null }>({ 
-    success: null, 
-    error: null 
+  const [formStatus, setFormStatus] = useState<FormStatus>({
+    success: null,
+    error: null,
   });
 
   const handleDelete = async (semesterId: number) => {
@@ -20,8 +31,12 @@ export default function SemestersList({ semesters }: { semesters: any[] }) {
       await deleteSemester(semesterId);
       setFormStatus({ success: 'Semester deleted successfully!', error: null });
       window.location.reload();
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to delete semester.' });
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormStatus({ success: null, error: error.message });
+      } else {
+        setFormStatus({ success: null, error: 'Failed to delete semester.' });
+      }
     }
   };
 
@@ -41,15 +56,9 @@ export default function SemestersList({ semesters }: { semesters: any[] }) {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Semester
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Duration
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Semester</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -87,19 +96,21 @@ export default function SemestersList({ semesters }: { semesters: any[] }) {
         </tbody>
       </table>
 
-      {/* Edit Semester Modal */}
       {editSemester && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <SemesterForm
             initialData={editSemester}
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               try {
-                // You would call updateSemester here
                 setFormStatus({ success: 'Semester updated successfully!', error: null });
                 setEditSemester(null);
                 window.location.reload();
-              } catch (error: any) {
-                setFormStatus({ success: null, error: error.message || 'Failed to update semester.' });
+              } catch (error) {
+                if (error instanceof Error) {
+                  setFormStatus({ success: null, error: error.message });
+                } else {
+                  setFormStatus({ success: null, error: 'Failed to update semester.' });
+                }
               }
             }}
             onCancel={() => {
@@ -112,18 +123,20 @@ export default function SemestersList({ semesters }: { semesters: any[] }) {
         </div>
       )}
 
-      {/* Add Semester Modal */}
       {showAddSemester && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <SemesterForm
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               try {
-                // You would call createSemester here
                 setFormStatus({ success: 'Semester created successfully!', error: null });
                 setShowAddSemester(false);
                 window.location.reload();
-              } catch (error: any) {
-                setFormStatus({ success: null, error: error.message || 'Failed to create semester.' });
+              } catch (error) {
+                if (error instanceof Error) {
+                  setFormStatus({ success: null, error: error.message });
+                } else {
+                  setFormStatus({ success: null, error: 'Failed to create semester.' });
+                }
               }
             }}
             onCancel={() => {

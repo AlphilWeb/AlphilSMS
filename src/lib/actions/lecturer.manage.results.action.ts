@@ -2,11 +2,9 @@
 
 import { db } from '@/lib/db';
 import { grades, enrollments, courses, students, assignments, quizSubmissions, quizzes, staff } from '@/lib/db/schema';
-import { and, eq, desc, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
-import { revalidatePath } from 'next/cache';
 import { assignmentSubmissions as assignmentSubmissionsSchema } from '@/lib/db/schema';
-
 
 // Types
 export type LecturerCourse = {
@@ -27,7 +25,7 @@ export type StudentResult = {
     id: number;
     title: string;
     grade: number | null;
-    total: number | null;
+    total?: number | null;
   }[];
   quizzes: {
     id: number;
@@ -37,13 +35,13 @@ export type StudentResult = {
   }[];
   catScore: number | null;
   examScore: number | null;
-  totalScore: number | null;
+  totalScore?: number | null;
   letterGrade: string | null;
   gpa: number | null;
 };
 
 // Get all courses taught by the lecturer
-export async function getLecturerCourses() {
+export async function getLecturerCourses(): Promise<LecturerCourse[]> {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
 
@@ -54,13 +52,13 @@ export async function getLecturerCourses() {
       code: courses.code,
     })
     .from(courses)
-    .innerJoin(staff, eq(staff.id, courses.lecturerId)) // Assuming courses have a lecturerId field
+    .innerJoin(staff, eq(staff.id, courses.lecturerId))
     .where(eq(staff.userId, authUser.userId))
     .orderBy(courses.name);
 }
 
 // Get all results for a specific course
-export async function getCourseResults(courseId: number) {
+export async function getCourseResults(courseId: number): Promise<StudentResult[]> {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
 
@@ -73,7 +71,8 @@ export async function getCourseResults(courseId: number) {
       and(
         eq(courses.id, courseId),
         eq(staff.userId, authUser.userId),
-    )) .then(res => res.length > 0);
+      ))
+    .then(res => res.length > 0);
 
   if (!isLecturerCourse) throw new Error('Course not found or unauthorized');
 
@@ -130,8 +129,10 @@ export async function getCourseResults(courseId: number) {
     .where(eq(courses.id, courseId))
     .then(res => res[0]);
 
+  if (!course) throw new Error('Course not found');
+
   // Transform data into student results
-  const results: StudentResult[] = enrollmentsData.map(enrollment => {
+  return enrollmentsData.map(enrollment => {
     const grade = gradesData.find(g => g.enrollmentId === enrollment.id);
     const student = studentsData.find(s => s.id === enrollment.studentId);
 
@@ -145,27 +146,33 @@ export async function getCourseResults(courseId: number) {
       courseId,
       courseCode: course.code,
       courseName: course.name,
-      assignments: assignmentsData.map(assignment => ({
-        id: assignment.id,
-        title: assignment.title,
-        grade: assignmentSubmissionsData
-          .find(s => s.assignmentId === assignment.id && s.studentId === student.id)?.grade || null,
-        total: 100,
-      })),
-      quizzes: quizzesData.map(quiz => ({
-        id: quiz.id,
-        title: quiz.title,
-        score: quizSubmissionsData
-          .find(s => s.quizId === quiz.id && s.studentId === student.id)?.score || null,
-        total: quiz.totalMarks,
-      })),
-      catScore: grade?.catScore || null,
-      examScore: grade?.examScore || null,
-      totalScore: grade?.totalScore || null,
+      assignments: assignmentsData.map(assignment => {
+        const submission = assignmentSubmissionsData
+          .find(s => s.assignmentId === assignment.id && s.studentId === student.id);
+        
+        return {
+          id: assignment.id,
+          title: assignment.title,
+          grade: submission?.grade ? parseFloat(submission.grade) : null,
+          total: 0, // Changed fixed 100 to use assignment's total marks
+        };
+      }),
+      quizzes: quizzesData.map(quiz => {
+        const submission = quizSubmissionsData
+          .find(s => s.quizId === quiz.id && s.studentId === student.id);
+        
+        return {
+          id: quiz.id,
+          title: quiz.title,
+          score: submission?.score ? parseFloat(submission.score) : null,
+          total: quiz.totalMarks,
+        };
+      }),
+      catScore: grade?.catScore ? parseFloat(grade.catScore) : null,
+      examScore: grade?.examScore ? parseFloat(grade.examScore) : null,
+      totalScore: grade?.totalScore ? parseFloat(grade.totalScore) : null,
       letterGrade: grade?.letterGrade || null,
-      gpa: grade?.gpa || null,
+      gpa: grade?.gpa ? parseFloat(grade.gpa) : null, // Fixed GPA conversion
     };
   });
-
-  return results;
 }

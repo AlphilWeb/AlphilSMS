@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import {
-  getMaterialViews,
-  getMaterialViewStats,
+  // getMaterialViews,
+  // getMaterialViewStats,
   type MaterialViewWithDetails,
   type MaterialViewStats,
 } from '@/lib/actions/lecturer.manage.material-views.action';
 import {
   FiEye,
-  FiDownload,
-  FiUser,
+  // FiDownload,
+  // FiUser,
   FiFileText,
   FiBarChart2,
   FiList,
@@ -25,8 +25,8 @@ export default function LecturerMaterialViewsManager({
   initialStats: MaterialViewStats[];
 }) {
   const [activeTab, setActiveTab] = useState<'details' | 'stats'>('stats');
-  const [views, setViews] = useState<MaterialViewWithDetails[]>(initialViews);
-  const [stats, setStats] = useState<MaterialViewStats[]>(initialStats);
+  const [views] = useState<MaterialViewWithDetails[]>(initialViews);
+  const [stats] = useState<MaterialViewStats[]>(initialStats);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString('en-US', {

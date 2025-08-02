@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   FiUsers, FiUser, FiBriefcase, FiBookOpen, FiCalendar,
   FiFileText, FiDollarSign, FiCreditCard, FiActivity, FiClipboard,
-  FiHome, FiAward, FiBook, FiList, FiGlobe,
+  FiHome, FiAward, FiBook, FiList,
   FiClock
 } from "react-icons/fi";
 

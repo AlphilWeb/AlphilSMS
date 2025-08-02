@@ -14,8 +14,7 @@ import {
   FiPieChart,
   FiLogOut,
   FiUser,
-  FiCheckSquare,
-  FiFile,
+
   FiEye
 } from 'react-icons/fi';
 import { 

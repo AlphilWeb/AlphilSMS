@@ -93,10 +93,11 @@ export async function createStudent(formData: FormData) {
     revalidatePath('/dashboard/students');
     return { success: 'Student created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_STUDENT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create student due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -158,10 +159,11 @@ export async function updateStudent(studentId: number, formData: FormData) {
     revalidatePath(`/dashboard/students/${studentId}`);
     return { success: 'Student updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_STUDENT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update student due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -179,10 +181,11 @@ export async function deleteStudent(studentId: number) {
     revalidatePath('/dashboard/students');
     return { success: 'Student deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_STUDENT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete student due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -240,10 +243,11 @@ export async function getStudents() {
     }));
 
     return studentList;
-  } catch (err: any) {
-    console.error('[GET_STUDENTS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch students due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -317,8 +321,9 @@ export async function getStudentById(id: number) {
       userEmail: foundStudent.userEmail || null,
     };
 
-  } catch (err: any) {
-    console.error('[GET_STUDENT_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student details due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

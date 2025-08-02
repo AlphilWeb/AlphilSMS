@@ -2,7 +2,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FiBook, FiCalendar, FiClock } from 'react-icons/fi';
+import { FiBook, FiCalendar } from 'react-icons/fi';
 
 interface Course {
   id: number;

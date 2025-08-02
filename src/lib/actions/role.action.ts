@@ -39,10 +39,11 @@ export async function createRole(formData: FormData) {
     revalidatePath('/dashboard/roles'); // Assuming a dashboard route for roles
     return { success: 'Role created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_ROLE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create role due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -71,10 +72,11 @@ export async function updateRole(roleId: number, formData: FormData) {
     revalidatePath(`/dashboard/roles/${roleId}`);
     return { success: 'Role updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_ROLE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update role due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -93,10 +95,11 @@ export async function deleteRole(roleId: number) {
     revalidatePath('/dashboard/roles');
     return { success: 'Role deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_ROLE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete role due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**

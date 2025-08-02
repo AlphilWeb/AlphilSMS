@@ -43,9 +43,9 @@ function allowedRolesForViewingAllEnrollments() {
   return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.LECTURER, ROLES.HOD]; // HOD can view enrollments in their department's courses
 }
 
-function allowedRolesForViewingIndividualOrStudentEnrollments() {
-  return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.LECTURER, ROLES.HOD, ROLES.STUDENT]; // Student can view their own
-}
+// function allowedRolesForViewingIndividualOrStudentEnrollments() {
+//   return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.LECTURER, ROLES.HOD, ROLES.STUDENT]; // Student can view their own
+// }
 
 /**
  * Creates a new enrollment.
@@ -94,10 +94,11 @@ export async function createEnrollment(formData: FormData) {
     revalidatePath(`/dashboard/courses/${courseId}`); // Revalidate course's page
     revalidatePath(`/dashboard/semesters/${semesterId}`); // Revalidate semester's overview
     return { success: 'Enrollment created successfully.', data: createdEnrollment };
-  } catch (err: any) {
-    console.error('[CREATE_ENROLLMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create enrollment due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -157,10 +158,11 @@ export async function updateEnrollment(enrollmentId: number, formData: FormData)
     if (semesterId) revalidatePath(`/dashboard/semesters/${semesterId}`);
 
     return { success: 'Enrollment updated successfully.', data: updatedEnrollment };
-  } catch (err: any) {
-    console.error('[UPDATE_ENROLLMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update enrollment due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -197,10 +199,11 @@ export async function deleteEnrollment(enrollmentId: number) {
     if (enrollmentToDelete.semesterId)
       revalidatePath(`/dashboard/semesters/${enrollmentToDelete.semesterId}`);
     return { success: 'Enrollment deleted successfully.', data: deletedEnrollment };
-  } catch (err: any) {
-    console.error('[DELETE_ENROLLMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete enrollment due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -292,10 +295,11 @@ export async function getEnrollments() {
     }));
 
     return allEnrollments;
-  } catch (err: any) {
-    console.error('[GET_ENROLLMENTS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch enrollments due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -385,10 +389,11 @@ export async function getEnrollmentById(id: number) {
       semesterStartDate: enrollmentRecord.semesterStartDate || null,
       semesterEndDate: enrollmentRecord.semesterEndDate || null,
     };
-  } catch (err: any) {
-    console.error('[GET_ENROLLMENT_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch enrollment due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -461,10 +466,11 @@ export async function getEnrollmentsByStudentId(studentId: number) {
     }));
 
     return studentEnrollments;
-  } catch (err: any) {
-    console.error('[GET_ENROLLMENTS_BY_STUDENT_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student enrollments due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -557,8 +563,9 @@ export async function getEnrollmentsByCourseId(courseId: number) {
     }));
 
     return courseEnrollments;
-  } catch (err: any) {
-    console.error('[GET_ENROLLMENTS_BY_COURSE_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch course enrollments due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

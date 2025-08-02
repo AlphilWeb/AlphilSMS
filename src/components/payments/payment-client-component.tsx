@@ -1,36 +1,47 @@
-// components/payments/payment-client-component.tsx
 'use client';
 
 import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createPayment, updatePayment, deletePayment, getPayments } from "@/lib/actions/payment.action";
 
-// Define the interface for a Payment based on your Drizzle schema
 interface Payment {
   id: number;
   invoiceId: number;
   studentId: number;
-  amount: string; // Numeric types often come as string from DB
+  amount: string;
   paymentMethod: string;
-  transactionDate: string; // Date object from DB, converted to ISO string for client
+  transactionDate: string;
   referenceNumber: string | null;
 }
 
-// Define the interface for reference data
+interface Invoice {
+  id: number;
+  studentId: number;
+  semesterId: number;
+  amountDue: string;
+  amountPaid: string;
+  balance: string;
+  dueDate: string;
+  issuedDate: string;
+  status: string;
+}
+
+interface Student {
+  id: number;
+  firstName: string;
+  lastName: string;
+  registrationNumber: string;
+}
+
+interface Semester {
+  id: number;
+  name: string;
+}
+
 interface ReferenceData {
-  invoices: {
-    id: number;
-    studentId: number;
-    semesterId: number;
-    amountDue: string;
-    amountPaid: string;
-    balance: string;
-    dueDate: string;
-    issuedDate: string;
-    status: string;
-  }[];
-  students: { id: number; firstName: string; lastName: string; registrationNumber: string }[];
-  semesters: { id: number; name: string }[];
+  invoices: Invoice[];
+  students: Student[];
+  semesters: Semester[];
 }
 
 interface PaymentsClientComponentProps {
@@ -41,8 +52,7 @@ interface PaymentsClientComponentProps {
 export default function PaymentsClientComponent({ initialPayments, referenceData }: PaymentsClientComponentProps) {
   const [payments, setPayments] = useState<Payment[]>(initialPayments);
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("invoiceId"); // Default filter
-  const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
+  const [filterBy, setFilterBy] = useState<keyof Payment | 'invoiceId' | 'studentId'>("invoiceId");
   const [editId, setEditId] = useState<number | null>(null);
   const [editedPayment, setEditedPayment] = useState<Partial<Payment>>({});
   const [showDetails, setShowDetails] = useState<Payment | null>(null);
@@ -52,20 +62,18 @@ export default function PaymentsClientComponent({ initialPayments, referenceData
     studentId: "",
     amount: "",
     paymentMethod: "",
-    transactionDate: "", // Date input will be string
+    transactionDate: "",
     referenceNumber: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Helper to get student display name
-  const getStudentDisplayName = (studentId: number) => {
+  const getStudentDisplayName = (studentId: number): string => {
     const student = referenceData.students.find(s => s.id === studentId);
     return student ? `${student.firstName} ${student.lastName} (Reg: ${student.registrationNumber})` : `Student ID: ${studentId}`;
   };
 
-  // Helper to get invoice display name
-  const getInvoiceDisplayName = (invoiceId: number) => {
+  const getInvoiceDisplayName = (invoiceId: number): string => {
     const invoice = referenceData.invoices.find(inv => inv.id === invoiceId);
     if (!invoice) return `Invoice ID: ${invoiceId}`;
 
@@ -76,84 +84,86 @@ export default function PaymentsClientComponent({ initialPayments, referenceData
     return `Inv ${invoice.id} (${studentName}, ${semesterName}) - Due: ${invoice.amountDue}`;
   };
 
-  // Filter payments based on search and filterBy criteria
   const filteredPayments = payments.filter((payment: Payment) => {
-    let value = '';
-    if (filterBy === 'invoiceId') {
-      value = getInvoiceDisplayName(payment.invoiceId).toLowerCase();
-    } else if (filterBy === 'studentId') {
-      value = getStudentDisplayName(payment.studentId).toLowerCase();
-    } else {
-      value = (payment as any)[filterBy]?.toString().toLowerCase() || '';
-    }
+    const filterableProperties: Record<string, string> = {
+      id: payment.id.toString(),
+      invoiceId: getInvoiceDisplayName(payment.invoiceId),
+      studentId: getStudentDisplayName(payment.studentId),
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      transactionDate: payment.transactionDate,
+      referenceNumber: payment.referenceNumber || ''
+    };
+
+    const value = filterableProperties[filterBy].toLowerCase();
     return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
   const handleEdit = (payment: Payment) => {
     setEditId(payment.id);
     setEditedPayment({
       ...payment,
-      amount: payment.amount || '',
-      paymentMethod: payment.paymentMethod || '',
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
       referenceNumber: payment.referenceNumber || '',
-      // Ensure transactionDate is formatted for date input
       transactionDate: payment.transactionDate ? new Date(payment.transactionDate).toISOString().split('T')[0] : '',
     });
     setFormError(null);
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updatePayment(id, formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to update payment.") : null);
+        setFormError(result.error ?? "Failed to update payment.");
         return;
       }
       setFormSuccess('Payment updated successfully!');
       setEditId(null);
-      // Re-fetch all payments to ensure the local state is fully synchronized
+      
       const updatedPayments = await getPayments();
       setPayments(updatedPayments.map(p => ({
         ...p,
         transactionDate: p.transactionDate instanceof Date ? p.transactionDate.toISOString() : p.transactionDate,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update payment.");
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to update payment.");
     }
   };
 
-  // Handle add new payment action
   const handleAddPayment = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createPayment(formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to create payment.") : null);
+        setFormError(result.error ?? "Failed to create payment.");
         return;
       }
       setFormSuccess('Payment created successfully!');
       setShowAddPayment(false);
-      setNewPayment({ // Reset form fields
-        invoiceId: "", studentId: "", amount: "", paymentMethod: "", transactionDate: "", referenceNumber: ""
+      setNewPayment({
+        invoiceId: "", 
+        studentId: "", 
+        amount: "", 
+        paymentMethod: "", 
+        transactionDate: "", 
+        referenceNumber: ""
       });
-      // Re-fetch all payments to ensure the local state is fully synchronized
+
       const updatedPayments = await getPayments();
       setPayments(updatedPayments.map(p => ({
         ...p,
         transactionDate: p.transactionDate instanceof Date ? p.transactionDate.toISOString() : p.transactionDate,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create payment.");
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to create payment.");
     }
   };
 
-  // Handle delete payment action
   const handleDeletePayment = async (paymentId: number) => {
     setFormError(null);
     setFormSuccess(null);
@@ -161,13 +171,13 @@ export default function PaymentsClientComponent({ initialPayments, referenceData
     try {
       const result = await deletePayment(paymentId);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to delete payment.") : null);
+        setFormError(result.error ?? "Failed to delete payment.");
         return;
       }
       setFormSuccess('Payment deleted successfully!');
-      setPayments(payments.filter((payment) => payment.id !== paymentId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete payment.");
+      setPayments(payments.filter(payment => payment.id !== paymentId));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete payment.");
     }
   };
 
@@ -183,16 +193,17 @@ export default function PaymentsClientComponent({ initialPayments, referenceData
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
-            <option className="bg-emerald-800" value="invoiceId">Invoice</option>
-            <option className="bg-emerald-800" value="studentId">Student</option>
-            <option className="bg-emerald-800" value="paymentMethod">Payment Method</option>
-            <option className="bg-emerald-800" value="id">ID</option>
-          </select>
+<select
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+  value={filterBy}
+  // Tell TypeScript that we know e.target.value is a valid key of Payment
+  onChange={(e) => setFilterBy(e.target.value as keyof Payment)}
+>
+  <option className="bg-emerald-800" value="invoiceId">Invoice</option>
+  <option className="bg-emerald-800" value="studentId">Student</option>
+  <option className="bg-emerald-800" value="paymentMethod">Payment Method</option>
+  <option className="bg-emerald-800" value="id">ID</option>
+</select>
         </div>
         <button
           className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"

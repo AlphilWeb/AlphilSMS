@@ -4,14 +4,11 @@
 import { db, testConnection } from '@/lib/db';
 import { 
   students, 
-  programs, 
-  departments,
-  semesters,
+
   enrollments,
-  grades,
   transcripts
 } from '@/lib/db/schema';
-import { and, eq, sql, desc, asc, gte, lte, isNotNull, or, inArray, isNull } from 'drizzle-orm';
+import { and, eq, sql, or, inArray } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 export type GraduationListFilters = {

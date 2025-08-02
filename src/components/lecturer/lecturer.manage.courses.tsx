@@ -25,7 +25,7 @@ type TimetableEntry = {
 
 import {
   FiBook, FiUsers, FiFileText, FiClock, FiUpload, 
-  FiTrash2, FiDownload, FiPlus, FiChevronRight
+  FiTrash2, FiDownload, FiChevronRight
 } from 'react-icons/fi';
 
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
@@ -82,7 +82,7 @@ export default function LecturerCoursesClient() {
       }));
       setError(null);
       
-      const [details, mats, enrolls, timetable] = await Promise.all([
+      const [details, mats, enrolls] = await Promise.all([
         getCourseDetails(courseId),
         getCourseMaterials(courseId),
         getCourseEnrollments(courseId),

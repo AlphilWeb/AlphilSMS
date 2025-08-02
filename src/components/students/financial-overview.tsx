@@ -18,7 +18,7 @@ export default function FinancialOverview({
   }[];
   programName: string;
 }) {
-  const totalDue = invoices.reduce((sum, invoice) => sum + parseFloat(invoice.amountDue), 0);
+  // const totalDue = invoices.reduce((sum, invoice) => sum + parseFloat(invoice.amountDue), 0);
   const totalPaid = payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
   const outstandingBalance = invoices.reduce((sum, invoice) => sum + parseFloat(invoice.balance), 0);
 

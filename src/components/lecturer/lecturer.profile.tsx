@@ -1,11 +1,11 @@
 'use client';
 
-import { FiEdit, FiSave, FiUser, FiMail, FiBriefcase, FiHash, FiCalendar, FiFileText } from 'react-icons/fi';
+import { FiEdit, FiSave, FiUser, FiMail, FiBriefcase, FiCalendar, FiFileText } from 'react-icons/fi';
 import { useState } from 'react';
 import { updateLecturerProfile, updateLecturerDocuments } from '@/lib/actions/lecturer.profile.actions';
 import { useFormState, useFormStatus } from 'react-dom';
 import Image from 'next/image';
-import { object } from 'zod';
+// import { object } from 'zod';
 
 type ProfileState = {
   success?: string;

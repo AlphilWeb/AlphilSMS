@@ -6,7 +6,7 @@ import { BsPeopleFill } from "react-icons/bs";
 import UsersNav from "@/components/userNav";
 import UsersClientComponent from "@/components/users/users-client-component";
 import { db } from '@/lib/db'; // Import db to fetch roles
-import { roles } from '@/lib/db/schema'; // Import roles schema
+// import { roles } from '@/lib/db/schema'; // Import roles schema
 
 export const dynamic = 'force-dynamic';
 

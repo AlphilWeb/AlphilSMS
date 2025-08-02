@@ -25,9 +25,9 @@ const ROLES = {
   STUDENT: 'Student',
 };
 
-function allowedRolesForManagingPrograms() {
-  return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.HOD];
-}
+// function allowedRolesForManagingPrograms() {
+//   return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.HOD];
+// }
 
 function allowedRolesForViewingPrograms() {
   // All users might need to see programs
@@ -86,10 +86,11 @@ export async function createProgram(formData: FormData) {
     revalidatePath(`/dashboard/departments/${departmentId}`); // Revalidate department page
     return { success: 'Program created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_PROGRAM_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create program due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -155,10 +156,11 @@ export async function updateProgram(programId: number, formData: FormData) {
     }
     return { success: 'Program updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_PROGRAM_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update program due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -198,10 +200,11 @@ export async function deleteProgram(programId: number) {
     revalidatePath(`/dashboard/departments/${programRecord.departmentId}`); // Revalidate department page
     return { success: 'Program deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_PROGRAM_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete program due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -236,10 +239,11 @@ export async function getPrograms() {
     }));
 
     return allPrograms;
-  } catch (err: any) {
-    console.error('[GET_PROGRAMS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch programs due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -280,8 +284,9 @@ export async function getProgramById(id: number) {
       departmentName: program.departmentName || null,
     };
 
-  } catch (err: any) {
-    console.error('[GET_PROGRAM_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch program due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

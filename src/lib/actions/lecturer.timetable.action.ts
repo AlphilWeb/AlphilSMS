@@ -3,8 +3,8 @@
 import { db } from '@/lib/db';
 import { timetables, courses, semesters } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { getAuthUser, getAuthUserFromRequest } from '@/lib/auth';
-import { checkPermission } from '@/lib/rbac';
+import { getAuthUser } from '@/lib/auth';
+// import { checkPermission } from '@/lib/rbac';
 
 export async function getMyTimetable() {
     const authUser = await getAuthUser();

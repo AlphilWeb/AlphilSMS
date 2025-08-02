@@ -1,4 +1,3 @@
-// components/registrar/courses/course-form.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +5,10 @@ import { useForm } from 'react-hook-form';
 import { FiSave, FiX, FiCheck } from 'react-icons/fi';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getProgramsForSelect, getSemestersForSelect } from '@/lib/actions/registrar.courses.action';
+import {
+  getProgramsForSelect,
+  getSemestersForSelect,
+} from '@/lib/actions/registrar.courses.action';
 
 const courseSchema = z.object({
   programId: z.number().min(1, 'Program is required'),
@@ -18,6 +20,17 @@ const courseSchema = z.object({
 });
 
 type CourseFormValues = z.infer<typeof courseSchema>;
+
+type Program = {
+  id: number;
+  name: string;
+  code: string;
+};
+
+type Semester = {
+  id: number;
+  name: string;
+};
 
 export default function CourseForm({
   initialData,
@@ -32,15 +45,15 @@ export default function CourseForm({
   title?: string;
   formStatus?: { success: string | null; error: string | null };
 }) {
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [semesters, setSemesters] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [semesters, setSemesters] = useState<Semester[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
+    
   } = useForm<CourseFormValues>({
     resolver: zodResolver(courseSchema),
     defaultValues: initialData || {
@@ -78,17 +91,16 @@ export default function CourseForm({
     <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl">
       <div className="flex justify-between items-center border-b p-6">
         <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-        <button 
+        <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
         >
           <FiX size={24} />
         </button>
       </div>
-      
+
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <div className="p-6 space-y-4">
-          {/* Status Messages */}
           {formStatus?.error && (
             <div className="p-2 bg-red-100 text-red-700 rounded flex gap-2 items-center">
               <FiX /> {formStatus.error}
@@ -100,13 +112,15 @@ export default function CourseForm({
             </div>
           )}
 
-          {/* Form Fields */}
+          {/* Program */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Program</label>
             <select
               {...register('programId', { valueAsNumber: true })}
               className={`w-full px-4 py-2.5 border rounded-lg ${
-                errors.programId ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-emerald-500'
+                errors.programId
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-emerald-500'
               }`}
             >
               <option value={0}>Select a program</option>
@@ -121,12 +135,15 @@ export default function CourseForm({
             )}
           </div>
 
+          {/* Semester */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Semester</label>
             <select
               {...register('semesterId', { valueAsNumber: true })}
               className={`w-full px-4 py-2.5 border rounded-lg ${
-                errors.semesterId ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-emerald-500'
+                errors.semesterId
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-emerald-500'
               }`}
             >
               <option value={0}>Select a semester</option>
@@ -141,13 +158,16 @@ export default function CourseForm({
             )}
           </div>
 
+          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
             <input
               type="text"
               {...register('name')}
               className={`w-full px-4 py-2.5 border rounded-lg ${
-                errors.name ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-emerald-500'
+                errors.name
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-emerald-500'
               }`}
             />
             {errors.name && (
@@ -155,13 +175,16 @@ export default function CourseForm({
             )}
           </div>
 
+          {/* Code */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
             <input
               type="text"
               {...register('code')}
               className={`w-full px-4 py-2.5 border rounded-lg ${
-                errors.code ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-emerald-500'
+                errors.code
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-emerald-500'
               }`}
             />
             {errors.code && (
@@ -169,6 +192,7 @@ export default function CourseForm({
             )}
           </div>
 
+          {/* Credits */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Credits</label>
             <input
@@ -177,7 +201,9 @@ export default function CourseForm({
               min="0.5"
               {...register('credits', { valueAsNumber: true })}
               className={`w-full px-4 py-2.5 border rounded-lg ${
-                errors.credits ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-emerald-500'
+                errors.credits
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-emerald-500'
               }`}
             />
             {errors.credits && (
@@ -185,8 +211,11 @@ export default function CourseForm({
             )}
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description (Optional)
+            </label>
             <textarea
               {...register('description')}
               rows={3}

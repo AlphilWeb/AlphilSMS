@@ -6,7 +6,6 @@ import {
   getCourseMaterials,
   getCourseAssignments,
   getCourseQuizzes,
-  recordMaterialView,
   submitAssignment,
   submitQuiz
 } from '@/lib/actions/student.course.actions';
@@ -62,10 +61,9 @@ interface StudentCourseManagerProps {
 
 export default function StudentCourseManager({
   enrolledCourses: initialEnrolledCourses,
-  availableCourses: initialAvailableCourses
 }: StudentCourseManagerProps) {
-  const [enrolledCourses] = useState(initialEnrolledCourses);
-  const [availableCourses] = useState(initialAvailableCourses);
+  // const [enrolledCourses] = useState(initialEnrolledCourses);
+  // const [availableCourses] = useState(initialAvailableCourses);
   const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(
     initialEnrolledCourses[0] || null
   );
@@ -129,17 +127,17 @@ export default function StudentCourseManager({
     fetchCourseDetails();
   }, [selectedCourse]);
 
-  // Handle material view
-  const handleMaterialView = async (materialId: number) => {
-    try {
-      await recordMaterialView(materialId);
-      setMaterials(materials.map(m => 
-        m.id === materialId ? { ...m, viewed: true } : m
-      ));
-    } catch (err) {
-      console.error('Failed to record material view:', err);
-    }
-  };
+  // // Handle material view
+  // const handleMaterialView = async (materialId: number) => {
+  //   try {
+  //     await recordMaterialView(materialId);
+  //     setMaterials(materials.map(m => 
+  //       m.id === materialId ? { ...m, viewed: true } : m
+  //     ));
+  //   } catch (err) {
+  //     console.error('Failed to record material view:', err);
+  //   }
+  // };
 
   // Handle assignment submission
   const handleAssignmentSubmit = async () => {

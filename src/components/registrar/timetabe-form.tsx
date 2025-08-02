@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { FiSave, FiX, FiCheck, FiClock, FiCalendar } from 'react-icons/fi';
+import { FiSave, FiX, FiCheck, FiClock } from 'react-icons/fi';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { 
-  getSemestersForSelect, 
+import {
+  getSemestersForSelect,
   getCoursesForSelect,
   getLecturersForSelect
 } from '@/lib/actions/registrar.timetable.action';
@@ -23,6 +23,24 @@ const timetableSchema = z.object({
 });
 
 type TimetableFormValues = z.infer<typeof timetableSchema>;
+
+// Define interfaces for your data
+interface SelectOption {
+  id: number;
+  name: string;
+}
+
+interface CourseOption {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface LecturerOption {
+  id: number;
+  firstName: string;
+  lastName: string;
+}
 
 const daysOfWeek = [
   'Monday',
@@ -47,11 +65,12 @@ export default function TimetableForm({
   title?: string;
   formStatus?: { success: string | null; error: string | null };
 }) {
-  const [semesters, setSemesters] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [lecturers, setLecturers] = useState<any[]>([]);
+  // Use the new interfaces for the state
+  const [semesters, setSemesters] = useState<SelectOption[]>([]);
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [lecturers, setLecturers] = useState<LecturerOption[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   const {
     register,
     handleSubmit,
@@ -71,6 +90,7 @@ export default function TimetableForm({
 
   useEffect(() => {
     const fetchData = async () => {
+      // The action functions should return these specific types
       const [semestersData, coursesData, lecturersData] = await Promise.all([
         getSemestersForSelect(),
         getCoursesForSelect(),
@@ -96,14 +116,14 @@ export default function TimetableForm({
     <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl">
       <div className="flex justify-between items-center border-b p-6">
         <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-        <button 
+        <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
         >
           <FiX size={24} />
         </button>
       </div>
-      
+
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <div className="p-6 space-y-4">
           {/* Status Messages */}

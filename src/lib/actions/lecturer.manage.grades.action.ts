@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { grades, enrollments, courses, students } from '@/lib/db/schema';
-import { and, eq, desc } from 'drizzle-orm';
+import {  eq, desc } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 

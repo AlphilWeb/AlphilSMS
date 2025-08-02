@@ -5,12 +5,11 @@ import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createSemester, updateSemester, deleteSemester, getSemesters } from "@/lib/actions/semester.action";
 
-// Define the interface for a Semester based on your Drizzle schema
 interface Semester {
   id: number;
   name: string;
-  startDate: string; // mode: 'string' for date
-  endDate: string;   // mode: 'string' for date
+  startDate: string;
+  endDate: string;
 }
 
 interface SemestersClientComponentProps {
@@ -19,14 +18,13 @@ interface SemestersClientComponentProps {
 
 export default function SemestersClientComponent({ initialSemesters }: SemestersClientComponentProps) {
   const [semesters, setSemesters] = useState<Semester[]>(initialSemesters);
-  const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("name"); // Default filter
-  const [selectedSemesterId, setSelectedSemesterId] = useState<number | null>(null);
+  const [search, setSearch] = useState<string>("");
+  const [filterBy] = useState<keyof Semester>("name");
   const [editId, setEditId] = useState<number | null>(null);
   const [editedSemester, setEditedSemester] = useState<Partial<Semester>>({});
   const [showDetails, setShowDetails] = useState<Semester | null>(null);
-  const [showAddSemester, setShowAddSemester] = useState(false);
-  const [newSemester, setNewSemester] = useState({
+  const [showAddSemester, setShowAddSemester] = useState<boolean>(false);
+  const [newSemester, setNewSemester] = useState<Omit<Semester, "id">>({
     name: "",
     startDate: "",
     endDate: "",
@@ -34,13 +32,11 @@ export default function SemestersClientComponent({ initialSemesters }: Semesters
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Filter semesters based on search and filterBy criteria
-  const filteredSemesters = semesters.filter((semester: Semester) => {
-    const value = (semester as any)[filterBy]?.toString().toLowerCase();
-    return value ? value.includes(search.toLowerCase()) : false;
+  const filteredSemesters = semesters.filter((semester) => {
+    const value = semester[filterBy]?.toString().toLowerCase();
+    return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
   const handleEdit = (semester: Semester) => {
     setEditId(semester.id);
     setEditedSemester(semester);
@@ -48,50 +44,51 @@ export default function SemestersClientComponent({ initialSemesters }: Semesters
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updateSemester(id, formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to update semester.") : null);
+        setFormError("Failed to update semester.");
         return;
       }
-      setFormSuccess('Semester updated successfully!');
+      setFormSuccess("Semester updated successfully!");
       setEditId(null);
-      // Re-fetch all semesters to ensure the local state is fully synchronized
       const updatedSemesters = await getSemesters();
       setSemesters(updatedSemesters);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update semester.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Unknown error occurred.");
+      }
     }
   };
 
-  // Handle add new semester action
   const handleAddSemester = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createSemester(formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to create semester.") : null);
+        setFormError("Failed to create semester.");
         return;
       }
-      setFormSuccess('Semester created successfully!');
+      setFormSuccess("Semester created successfully!");
       setShowAddSemester(false);
-      setNewSemester({ // Reset form fields
-        name: "", startDate: "", endDate: ""
-      });
-      // Re-fetch all semesters to ensure the local state is fully synchronized
+      setNewSemester({ name: "", startDate: "", endDate: "" });
       const updatedSemesters = await getSemesters();
       setSemesters(updatedSemesters);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create semester.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Unknown error occurred.");
+      }
     }
   };
 
-  // Handle delete semester action
   const handleDeleteSemester = async (semesterId: number) => {
     setFormError(null);
     setFormSuccess(null);
@@ -99,15 +96,30 @@ export default function SemestersClientComponent({ initialSemesters }: Semesters
     try {
       const result = await deleteSemester(semesterId);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to delete semester.") : null);
+        setFormError("Failed to delete semester.");
         return;
       }
-      setFormSuccess('Semester deleted successfully!');
-      setSemesters(semesters.filter((semester) => semester.id !== semesterId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete semester.");
+      setFormSuccess("Semester deleted successfully!");
+      setSemesters((prev) => prev.filter((s) => s.id !== semesterId));
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Unknown error occurred.");
+      }
     }
   };
+
+  // const handleNewSemesterChange = (e: ChangeEvent<HTMLInputElement>) => {
+  //   const { name, value } = e.target;
+  //   setNewSemester((prev) => ({ ...prev, [name]: value }));
+  // };
+
+  // const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value);
+
+  // const handleFilterChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  //   setFilterBy(e.target.value as keyof Semester);
+  // };
 
   return (
     <>
@@ -121,7 +133,7 @@ export default function SemestersClientComponent({ initialSemesters }: Semesters
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
+          {/* <select
             className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
             value={filterBy}
             onChange={(e) => setFilterBy(e.target.value)}
@@ -130,7 +142,7 @@ export default function SemestersClientComponent({ initialSemesters }: Semesters
             <option className="bg-emerald-800" value="id">ID</option>
             <option className="bg-emerald-800" value="startDate">Start Date</option>
             <option className="bg-emerald-800" value="endDate">End Date</option>
-          </select>
+          </select> */}
         </div>
         <button
           className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"

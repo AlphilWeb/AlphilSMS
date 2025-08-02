@@ -1,9 +1,7 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
     <>
-      <p>'/' path page</p>
+      <p>&apos;/&apos; path page</p>
     </>  
   );
 }

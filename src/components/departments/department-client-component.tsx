@@ -5,16 +5,25 @@ import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createDepartment, updateDepartment, deleteDepartment, getDepartments } from "@/lib/actions/department.action";
 
-// Define the interface for a Department based on your schema's SelectDepartment
 interface Department {
   id: number;
   name: string;
   headOfDepartmentId: number | null;
 }
 
-// Define the interface for reference data (for headOfDepartmentId dropdown)
+interface StaffMember {
+  id: number;
+  firstName: string;
+  lastName: string;
+}
+
 interface ReferenceData {
-  staff: { id: number; firstName: string; lastName: string }[];
+  staff: StaffMember[];
+}
+
+interface NewDepartmentForm {
+  name: string;
+  headOfDepartmentId: string;
 }
 
 interface DepartmentsClientComponentProps {
@@ -22,80 +31,78 @@ interface DepartmentsClientComponentProps {
   referenceData: ReferenceData;
 }
 
-export default function DepartmentsClientComponent({ initialDepartments, referenceData }: DepartmentsClientComponentProps) {
+type DepartmentFilterField = 'name' | 'id' | 'headOfDepartmentId';
+
+export default function DepartmentsClientComponent({ 
+  initialDepartments, 
+  referenceData 
+}: DepartmentsClientComponentProps) {
   const [departments, setDepartments] = useState<Department[]>(initialDepartments);
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("name"); // Default filter
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+  const [filterBy, setFilterBy] = useState<DepartmentFilterField>('name');
   const [editId, setEditId] = useState<number | null>(null);
   const [editedDepartment, setEditedDepartment] = useState<Partial<Department>>({});
   const [showDetails, setShowDetails] = useState<Department | null>(null);
   const [showAddDepartment, setShowAddDepartment] = useState(false);
-  const [newDepartment, setNewDepartment] = useState({
+  const [newDepartment, setNewDepartment] = useState<NewDepartmentForm>({
     name: "",
-    headOfDepartmentId: "", // Keep as string for select value
+    headOfDepartmentId: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Filter departments based on search and filterBy criteria
-  const filteredDepartments = departments.filter((department: Department) => {
-    const value = (department as any)[filterBy]?.toString().toLowerCase();
-    return value ? value.includes(search.toLowerCase()) : false;
+  const filteredDepartments = departments.filter((department) => {
+    const value = department[filterBy]?.toString().toLowerCase() || '';
+    return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
   const handleEdit = (department: Department) => {
     setEditId(department.id);
-    setEditedDepartment(department);
+    setEditedDepartment({ ...department });
     setFormError(null);
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updateDepartment(id, formData);
-      if (result?.error) {
-        setFormError(result.error ? String(result.error) : null);
+      if ('error' in result) {
+        setFormError(result.error || "Failed to update department.");
         return;
       }
       setFormSuccess('Department updated successfully!');
       setEditId(null);
-      // Re-fetch all departments to ensure the local state is fully synchronized
       const updatedDepartments = await getDepartments();
       setDepartments(updatedDepartments);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update department.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to update department.");
     }
   };
 
-  // Handle add new department action
   const handleAddDepartment = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createDepartment(formData);
       if ('error' in result) {
-        setFormError(result.error ?? "Failed to create department.");
+        setFormError(result.error || "Failed to create department.");
         return;
       }
       setFormSuccess('Department created successfully!');
       setShowAddDepartment(false);
-      setNewDepartment({ // Reset form fields
-        name: "", headOfDepartmentId: ""
+      setNewDepartment({
+        name: "", 
+        headOfDepartmentId: ""
       });
-      // Re-fetch all departments to ensure the local state is fully synchronized
       const updatedDepartments = await getDepartments();
       setDepartments(updatedDepartments);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create department.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to create department.");
     }
   };
 
-  // Handle delete department action
   const handleDeleteDepartment = async (departmentId: number) => {
     setFormError(null);
     setFormSuccess(null);
@@ -103,19 +110,26 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
     try {
       const result = await deleteDepartment(departmentId);
       if ('error' in result) {
-        setFormError(result.error ? String(result.error) : null);
+        setFormError(result.error || "Failed to delete department.");
         return;
       }
       setFormSuccess('Department deleted successfully!');
       setDepartments(departments.filter((department) => department.id !== departmentId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete department.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete department.");
     }
+  };
+
+  const getHeadOfDepartmentName = (headId: number | null): string => {
+    if (!headId) return 'N/A';
+    const staffMember = referenceData.staff.find(s => s.id === headId);
+    return staffMember 
+      ? `${staffMember.firstName} ${staffMember.lastName} (ID: ${headId})`
+      : `ID: ${headId}`;
   };
 
   return (
     <>
-      {/* Search and filter bar */}
       <div className="sticky top-[150px] z-20 px-12 py-4 bg-emerald-800 flex flex-wrap justify-between items-center gap-4 shadow-md">
         <div className="flex items-center gap-4">
           <input
@@ -128,11 +142,11 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
           <select
             className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
             value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
+            onChange={(e) => setFilterBy(e.target.value as DepartmentFilterField)}
           >
-            <option className="bg-emerald-800" value="name">Name</option>
-            <option className="bg-emerald-800" value="id">ID</option>
-            <option className="bg-emerald-800" value="headOfDepartmentId">Head ID</option>
+            <option value="name">Name</option>
+            <option value="id">ID</option>
+            <option value="headOfDepartmentId">Head ID</option>
           </select>
         </div>
         <button
@@ -143,7 +157,6 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
         </button>
       </div>
 
-      {/* Status messages */}
       {formError && (
         <div className="mx-8 mt-4 p-3 bg-red-500/90 text-white rounded-lg shadow flex items-center gap-2">
           <FiX className="flex-shrink-0" />
@@ -157,7 +170,6 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
         </div>
       )}
 
-      {/* Table section */}
       <div className="px-12 py-6 h-[calc(100vh-250px)] overflow-hidden">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden h-full flex flex-col border border-white/20">
           <div className="overflow-x-auto h-full">
@@ -168,12 +180,12 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
                     <tr>
                       <th className="p-4 text-left w-20">ID</th>
                       <th className="p-4 text-left">Name</th>
-                      <th className="p-4 text-left">Head of Department (ID)</th>
+                      <th className="p-4 text-left">Head of Department</th>
                       <th className="p-4 text-left w-40">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200/50">
-                    {filteredDepartments.map((department: Department) => (
+                    {filteredDepartments.map((department) => (
                       <tr key={department.id} className="hover:bg-emerald-50/50 transition-colors">
                         <td className="p-4 font-medium">{department.id}</td>
                         <td className="p-4">
@@ -192,24 +204,20 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
                             <select
                               className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedDepartment.headOfDepartmentId || ''}
-                              onChange={(e) => setEditedDepartment({ ...editedDepartment, headOfDepartmentId: Number(e.target.value) || null })}
+                              onChange={(e) => setEditedDepartment({ 
+                                ...editedDepartment, 
+                                headOfDepartmentId: e.target.value ? Number(e.target.value) : null 
+                              })}
                             >
-                              <option className="bg-emerald-800 text-white" value="">None</option>
+                              <option value="">None</option>
                               {referenceData.staff.map((staffMember) => (
-                                <option className="bg-emerald-800 text-white" key={staffMember.id} value={staffMember.id}>
+                                <option key={staffMember.id} value={staffMember.id}>
                                   {staffMember.firstName} {staffMember.lastName} (ID: {staffMember.id})
                                 </option>
                               ))}
                             </select>
                           ) : (
-                            department.headOfDepartmentId ? (
-                              // Find the staff member's name for display
-                              referenceData.staff.find(s => s.id === department.headOfDepartmentId)?.firstName + ' ' +
-                              referenceData.staff.find(s => s.id === department.headOfDepartmentId)?.lastName +
-                              ` (ID: ${department.headOfDepartmentId})`
-                            ) : (
-                              'N/A'
-                            )
+                            getHeadOfDepartmentName(department.headOfDepartmentId)
                           )}
                         </td>
                         <td className="p-4 flex gap-3 items-center">
@@ -220,8 +228,12 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
                                 onClick={() => {
                                   const formData = new FormData();
                                   if (editedDepartment.name) formData.append('name', editedDepartment.name);
-                                  // Append headOfDepartmentId as string, handling null explicitly
-                                  formData.append('headOfDepartmentId', editedDepartment.headOfDepartmentId !== null && editedDepartment.headOfDepartmentId !== undefined ? String(editedDepartment.headOfDepartmentId) : '');
+                                  formData.append(
+                                    'headOfDepartmentId', 
+                                    editedDepartment.headOfDepartmentId !== null && editedDepartment.headOfDepartmentId !== undefined 
+                                      ? String(editedDepartment.headOfDepartmentId) 
+                                      : ''
+                                  );
                                   handleSave(department.id, formData);
                                 }}
                               >
@@ -270,7 +282,6 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
         </div>
       </div>
 
-      {/* Add Department Modal */}
       {showAddDepartment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl">
@@ -284,7 +295,7 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
               </button>
             </div>
             <form action={handleAddDepartment}>
-              <div className="grid grid-cols-1 gap-6 p-6"> {/* Changed to 1 column for simplicity */}
+              <div className="grid grid-cols-1 gap-6 p-6">
                 <div>
                   <label htmlFor="departmentName" className="block mb-2 text-sm font-medium text-gray-700">Department Name</label>
                   <input
@@ -306,9 +317,9 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
                     value={newDepartment.headOfDepartmentId}
                     onChange={(e) => setNewDepartment({ ...newDepartment, headOfDepartmentId: e.target.value })}
                   >
-                    <option className="bg-emerald-800 text-white" value="">None</option>
+                    <option value="">None</option>
                     {referenceData.staff.map((staffMember) => (
-                      <option className="bg-emerald-800 text-white" key={staffMember.id} value={staffMember.id}>
+                      <option key={staffMember.id} value={staffMember.id}>
                         {staffMember.firstName} {staffMember.lastName} (ID: {staffMember.id})
                       </option>
                     ))}
@@ -335,7 +346,6 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
         </div>
       )}
 
-      {/* View Details Modal */}
       {showDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full">
@@ -361,13 +371,7 @@ export default function DepartmentsClientComponent({ initialDepartments, referen
                 <div>
                   <p className="text-sm text-gray-500">Head of Department</p>
                   <p className="font-medium text-gray-800">
-                    {showDetails.headOfDepartmentId ? (
-                      referenceData.staff.find(s => s.id === showDetails.headOfDepartmentId)?.firstName + ' ' +
-                      referenceData.staff.find(s => s.id === showDetails.headOfDepartmentId)?.lastName +
-                      ` (ID: ${showDetails.headOfDepartmentId})`
-                    ) : (
-                      'N/A'
-                    )}
+                    {getHeadOfDepartmentName(showDetails.headOfDepartmentId)}
                   </p>
                 </div>
               </div>

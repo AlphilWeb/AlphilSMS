@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  getLecturerGrades,
+  // getLecturerGrades,
   updateGrade,
 } from '@/lib/actions/lecturer.manage.grades.action';
 import type { GradeWithStudentAndCourse } from '@/lib/actions/lecturer.manage.grades.action';

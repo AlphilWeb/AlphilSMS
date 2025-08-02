@@ -6,11 +6,9 @@ import {
   students, 
   enrollments, 
   transcripts, 
-  programs,
-  semesters,
-  userLogs  
+
 } from '@/lib/db/schema';
-import { and, eq, sql, desc, count, gte, lte, isNull } from 'drizzle-orm';
+import { and, eq, count, gte, isNull } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { format } from 'date-fns';
 

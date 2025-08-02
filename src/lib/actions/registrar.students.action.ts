@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { students, users, programs, departments, semesters } from '@/lib/db/schema';
-import { and, eq, like, sql, asc, desc, or } from 'drizzle-orm';
+import { students } from '@/lib/db/schema';
+import {  eq, like, sql, asc, or } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 export async function searchStudents(query: string, page = 1, limit = 10) {

@@ -17,6 +17,12 @@ const programSchema = z.object({
 
 type ProgramFormValues = z.infer<typeof programSchema>;
 
+// Define a type for your department data
+interface Department {
+  id: number;
+  name: string;
+}
+
 export default function ProgramForm({
   initialData,
   onSubmit,
@@ -30,14 +36,15 @@ export default function ProgramForm({
   title?: string;
   formStatus?: { success: string | null; error: string | null };
 }) {
-  const [departments, setDepartments] = useState<any[]>([]);
+  // Use the new Department type instead of any[]
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
+
   } = useForm<ProgramFormValues>({
     resolver: zodResolver(programSchema),
     defaultValues: initialData || {
@@ -50,6 +57,7 @@ export default function ProgramForm({
 
   useEffect(() => {
     const fetchDepartments = async () => {
+      // Ensure getAllDepartments returns data of type Department[]
       const data = await getAllDepartments();
       setDepartments(data);
     };

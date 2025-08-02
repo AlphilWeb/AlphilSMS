@@ -1,24 +1,28 @@
-// components/userLogs/userLog-client-component.tsx
 'use client';
 
 import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createUserLog, updateUserLog, deleteUserLog, getUserLogs } from "@/lib/actions/userLog.action";
 
-// Define the interface for a UserLog based on your Drizzle schema
 interface UserLog {
   id: number;
   userId: number;
   action: string;
   targetTable: string | null;
   targetId: number | null;
-  timestamp: string; // Date object from DB, converted to ISO string for client
+  timestamp: string; // ISO string format
   description: string | null;
 }
 
-// Define the interface for reference data
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 interface ReferenceData {
-  users: { id: number; firstName: string; lastName: string; email: string }[];
+  users: User[];
 }
 
 interface UserLogsClientComponentProps {
@@ -26,123 +30,140 @@ interface UserLogsClientComponentProps {
   referenceData: ReferenceData;
 }
 
+type UserLogFilterField = 'userId' | 'action' | 'targetTable' | 'id';
+
+interface DatabaseUserLog {
+  id: number;
+  userId: number;
+  action: string;
+  targetTable: string | null;
+  targetId: number | null;
+  timestamp: Date; // Date object from database
+  description: string | null;
+}
+
 export default function UserLogsClientComponent({ initialUserLogs, referenceData }: UserLogsClientComponentProps) {
   const [userLogs, setUserLogs] = useState<UserLog[]>(initialUserLogs);
-  const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("userId"); // Default filter
-  const [selectedUserLogId, setSelectedUserLogId] = useState<number | null>(null);
+  const [search, setSearch] = useState<string>("");
+  const [filterBy, setFilterBy] = useState<UserLogFilterField>("userId");
   const [editId, setEditId] = useState<number | null>(null);
   const [editedUserLog, setEditedUserLog] = useState<Partial<UserLog>>({});
   const [showDetails, setShowDetails] = useState<UserLog | null>(null);
-  const [showAddUserLog, setShowAddUserLog] = useState(false);
-  const [newUserLog, setNewUserLog] = useState({
+  const [showAddUserLog, setShowAddUserLog] = useState<boolean>(false);
+  const [newUserLog, setNewUserLog] = useState<{
+    userId: string;
+    action: string;
+    targetTable: string;
+    targetId: string;
+    timestamp: string;
+    description: string;
+  }>({
     userId: "",
     action: "",
     targetTable: "",
     targetId: "",
-    timestamp: "", // Datetime-local input will be string
+    timestamp: "",
     description: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Helper to get user display name
-  const getUserDisplayName = (userId: number) => {
-    const user = referenceData.users.find(u => u.id === userId);
+  const getUserDisplayName = (userId: number): string => {
+    const user = referenceData.users.find((u: User) => u.id === userId);
     return user ? `${user.firstName} ${user.lastName} (${user.email})` : `User ID: ${userId}`;
   };
 
-  // Filter user logs based on search and filterBy criteria
   const filteredUserLogs = userLogs.filter((userLog: UserLog) => {
-    let value = '';
+    let value: string;
     if (filterBy === 'userId') {
       value = getUserDisplayName(userLog.userId).toLowerCase();
     } else {
-      value = (userLog as any)[filterBy]?.toString().toLowerCase() || '';
+      const fieldValue = userLog[filterBy as keyof UserLog];
+      value = fieldValue !== null && fieldValue !== undefined 
+        ? fieldValue.toString().toLowerCase() 
+        : '';
     }
     return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
-  const handleEdit = (userLog: UserLog) => {
+  const handleEdit = (userLog: UserLog): void => {
     setEditId(userLog.id);
     setEditedUserLog({
       ...userLog,
       action: userLog.action || '',
       targetTable: userLog.targetTable || '',
-      targetId: userLog.targetId, // Assign directly as number | null
+      targetId: userLog.targetId,
       description: userLog.description || '',
-      // Ensure timestamp is formatted for datetime-local input
       timestamp: userLog.timestamp ? new Date(userLog.timestamp).toISOString().slice(0, 16) : '',
     });
     setFormError(null);
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
-  const handleSave = async (id: number, formData: FormData) => {
+  const handleSave = async (id: number, formData: FormData): Promise<void> => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updateUserLog(id, formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to update user log.") : null);
+        setFormError(result.error ? "Failed to update user log." : null);
         return;
       }
       setFormSuccess('User log updated successfully!');
       setEditId(null);
-      // Re-fetch all user logs to ensure the local state is fully synchronized
       const updatedUserLogs = await getUserLogs();
-      setUserLogs(updatedUserLogs.map(log => ({
+      setUserLogs(updatedUserLogs.map((log: DatabaseUserLog) => ({
         ...log,
-        timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp,
+        timestamp: log.timestamp.toISOString(),
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update user log.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to update user log.");
     }
   };
 
-  // Handle add new user log action
-  const handleAddUserLog = async (formData: FormData) => {
+  const handleAddUserLog = async (formData: FormData): Promise<void> => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createUserLog(formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to create user log.") : null);
+        setFormError(result.error ? "Failed to create user log." : null);
         return;
       }
       setFormSuccess('User log created successfully!');
       setShowAddUserLog(false);
-      setNewUserLog({ // Reset form fields
-        userId: "", action: "", targetTable: "", targetId: "", timestamp: "", description: ""
+      setNewUserLog({
+        userId: "", 
+        action: "", 
+        targetTable: "", 
+        targetId: "", 
+        timestamp: "", 
+        description: ""
       });
-      // Re-fetch all user logs to ensure the local state is fully synchronized
       const updatedUserLogs = await getUserLogs();
-      setUserLogs(updatedUserLogs.map(log => ({
+      setUserLogs(updatedUserLogs.map((log: DatabaseUserLog) => ({
         ...log,
-        timestamp: log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp,
+        timestamp: log.timestamp.toISOString(),
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create user log.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to create user log.");
     }
   };
 
-  // Handle delete user log action
-  const handleDeleteUserLog = async (userLogId: number) => {
+  const handleDeleteUserLog = async (userLogId: number): Promise<void> => {
     setFormError(null);
     setFormSuccess(null);
     if (!confirm("Are you sure you want to delete this user log? This action cannot be undone.")) return;
     try {
       const result = await deleteUserLog(userLogId);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to delete user log.") : null);
+        setFormError(result.error ? "Failed to delete user log." : null);
         return;
       }
       setFormSuccess('User log deleted successfully!');
-      setUserLogs(userLogs.filter((userLog) => userLog.id !== userLogId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete user log.");
+      setUserLogs(userLogs.filter((userLog: UserLog) => userLog.id !== userLogId));
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete user log.");
     }
   };
 
@@ -158,16 +179,17 @@ export default function UserLogsClientComponent({ initialUserLogs, referenceData
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
-            <option className="bg-emerald-800" value="userId">User</option>
-            <option className="bg-emerald-800" value="action">Action</option>
-            <option className="bg-emerald-800" value="targetTable">Target Table</option>
-            <option className="bg-emerald-800" value="id">ID</option>
-          </select>
+<select
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+  value={filterBy}
+  // Assert the type to satisfy the state setter
+  onChange={(e) => setFilterBy(e.target.value as UserLogFilterField)}
+>
+  <option className="bg-emerald-800" value="userId">User</option>
+  <option className="bg-emerald-800" value="action">Action</option>
+  <option className="bg-emerald-800" value="targetTable">Target Table</option>
+  <option className="bg-emerald-800" value="id">ID</option>
+</select>
         </div>
         <button
           className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"

@@ -1,4 +1,3 @@
-// components/registrar/courses/courses-list.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,12 +5,38 @@ import { FiEdit, FiBook, FiLayers, FiTrash2, FiPlus } from 'react-icons/fi';
 import { deleteCourse } from '@/lib/actions/registrar.courses.action';
 import CourseForm from './course-form';
 
-export default function CoursesList({ courses }: { courses: any[] }) {
-  const [editCourse, setEditCourse] = useState<any | null>(null);
+// Define types for course structure
+type Program = {
+  id: number;
+  name: string;
+  code: string;
+};
+
+type Semester = {
+  id: number;
+  name: string;
+};
+
+type Course = {
+  id: number;
+  name: string;
+  code: string;
+  credits: number;
+  program?: Program;
+  semester?: Semester;
+};
+
+type FormStatus = {
+  success: string | null;
+  error: string | null;
+};
+
+export default function CoursesList({ courses }: { courses: Course[] }) {
+  const [editCourse, setEditCourse] = useState<Course | null>(null);
   const [showAddCourse, setShowAddCourse] = useState(false);
-  const [formStatus, setFormStatus] = useState<{ success: string | null; error: string | null }>({ 
-    success: null, 
-    error: null 
+  const [formStatus, setFormStatus] = useState<FormStatus>({
+    success: null,
+    error: null,
   });
 
   const handleDelete = async (courseId: number) => {
@@ -20,8 +45,12 @@ export default function CoursesList({ courses }: { courses: any[] }) {
       await deleteCourse(courseId);
       setFormStatus({ success: 'Course deleted successfully!', error: null });
       window.location.reload();
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to delete course.' });
+    } catch (error) {
+      const err = error as Error;
+      setFormStatus({
+        success: null,
+        error: err.message || 'Failed to delete course.',
+      });
     }
   };
 
@@ -41,19 +70,19 @@ export default function CoursesList({ courses }: { courses: any[] }) {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Course
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Program
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Semester
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Credits
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
@@ -108,19 +137,22 @@ export default function CoursesList({ courses }: { courses: any[] }) {
         </tbody>
       </table>
 
-      {/* Edit Course Modal */}
+      {/* Edit Modal */}
       {editCourse && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <CourseForm
             initialData={editCourse}
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               try {
-                // You would call updateCourse here
                 setFormStatus({ success: 'Course updated successfully!', error: null });
                 setEditCourse(null);
                 window.location.reload();
-              } catch (error: any) {
-                setFormStatus({ success: null, error: error.message || 'Failed to update course.' });
+              } catch (error) {
+                const err = error as Error;
+                setFormStatus({
+                  success: null,
+                  error: err.message || 'Failed to update course.',
+                });
               }
             }}
             onCancel={() => {
@@ -133,18 +165,21 @@ export default function CoursesList({ courses }: { courses: any[] }) {
         </div>
       )}
 
-      {/* Add Course Modal */}
+      {/* Add Modal */}
       {showAddCourse && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <CourseForm
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               try {
-                // You would call createCourse here
                 setFormStatus({ success: 'Course created successfully!', error: null });
                 setShowAddCourse(false);
                 window.location.reload();
-              } catch (error: any) {
-                setFormStatus({ success: null, error: error.message || 'Failed to create course.' });
+              } catch (error) {
+                const err = error as Error;
+                setFormStatus({
+                  success: null,
+                  error: err.message || 'Failed to create course.',
+                });
               }
             }}
             onCancel={() => {

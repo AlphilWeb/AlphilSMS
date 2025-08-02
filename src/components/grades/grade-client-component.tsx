@@ -5,18 +5,16 @@ import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createGrade, updateGrade, deleteGrade, getGrades } from "@/lib/actions/grade.action";
 
-// Define the interface for a Grade based on your Drizzle schema
 interface Grade {
   id: number;
   enrollmentId: number;
-  catScore: string | null; // Numeric types often come as string from DB, can be null
+  catScore: string | null;
   examScore: string | null;
   totalScore: string | null;
   letterGrade: string | null;
   gpa: string | null;
 }
 
-// Define the interface for reference data
 interface ReferenceData {
   enrollments: {
     id: number;
@@ -37,15 +35,21 @@ interface GradesClientComponentProps {
 
 export default function GradesClientComponent({ initialGrades, referenceData }: GradesClientComponentProps) {
   const [grades, setGrades] = useState<Grade[]>(initialGrades);
-  const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("enrollmentId"); // Default filter
-  const [selectedGradeId, setSelectedGradeId] = useState<number | null>(null);
+  const [search, setSearch] = useState<string>("");
+  const [filterBy, setFilterBy] = useState<'enrollmentId' | 'letterGrade' | 'id'>('enrollmentId');
   const [editId, setEditId] = useState<number | null>(null);
   const [editedGrade, setEditedGrade] = useState<Partial<Grade>>({});
   const [showDetails, setShowDetails] = useState<Grade | null>(null);
-  const [showAddGrade, setShowAddGrade] = useState(false);
-  const [newGrade, setNewGrade] = useState({
-    enrollmentId: "", // Keep as string for select value
+  const [showAddGrade, setShowAddGrade] = useState<boolean>(false);
+  const [newGrade, setNewGrade] = useState<{
+    enrollmentId: string;
+    catScore: string;
+    examScore: string;
+    totalScore: string;
+    letterGrade: string;
+    gpa: string;
+  }>({
+    enrollmentId: "",
     catScore: "",
     examScore: "",
     totalScore: "",
@@ -55,8 +59,7 @@ export default function GradesClientComponent({ initialGrades, referenceData }: 
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Helper to get display name for enrollment
-  const getEnrollmentDisplayName = (enrollmentId: number) => {
+  const getEnrollmentDisplayName = (enrollmentId: number): string => {
     const enrollment = referenceData.enrollments.find(e => e.id === enrollmentId);
     if (!enrollment) return `Enrollment ID: ${enrollmentId}`;
 
@@ -71,18 +74,18 @@ export default function GradesClientComponent({ initialGrades, referenceData }: 
     return `${studentName} - ${courseName} - ${semesterName}`;
   };
 
-  // Filter grades based on search and filterBy criteria
-  const filteredGrades = grades.filter((grade: Grade) => {
-    let value = '';
+  const filteredGrades = grades.filter((grade) => {
+    let value: string = '';
     if (filterBy === 'enrollmentId') {
       value = getEnrollmentDisplayName(grade.enrollmentId).toLowerCase();
-    } else {
-      value = (grade as any)[filterBy]?.toString().toLowerCase() || '';
+    } else if (filterBy === 'letterGrade') {
+      value = grade.letterGrade?.toLowerCase() || '';
+    } else if (filterBy === 'id') {
+      value = grade.id.toString().toLowerCase();
     }
     return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
   const handleEdit = (grade: Grade) => {
     setEditId(grade.id);
     setEditedGrade({
@@ -97,64 +100,62 @@ export default function GradesClientComponent({ initialGrades, referenceData }: 
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
-  const handleSave = async (id: number, formData: FormData) => {
+  const handleSave = async (id: number, formData: FormData): Promise<void> => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updateGrade(id, formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to update grade.") : null);
+        setFormError("Failed to update grade.");
         return;
       }
       setFormSuccess('Grade updated successfully!');
       setEditId(null);
-      // Re-fetch all grades to ensure the local state is fully synchronized
       const updatedGrades = await getGrades();
       setGrades(updatedGrades);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update grade.");
+    } catch (error) {
+      const err = error as Error;
+      setFormError(err.message || "Failed to update grade.");
     }
   };
 
-  // Handle add new grade action
-  const handleAddGrade = async (formData: FormData) => {
+  const handleAddGrade = async (formData: FormData): Promise<void> => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createGrade(formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to create grade.") : null);
+        setFormError("Failed to create grade.");
         return;
       }
       setFormSuccess('Grade created successfully!');
       setShowAddGrade(false);
-      setNewGrade({ // Reset form fields
+      setNewGrade({
         enrollmentId: "", catScore: "", examScore: "", totalScore: "", letterGrade: "", gpa: ""
       });
-      // Re-fetch all grades to ensure the local state is fully synchronized
       const updatedGrades = await getGrades();
       setGrades(updatedGrades);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create grade.");
+    } catch (error) {
+      const err = error as Error;
+      setFormError(err.message || "Failed to create grade.");
     }
   };
 
-  // Handle delete grade action
-  const handleDeleteGrade = async (gradeId: number) => {
+  const handleDeleteGrade = async (gradeId: number): Promise<void> => {
     setFormError(null);
     setFormSuccess(null);
     if (!confirm("Are you sure you want to delete this grade? This action cannot be undone.")) return;
     try {
       const result = await deleteGrade(gradeId);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to delete grade.") : null);
+        setFormError("Failed to delete grade.");
         return;
       }
       setFormSuccess('Grade deleted successfully!');
       setGrades(grades.filter((grade) => grade.id !== gradeId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete grade.");
+    } catch (error) {
+      const err = error as Error;
+      setFormError(err.message || "Failed to delete grade.");
     }
   };
 
@@ -170,11 +171,11 @@ export default function GradesClientComponent({ initialGrades, referenceData }: 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
+<select
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+  value={filterBy}
+  onChange={(e) => setFilterBy(e.target.value as 'enrollmentId' | 'letterGrade' | 'id')}
+>
             <option className="bg-emerald-800" value="enrollmentId">Enrollment</option>
             <option className="bg-emerald-800" value="letterGrade">Letter Grade</option>
             <option className="bg-emerald-800" value="id">ID</option>

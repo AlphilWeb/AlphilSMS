@@ -32,7 +32,8 @@ export async function verifyToken(token: string): Promise<AuthPayload> {
   try {
     return jwt.verify(token, secret) as AuthPayload;
   } catch (error) {
-    throw new AuthError('Invalid or expired token');
+    const message = error instanceof Error ? error.message : 'Invalid or expired token';
+    throw new AuthError(message);
   }
 }
 
@@ -43,17 +44,13 @@ export async function getAuthUser(): Promise<AuthPayload> {
     
     if (!token) {
       redirect('/login');
-      throw new AuthError('No token found');
     }
 
     return await verifyToken(token);
-  } catch (error) {
+  } catch {
     // Clear invalid token
-    (await
-      // Clear invalid token
-      cookies()).set('token', '', { expires: new Date(0) });
+    (await cookies()).set('token', '', { expires: new Date(0) });
     redirect('/login');
-    throw error;
   }
 }
 

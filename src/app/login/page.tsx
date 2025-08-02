@@ -1,9 +1,18 @@
-// app/login/page.tsx (updated)
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
+
+interface LoginResponse {
+  message: string;
+  token: string;
+  user: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,45 +20,59 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-  try {
-    const res = await fetchAPI("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const { data } = await fetchAPI<LoginResponse>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
 
-    const role = res?.data?.user?.role?.toLowerCase();
+      if (!data?.user || !data.token) {
+        throw new Error("Invalid response from server");
+      }
 
-    switch (role) {
-      case "admin":
-        router.push("/dashboard/admin");
-        break;
-      case "student":
-        router.push("/dashboard/student");
-        break;
-      case "registrar":
-        router.push("/dashboard/registrar");
-        break;
-      case "hod":
-        router.push("/dashboard/department-head");
-        break;
-      case "bursar":
-        router.push("/dashboard/finance");
-        break;
-      case "lecturer":
-        router.push("/dashboard/lecturer");
-        break;
-      default:
-        setError("Access denied: Invalid user role");
-        break;
+      const role = data.user.role.toLowerCase();
+
+      switch (role) {
+        case "admin":
+          router.push("/dashboard/admin");
+          break;
+        case "student":
+          router.push("/dashboard/student");
+          break;
+        case "registrar":
+          router.push("/dashboard/registrar");
+          break;
+        case "hod":
+          router.push("/dashboard/department-head");
+          break;
+        case "bursar":
+          router.push("/dashboard/finance");
+          break;
+        case "lecturer":
+          router.push("/dashboard/lecturer");
+          break;
+        default:
+          setError("Access denied: Invalid user role");
+          break;
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        // Handle API error messages
+        try {
+          const errorData = JSON.parse(err.message.replace('API error: ', ''));
+          setError(errorData.error || err.message);
+        } catch {
+          setError(err.message);
+        }
+      } else {
+        setError("An unknown error occurred");
+      }
     }
-  } catch (err: any) {
-    setError(err.message || "Login failed");
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-emerald-950">

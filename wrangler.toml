@@ -1,0 +1,7 @@
+name = "alphilcollegesms"
+compatibility_date = "2025-08-02"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "R2"  # Used in your code as env.R2
+bucket_name = "alphilsms"

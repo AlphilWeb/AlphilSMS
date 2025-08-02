@@ -6,7 +6,16 @@ import ErrorMessage from '@/components/ui/error-message';
 export default async function LecturerGradesPage() {
   try {
     // Fetch initial grades data from the server
-    const initialGrades = await getLecturerGrades();
+    const gradesData = await getLecturerGrades();
+
+    // Transform the data to match the expected types
+    const initialGrades = gradesData.map(grade => ({
+      ...grade,
+      catScore: grade.catScore ? parseFloat(grade.catScore) : null,
+      examScore: grade.examScore ? parseFloat(grade.examScore) : null,
+      totalScore: grade.totalScore ? parseFloat(grade.totalScore) : null,
+      gpa: grade.gpa ? parseFloat(grade.gpa) : null
+    }));
 
     return (
       <>
@@ -22,7 +31,7 @@ export default async function LecturerGradesPage() {
 
             {/* Main Grades Content */}
             <div className="bg-white rounded-lg shadow p-6">
-              {/* Pass the initial data to the client component */}
+              {/* Pass the transformed data to the client component */}
               <LecturerGradesManager initialGrades={initialGrades} />
             </div>
           </div>

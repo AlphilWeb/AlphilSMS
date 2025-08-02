@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db/index';
-import { invoices, payments, feeStructures, students, programs, semesters } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { invoices, payments, feeStructures, students, semesters } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 export async function getStudentFinancialData() {

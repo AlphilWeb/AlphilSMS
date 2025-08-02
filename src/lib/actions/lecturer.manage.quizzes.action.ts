@@ -5,7 +5,7 @@ import { quizzes, quizSubmissions, courses, students, staff } from '@/lib/db/sch
 import { and, eq, desc } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { uploadFileToR2 } from '@/lib/file-upload';
+// import { uploadFileToR2 } from '@/lib/file-upload';
 
 // Types
 export type QuizWithCourse = {
@@ -158,6 +158,7 @@ export async function createQuiz(formData: FormData) {
       instructions: instructions || null,
       totalMarks,
       quizDate,
+      fileUrl: '', // Add this required field
     })
     .returning();
 

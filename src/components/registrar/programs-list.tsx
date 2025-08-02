@@ -6,35 +6,61 @@ import { FiEdit, FiBook, FiLayers, FiTrash2, FiPlus } from 'react-icons/fi';
 import { updateProgram, deleteProgram, createProgram } from '@/lib/actions/registrar.program.action';
 import ProgramForm from './program-form';
 
-export default function ProgramsList({ programs }: { programs: any[] }) {
-  const [editProgram, setEditProgram] = useState<any | null>(null);
+interface Department {
+  id: number;
+  name: string;
+}
+
+interface Program {
+  id: number;
+  name: string;
+  code: string;
+  durationSemesters: number;
+  department: Department | null;
+}
+
+// This new type reflects the data structure from ProgramForm's onSubmit handler
+interface ProgramFormData {
+  name: string;
+  code: string;
+  departmentId: number;
+  durationSemesters: number;
+}
+
+export default function ProgramsList({ programs }: { programs: Program[] }) {
+  const [editProgram, setEditProgram] = useState<Program | null>(null);
   const [showAddProgram, setShowAddProgram] = useState(false);
-  const [formStatus, setFormStatus] = useState<{ success: string | null; error: string | null }>({ 
-    success: null, 
-    error: null 
+  const [formStatus, setFormStatus] = useState<{ success: string | null; error: string | null }>({
+    success: null,
+    error: null,
   });
 
-  const handleSave = async (data: any) => {
+  // Now handlesave expects the correct ProgramFormData type
+  const handleSave = async (data: ProgramFormData) => {
     setFormStatus({ success: null, error: null });
     try {
+      if (!editProgram) {
+        throw new Error('No program selected for editing.');
+      }
       await updateProgram(editProgram.id, data);
       setFormStatus({ success: 'Program updated successfully!', error: null });
       setEditProgram(null);
       window.location.reload();
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to update program.' });
+    } catch (error: unknown) {
+      setFormStatus({ success: null, error: (error as Error).message || 'Failed to update program.' });
     }
   };
 
-  const handleCreate = async (data: any) => {
+  // Now handleCreate expects the correct ProgramFormData type
+  const handleCreate = async (data: ProgramFormData) => {
     setFormStatus({ success: null, error: null });
     try {
       await createProgram(data);
       setFormStatus({ success: 'Program created successfully!', error: null });
       setShowAddProgram(false);
       window.location.reload();
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to create program.' });
+    } catch (error: unknown) {
+      setFormStatus({ success: null, error: (error as Error).message || 'Failed to create program.' });
     }
   };
 
@@ -43,8 +69,8 @@ export default function ProgramsList({ programs }: { programs: any[] }) {
     try {
       await deleteProgram(programId);
       window.location.reload();
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to delete program.' });
+    } catch (error: unknown) {
+      setFormStatus({ success: null, error: (error as Error).message || 'Failed to delete program.' });
     }
   };
 

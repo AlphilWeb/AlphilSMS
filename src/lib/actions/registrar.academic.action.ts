@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { programs, courses, semesters } from '@/lib/db/schema';
+import { courses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 

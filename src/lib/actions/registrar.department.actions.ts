@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { departments } from '@/lib/db/schema';
+// import { departments } from '@/lib/db/schema';
 import { getAuthUser } from '@/lib/auth';
 
 export async function getAllDepartments() {

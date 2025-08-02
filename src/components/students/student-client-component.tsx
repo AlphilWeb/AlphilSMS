@@ -1,23 +1,42 @@
-// components/students/students-client-component.tsx
 'use client';
 
 import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createStudent, updateStudent, deleteStudent, getStudents } from "@/lib/actions/student.action";
-import { error } from "console";
 
-interface ReferenceData {
-  programs: { id: number; name: string }[];
-  departments: { id: number; name: string }[];
-  semesters: { id: number; name: string }[];
+// interface Student {
+//   id: number;
+//   userId: number;
+//   programId: number;
+//   departmentId: number;
+//   currentSemesterId: number;
+//   firstName: string;
+//   lastName: string;
+//   email: string;
+//   registrationNumber: string;
+//   studentNumber: string;
+//   passportPhotoUrl: string | null;
+//   idPhotoUrl: string | null;
+//   certificateUrl: string | null;
+//   programName?: string;
+//   departmentName?: string;
+//   currentSemesterName?: string;
+//   userEmail?: string | null;
+// }
+interface NewStudentForm {
+  userId: string;
+  programId: string;
+  departmentId: string;
+  currentSemesterId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  registrationNumber: string;
+  studentNumber: string;
+  passportPhotoUrl: string;
+  idPhotoUrl: string;
+  certificateUrl: string;
 }
-
-interface StudentsClientComponentProps {
-  initialStudents: Student[];
-  referenceData: ReferenceData;
-}
-
-// Define the interface for a Student based on your schema's SelectStudent
 interface Student {
   id: number;
   userId: number;
@@ -26,28 +45,77 @@ interface Student {
   currentSemesterId: number;
   firstName: string;
   lastName: string;
+  fullName: string;
   email: string;
   registrationNumber: string;
   studentNumber: string;
   passportPhotoUrl: string | null;
   idPhotoUrl: string | null;
   certificateUrl: string | null;
+  programName?: string | null;
+  departmentName?: string | null;
+  currentSemesterName?: string | null;
+  userEmail?: string | null;
 }
+
+interface ApiStudent {
+  id: number;
+  userId: number;
+  programId?: number | null;
+  departmentId?: number | null;
+  currentSemesterId?: number | null;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  registrationNumber: string;
+  studentNumber: string;
+  passportPhotoUrl: string | null;
+  idPhotoUrl: string | null;
+  certificateUrl: string | null;
+  programName?: string | null;
+  departmentName?: string | null;
+  currentSemesterName?: string | null;
+  userEmail?: string | null;
+}
+
 
 interface StudentsClientComponentProps {
-  initialStudents: Student[];
+  initialStudents: ApiStudent[];
 }
 
+const transformApiStudent = (apiStudent: ApiStudent): Student => {
+  return {
+    id: apiStudent.id,
+    userId: apiStudent.userId,
+    programId: apiStudent.programId ?? 0,  // Provide default value if undefined/null
+    departmentId: apiStudent.departmentId ?? 0,  // Provide default value if undefined/null
+    currentSemesterId: apiStudent.currentSemesterId ?? 0,  // Provide default value if undefined/null
+    firstName: apiStudent.firstName,
+    lastName: apiStudent.lastName,
+    fullName: apiStudent.fullName,
+    email: apiStudent.email,
+    registrationNumber: apiStudent.registrationNumber,
+    studentNumber: apiStudent.studentNumber,
+    passportPhotoUrl: apiStudent.passportPhotoUrl,
+    idPhotoUrl: apiStudent.idPhotoUrl,
+    certificateUrl: apiStudent.certificateUrl,
+    ...(apiStudent.programName && { programName: apiStudent.programName }),
+    ...(apiStudent.departmentName && { departmentName: apiStudent.departmentName }),
+    ...(apiStudent.currentSemesterName && { currentSemesterName: apiStudent.currentSemesterName }),
+    ...(apiStudent.userEmail && { userEmail: apiStudent.userEmail })
+  };
+};
+
 export default function StudentsClientComponent({ initialStudents }: StudentsClientComponentProps) {
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<Student[]>(initialStudents.map(transformApiStudent));
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("email"); // Default filter
-  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [filterBy, setFilterBy] = useState<keyof Student>("email");
   const [editId, setEditId] = useState<number | null>(null);
   const [editedStudent, setEditedStudent] = useState<Partial<Student>>({});
   const [showDetails, setShowDetails] = useState<Student | null>(null);
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudent, setNewStudent] = useState({
+  const [newStudent, setNewStudent] = useState<NewStudentForm>({
     userId: "",
     programId: "",
     departmentId: "",
@@ -64,45 +132,46 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Filter students based on search and filterBy criteria
-  const filteredStudents = students.filter((student: Student) => {
-    const value = (student as any)[filterBy]?.toString().toLowerCase();
-    return value ? value.includes(search.toLowerCase()) : false;
+  const filteredStudents = students.filter((student) => {
+    const value = String(student[filterBy]).toLowerCase();
+    return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterBy(e.target.value as keyof Student);
+  };
+
   const handleEdit = (student: Student) => {
     setEditId(student.id);
-    setEditedStudent(student);
+    setEditedStudent({
+      ...student,
+      passportPhotoUrl: student.passportPhotoUrl || '',
+      idPhotoUrl: student.idPhotoUrl || '',
+      certificateUrl: student.certificateUrl || ''
+    });
     setFormError(null);
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updateStudent(id, formData);
-        if ('error' in result) {
-            setFormError(result.error ?? "Failed to update student.");
-            return;
-        }
+      if ('error' in result) {
+        setFormError(result.error ?? "Failed to update student.");
+        return;
+      }
       setFormSuccess('Student updated successfully!');
       setEditId(null);
-      // Re-fetch all students to ensure the local state is fully synchronized
+      
       const updatedStudents = await getStudents();
-      setStudents(updatedStudents.map((s: any) => ({
-        ...s,
-        createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
-        updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
-      })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update student.");
+      setStudents(updatedStudents.map(transformApiStudent));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to update student.");
     }
   };
 
-  // Handle add new student action
   const handleAddStudent = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
@@ -114,40 +183,37 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
       }
       setFormSuccess('Student created successfully!');
       setShowAddStudent(false);
-      setNewStudent({ // Reset form fields
+      setNewStudent({
         userId: "", programId: "", departmentId: "", currentSemesterId: "",
         firstName: "", lastName: "", email: "", registrationNumber: "",
         studentNumber: "", passportPhotoUrl: "", idPhotoUrl: "", certificateUrl: ""
       });
-      // Re-fetch all students to ensure the local state is fully synchronized
+
       const updatedStudents = await getStudents();
-      setStudents(updatedStudents.map((s: any) => ({
-        ...s,
-        createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
-        updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
-      })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create student.");
+      setStudents(updatedStudents.map(transformApiStudent));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to create student.");
     }
   };
 
-  // Handle delete student action
   const handleDeleteStudent = async (studentId: number) => {
     setFormError(null);
     setFormSuccess(null);
     if (!confirm("Are you sure you want to delete this student? This action cannot be undone.")) return;
     try {
       const result = await deleteStudent(studentId);
-        if ('error' in result) {
-            setFormError(typeof result.error === "string" ? result.error : "Failed to delete student.");
-            return;
-        }
+      if ('error' in result) {
+        setFormError(result.error ?? "Failed to delete student.");
+        return;
+      }
       setFormSuccess('Student deleted successfully!');
-      setStudents(students.filter((student) => student.id !== studentId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete student.");
+      setStudents(students.filter(student => student.id !== studentId));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete student.");
     }
   };
+
+  // JSX portion remains the same...
 
   return (
     <>
@@ -161,11 +227,11 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
+<select
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+  value={filterBy}
+  onChange={handleFilterChange}
+>
             <option className="bg-emerald-800" value="email">Email</option>
             <option className="bg-emerald-800"  value="firstName">First Name</option>
             <option className="bg-emerald-800"  value="lastName">Last Name</option>

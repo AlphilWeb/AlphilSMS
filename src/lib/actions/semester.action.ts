@@ -77,10 +77,11 @@ export async function createSemester(formData: FormData) {
     revalidatePath('/dashboard/semesters');
     return { success: 'Semester created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_SEMESTER_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create semester due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -118,10 +119,11 @@ export async function updateSemester(semesterId: number, formData: FormData) {
     revalidatePath(`/dashboard/semesters/${semesterId}`);
     return { success: 'Semester updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_SEMESTER_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update semester due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -139,10 +141,11 @@ export async function deleteSemester(semesterId: number) {
     revalidatePath('/dashboard/semesters');
     return { success: 'Semester deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_SEMESTER_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete semester due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -157,10 +160,11 @@ export async function getSemesters() {
     // No complex joins needed here as semester table is self-contained for basic info
     const allSemesters = await db.select().from(semesters);
     return allSemesters;
-  } catch (err: any) {
-    console.error('[GET_SEMESTERS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch semesters due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -181,8 +185,9 @@ export async function getSemesterById(id: number) {
         return { error: 'Semester not found.' };
     }
     return semester;
-  } catch (err: any) {
-    console.error('[GET_SEMESTER_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch semester due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

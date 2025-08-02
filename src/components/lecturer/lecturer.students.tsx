@@ -3,21 +3,21 @@
 import { useState, useEffect } from 'react';
 import {
   getStudentsEnrolledInLecturerCourses,
-  getStudentProfile,
+  // getStudentProfile,
   getStudentCourses,
   getStudentPerformance,
-  getStudentCourseSubmissions,
+  // getStudentCourseSubmissions,
   type StudentProfile,
   type StudentCourse,
   type StudentPerformance,
   type StudentAssignmentSubmission,
   type StudentQuizSubmission
 } from '@/lib/actions/lecturer.students.action';
-import { gradeSubmission } from '@/lib/actions/lecturer.assignment.submissions.action';
+// import { gradeSubmission } from '@/lib/actions/lecturer.assignment.submissions.action';
 
 import {
-  FiUser, FiBook, FiFileText, FiAward, FiClock, 
-  FiEdit, FiTrash2, FiSearch, FiChevronDown, FiChevronUp,
+  FiUser, FiFileText, FiAward, FiClock, 
+  FiSearch, FiChevronDown, FiChevronUp,
   FiDownload
 } from 'react-icons/fi';
 
@@ -27,11 +27,11 @@ export default function LecturerStudentsClient() {
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [studentCourses, setStudentCourses] = useState<StudentCourse[]>([]);
   const [performance, setPerformance] = useState<StudentPerformance | null>(null);
-  const [submissions, setSubmissions] = useState<{
+  const [submissions] = useState<{
     assignments: StudentAssignmentSubmission[];
     quizzes: StudentQuizSubmission[];
   }>({ assignments: [], quizzes: [] });
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  // const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   
   // UI state
   const [loading, setLoading] = useState({
@@ -43,7 +43,7 @@ export default function LecturerStudentsClient() {
   });
   const [error, setError] = useState<string | null>(null);
   const [expandedView, setExpandedView] = useState<'performance' | 'submissions' | null>(null);
-  const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
+  // const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
 
   // Fetch all students on component mount
   useEffect(() => {

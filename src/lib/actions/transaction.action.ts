@@ -83,10 +83,11 @@ export async function createTranscript(formData: FormData) {
     revalidatePath('/dashboard/transcripts');
     revalidatePath(`/dashboard/students/${studentId}`);
     return { success: 'Transcript created successfully.' };
-  } catch (err: any) {
-    console.error('[CREATE_TRANSCRIPT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create transcript due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -122,10 +123,11 @@ export async function updateTranscript(transcriptId: number, formData: FormData)
     revalidatePath(`/dashboard/transcripts/${transcriptId}`);
     if (studentId) revalidatePath(`/dashboard/students/${studentId}`);
     return { success: 'Transcript updated successfully.' };
-  } catch (err: any) {
-    console.error('[UPDATE_TRANSCRIPT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update transcript due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -142,10 +144,11 @@ export async function deleteTranscript(transcriptId: number) {
 
     revalidatePath('/dashboard/transcripts');
     return { success: 'Transcript deleted successfully.' };
-  } catch (err: any) {
-    console.error('[DELETE_TRANSCRIPT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete transcript due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -198,10 +201,11 @@ export async function getTranscripts() {
     }));
 
     return allTranscripts;
-  } catch (err: any) {
-    console.error('[GET_TRANSCRIPTS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch transcripts due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -271,10 +275,11 @@ export async function getTranscriptById(id: number) {
       // semesterYear: transcriptRecord.semesterYear || null, // REMOVED: Not in your schema
       // semesterType: transcriptRecord.semesterType || null, // REMOVED: Not in your schema
     };
-  } catch (err: any) {
-    console.error('[GET_TRANSCRIPT_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch transcript due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -338,8 +343,9 @@ export async function getTranscriptsByStudentId(studentId: number) {
     }));
 
     return studentTranscripts;
-  } catch (err: any) {
-    console.error('[GET_TRANSCRIPTS_BY_STUDENT_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student transcripts due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

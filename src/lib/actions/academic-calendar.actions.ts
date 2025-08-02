@@ -7,14 +7,12 @@ import {
   semesters, 
   courses, 
   timetables,
-  assignments,
-  quizzes,
   enrollments,
   students,
   staff
 } from '@/lib/db/schema';
 
-import { addDays, isWithinInterval } from 'date-fns';
+import {  isWithinInterval } from 'date-fns';
 import { RRule } from 'rrule';
 
 // Types
@@ -236,21 +234,21 @@ export async function getEventsForRange(
   // --- Your new snippet starts here ---
   const semesterIds = relevantSemesters.map(s => s.id);
 
-  const calendarEvents = await db
-    .select({
-      id: academicCalendarEvents.id,
-      title: academicCalendarEvents.title,
-      description: academicCalendarEvents.description,
-      start: academicCalendarEvents.startDate as any, // Cast to any to align types
-      end: academicCalendarEvents.endDate as any,     // Cast to any to align types
-      type: academicCalendarEvents.eventType,
-      location: academicCalendarEvents.location,
-      isRecurring: academicCalendarEvents.isRecurring,
-      recurringPattern: academicCalendarEvents.recurringPattern
-    })
-    .from(academicCalendarEvents)
-    .where(inArray(academicCalendarEvents.semesterId, semesterIds))
-    .orderBy(asc(academicCalendarEvents.startDate));
+const calendarEvents = await db
+  .select({
+    id: academicCalendarEvents.id,
+    title: academicCalendarEvents.title,
+    description: academicCalendarEvents.description,
+    start: sql<Date>`${academicCalendarEvents.startDate}`,
+    end: sql<Date>`${academicCalendarEvents.endDate}`,
+    type: academicCalendarEvents.eventType,
+    location: academicCalendarEvents.location,
+    isRecurring: academicCalendarEvents.isRecurring,
+    recurringPattern: academicCalendarEvents.recurringPattern
+  })
+  .from(academicCalendarEvents)
+  .where(inArray(academicCalendarEvents.semesterId, semesterIds))
+  .orderBy(asc(academicCalendarEvents.startDate));
 
   const timetableEventsRaw = await Promise.all(
     relevantSemesters.map(semester => getTimetableEvents(semester.id, userId))

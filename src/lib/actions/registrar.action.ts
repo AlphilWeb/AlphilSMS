@@ -3,7 +3,7 @@
 
 import { db, testConnection } from '@/lib/db';
 import { semesters, userLogs } from '@/lib/db/schema';
-import { and, eq, sql, desc, count } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 

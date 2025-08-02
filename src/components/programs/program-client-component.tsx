@@ -12,7 +12,6 @@ interface Program {
   departmentId: number;
   code: string;
   durationSemesters: number;
-  // Removed 'description' as it's not in your schema
 }
 
 // Define the interface for reference data (for departmentId dropdown)
@@ -25,32 +24,31 @@ interface ProgramsClientComponentProps {
   referenceData: ReferenceData;
 }
 
+type FilterableProgramKeys = keyof Pick<Program, "id" | "name" | "departmentId" | "code">;
+
 export default function ProgramsClientComponent({ initialPrograms, referenceData }: ProgramsClientComponentProps) {
   const [programs, setPrograms] = useState<Program[]>(initialPrograms);
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("name"); // Default filter
-  const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
+  const [filterBy, setFilterBy] = useState<FilterableProgramKeys>("name");
+  // const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [editedProgram, setEditedProgram] = useState<Partial<Program>>({});
   const [showDetails, setShowDetails] = useState<Program | null>(null);
   const [showAddProgram, setShowAddProgram] = useState(false);
   const [newProgram, setNewProgram] = useState({
     name: "",
-    departmentId: "", // Keep as string for select value
+    departmentId: "",
     code: "",
     durationSemesters: "",
-    // Removed 'description' from newProgram state
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Filter programs based on search and filterBy criteria
-  const filteredPrograms = programs.filter((program: Program) => {
-    const value = (program as any)[filterBy]?.toString().toLowerCase();
-    return value ? value.includes(search.toLowerCase()) : false;
+  const filteredPrograms = programs.filter((program) => {
+    const value = String(program[filterBy]).toLowerCase();
+    return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
   const handleEdit = (program: Program) => {
     setEditId(program.id);
     setEditedProgram(program);
@@ -58,7 +56,6 @@ export default function ProgramsClientComponent({ initialPrograms, referenceData
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
@@ -70,15 +67,17 @@ export default function ProgramsClientComponent({ initialPrograms, referenceData
       }
       setFormSuccess('Program updated successfully!');
       setEditId(null);
-      // Re-fetch all programs to ensure the local state is fully synchronized
       const updatedPrograms = await getPrograms();
       setPrograms(updatedPrograms);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update program.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Failed to update program.");
+      }
     }
   };
 
-  // Handle add new program action
   const handleAddProgram = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
@@ -90,32 +89,36 @@ export default function ProgramsClientComponent({ initialPrograms, referenceData
       }
       setFormSuccess('Program created successfully!');
       setShowAddProgram(false);
-      setNewProgram({ // Reset form fields
-        name: "", departmentId: "", code: "", durationSemesters: ""
-      });
-      // Re-fetch all programs to ensure the local state is fully synchronized
+      setNewProgram({ name: "", departmentId: "", code: "", durationSemesters: "" });
       const updatedPrograms = await getPrograms();
       setPrograms(updatedPrograms);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create program.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Failed to create program.");
+      }
     }
   };
 
-  // Handle delete program action
   const handleDeleteProgram = async (programId: number) => {
     setFormError(null);
     setFormSuccess(null);
-    if (!confirm("Are you sure you want to delete this program? This action cannot be undone.")) return;
+    if (!confirm("Are you sure you want to delete this program?")) return;
     try {
       const result = await deleteProgram(programId);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to delete program.") : null);
+        setFormError(result.error ? "Failed to delete program." : null);
         return;
       }
       setFormSuccess('Program deleted successfully!');
       setPrograms(programs.filter((program) => program.id !== programId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete program.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError("Failed to delete program.");
+      }
     }
   };
 
@@ -131,16 +134,16 @@ export default function ProgramsClientComponent({ initialPrograms, referenceData
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
-            <option className="bg-emerald-800" value="name">Name</option>
-            <option className="bg-emerald-800" value="id">ID</option>
-            <option className="bg-emerald-800" value="departmentId">Department ID</option>
-            <option className="bg-emerald-800" value="code">Code</option>
-          </select>
+<select
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+  value={filterBy}
+  onChange={(e) => setFilterBy(e.target.value as 'id' | 'name' | 'departmentId' | 'code')}
+>
+  <option value="id">ID</option>
+  <option value="name">Name</option>
+  <option value="departmentId">Department</option>
+  <option value="code">Code</option>
+</select>
         </div>
         <button
           className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"

@@ -16,9 +16,9 @@ import {
   assignments,
   quizzes,
 } from '@/lib/db/schema';
-import { and, eq, desc, asc, sql } from 'drizzle-orm';
+import { and, eq, desc, sql } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
-import { revalidatePath } from 'next/cache';
+// import { revalidatePath } from 'next/cache';
 
 // Types
 export type StudentProfile = {
@@ -81,7 +81,23 @@ export type StudentQuizSubmission = {
   score: string | null;
   feedback: string | null;
 };
+// type AssignmentSubmissionResult = {
+//   id: number;
+//   assignmentId: number;
+//   title: string;
+//   submittedAt: Date;
+//   grade: string | null;
+//   remarks: string | null;
+// }[];
 
+// type QuizSubmissionResult = {
+//   id: number;
+//   quizId: number;
+//   title: string;
+//   submittedAt: Date;
+//   score: string | null;
+//   feedback: string | null;
+// }[];
 // Get all students enrolled in lecturer's courses
 export async function getStudentsEnrolledInLecturerCourses() {
   const authUser = await getAuthUser();
@@ -264,7 +280,7 @@ export async function getStudentCourseSubmissions(
 
   if (!enrollmentExists) throw new Error('Enrollment not found or unauthorized');
     
-  const assignmentsPromise: any = db
+  const assignmentsPromise = db
     .select({
       id: assignmentSubmissions.id,
       assignmentId: assignmentSubmissions.assignmentId,
@@ -283,7 +299,7 @@ export async function getStudentCourseSubmissions(
     )
     .orderBy(desc(assignmentSubmissions.submittedAt));
 
-  const quizzesPromise:any = db
+  const quizzesPromise = db
     .select({
       id: quizSubmissions.id,
       quizId: quizSubmissions.quizId,
@@ -302,14 +318,16 @@ export async function getStudentCourseSubmissions(
     )
     .orderBy(desc(quizSubmissions.submittedAt));
 
-  const [assignmentSubmissionsResult, quizSubmissionsResult] = await Promise.all([assignmentsPromise, quizzesPromise]);
+  const [assignmentResults, quizResults] = await Promise.all([
+    assignmentsPromise,
+    quizzesPromise,
+  ]);
 
   return {
-    assignments,
-    quizzes,
+    assignments: assignmentResults,
+    quizzes: quizResults,
   };
 }
-
 // Get student grades across all courses taught by the lecturer
 export async function getStudentGrades(studentId: number) {
   const authUser = await getAuthUser();

@@ -30,7 +30,7 @@ export type StudentAssignment = {
     id: number;
     fileUrl: string;
     submittedAt: Date;
-    grade: number | null;
+    grade: string | null;
     remarks: string | null;
   };
 };

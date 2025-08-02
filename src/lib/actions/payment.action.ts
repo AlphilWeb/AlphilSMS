@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db/index';
 import { payments, NewPayment, students, invoices, users } from '@/lib/db/schema'; // Added 'users' for join
-import { eq, and } from 'drizzle-orm'; // Added 'and' for combined queries
+import { eq } from 'drizzle-orm'; // Added 'and' for combined queries
 import { getAuthUser } from '@/lib/auth';
 import { checkPermission } from '@/lib/rbac';
 
@@ -111,10 +111,11 @@ export async function createPayment(formData: FormData) {
     revalidatePath(`/dashboard/finance/invoices/${invoiceId}`); // Revalidate associated invoice
     revalidatePath(`/dashboard/students/${studentId}`); // Revalidate student's finance section
     return { success: 'Payment recorded successfully.', data: createdPayment };
-  } catch (err: any) {
-    console.error('[CREATE_PAYMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to record payment due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -214,10 +215,11 @@ export async function updatePayment(paymentId: number, formData: FormData) {
       revalidatePath(`/dashboard/students/${originalPayment.studentId}`);
     }
     return { success: 'Payment updated successfully.', data: updatedPayment };
-  } catch (err: any) {
-    console.error('[UPDATE_PAYMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update payment due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -278,10 +280,11 @@ export async function deletePayment(paymentId: number) {
       revalidatePath(`/dashboard/students/${paymentToDelete.studentId}`);
     }
     return { success: 'Payment deleted successfully.', data: deletedPayment };
-  } catch (err: any) {
-    console.error('[DELETE_PAYMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete payment due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -334,10 +337,11 @@ export async function getPayments() {
     }));
 
     return allPayments;
-  } catch (err: any) {
-    console.error('[GET_PAYMENTS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch payments due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -409,10 +413,11 @@ export async function getPaymentById(id: number) {
       invoiceBalance: paymentRecord.invoiceBalance || null,
       invoiceStatus: paymentRecord.invoiceStatus || null,
     };
-  } catch (err: any) {
-    console.error('[GET_PAYMENT_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch payment due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -475,8 +480,9 @@ export async function getPaymentsByStudentId(studentId: number) {
     }));
 
     return studentPayments;
-  } catch (err: any) {
-    console.error('[GET_PAYMENTS_BY_STUDENT_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student payments due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

@@ -78,10 +78,11 @@ export async function createDepartment(formData: FormData) {
     revalidatePath('/dashboard/departments');
     return { success: 'Department created successfully.', data: createdDepartment };
 
-  } catch (err: any) {
-    console.error('[CREATE_DEPARTMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create department due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -162,10 +163,11 @@ export async function updateDepartment(departmentId: number, formData: FormData)
     }
     return { success: 'Department updated successfully.', data: updatedDepartment };
 
-  } catch (err: any) {
-    console.error('[UPDATE_DEPARTMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update department due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -197,10 +199,11 @@ export async function deleteDepartment(departmentId: number) {
     }
     return { success: 'Department deleted successfully.', data: deletedDepartment };
 
-  } catch (err: any) {
-    console.error('[DELETE_DEPARTMENT_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete department due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -236,10 +239,11 @@ export async function getDepartments() {
     }));
 
     return allDepartments;
-  } catch (err: any) {
-    console.error('[GET_DEPARTMENTS_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch departments due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -282,8 +286,9 @@ export async function getDepartmentById(id: number) {
       hodEmail: department.hodEmail || null,
     };
 
-  } catch (err: any) {
-    console.error('[GET_DEPARTMENT_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch department due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

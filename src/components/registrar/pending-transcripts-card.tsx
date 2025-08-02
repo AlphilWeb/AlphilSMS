@@ -6,7 +6,7 @@ type PendingTranscript = {
   studentName: string;
   regNumber: string;
   requestedDate: string | Date;
-  status: 'pending' | 'processing' | 'ready' ; 
+  status: 'pending' | 'processing' | 'ready';
 };
 
 type PendingTranscriptsCardProps = {
@@ -14,13 +14,14 @@ type PendingTranscriptsCardProps = {
 };
 
 export default function PendingTranscriptsCard({ transcripts }: PendingTranscriptsCardProps) {
-  const getStatusColor = (status: string) => {
+  // Update the type of the status parameter to be more specific
+  const getStatusColor = (status: PendingTranscript['status']) => {
     switch (status) {
       case 'processing':
         return 'bg-blue-100 text-blue-800';
       case 'ready':
         return 'bg-green-100 text-green-800';
-      default:
+      default: // This will now only match 'pending'
         return 'bg-yellow-100 text-yellow-800';
     }
   };
@@ -37,8 +38,8 @@ export default function PendingTranscriptsCard({ transcripts }: PendingTranscrip
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Pending Transcripts</h3>
-        <Link 
-          href="/dashboard/registrar/transcripts" 
+        <Link
+          href="/dashboard/registrar/transcripts"
           className="text-sm text-emerald-600 hover:text-emerald-800"
         >
           View All

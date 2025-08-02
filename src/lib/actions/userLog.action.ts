@@ -72,10 +72,11 @@ export async function createUserLog(formData: FormData) {
     revalidatePath('/dashboard/userLogs');
     return { success: true, data: newUserLog[0] };
 
-  } catch (err: any) {
-    console.error('[CREATE_USER_LOG_ACTION_ERROR]', err);
-    return { error: err.message || 'Failed to create user log due to a server error.' };
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -92,10 +93,11 @@ export async function getUserLogs() {
     // Use $dynamic() for consistent type inference if you plan to add conditional .where()
     const allUserLogs = await db.select().from(userLogs).orderBy(desc(userLogs.timestamp)).$dynamic();
     return allUserLogs;
-  } catch (err: any) {
-    console.error('[GET_USER_LOGS_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to fetch user logs due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -114,10 +116,11 @@ export async function getUserLogsByUserId(userId: number) {
     }
     const logs = await db.select().from(userLogs).where(eq(userLogs.userId, userId)).orderBy(desc(userLogs.timestamp));
     return logs;
-  } catch (err: any) {
-    console.error('[GET_USER_LOGS_BY_USER_ID_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to fetch user logs by user ID due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -170,10 +173,11 @@ export async function updateUserLog(id: number, formData: FormData) {
     revalidatePath(`/dashboard/userLogs/${id}`); // Revalidate specific log page if it exists
     return { success: true, data: updatedUserLog[0] };
 
-  } catch (err: any) {
-    console.error('[UPDATE_USER_LOG_ACTION_ERROR]', err);
-    return { error: err.message || 'Failed to update user log due to a server error.' };
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -200,10 +204,11 @@ export async function deleteUserLog(id: number) {
     revalidatePath('/dashboard/userLogs');
     return { success: true, data: deletedUserLog[0] };
 
-  } catch (err: any) {
-    console.error('[DELETE_USER_LOG_ACTION_ERROR]', err);
-    return { error: err.message || 'Failed to delete user log due to a server error.' };
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**

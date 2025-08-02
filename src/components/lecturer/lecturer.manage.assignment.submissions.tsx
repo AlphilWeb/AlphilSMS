@@ -9,13 +9,8 @@ import {
   type CourseSubmissionsOverview
 } from '@/lib/actions/lecturer.assignment.submissions.action';
 import {
-  FiFileText,
   FiCheck,
-  FiX,
   FiDownload,
-  FiClock,
-  FiUser,
-  FiBook,
   FiAlertCircle,
   FiCheckCircle
 } from 'react-icons/fi';

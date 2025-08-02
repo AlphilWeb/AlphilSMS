@@ -5,21 +5,39 @@ import { useState } from "react";
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
 import { createCourse, updateCourse, deleteCourse, getCourses } from "@/lib/actions/course.action";
 
-// Define the interface for a Course based on your Drizzle schema
 interface Course {
   id: number;
   programId: number;
   semesterId: number;
   name: string;
   code: string;
-  credits: string; // Drizzle's numeric type often comes as a string
+  credits: string;
   description: string | null;
 }
 
-// Define the interface for reference data (for program and semester dropdowns)
+interface Program {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface Semester {
+  id: number;
+  name: string;
+}
+
 interface ReferenceData {
-  programs: { id: number; name: string; code: string }[];
-  semesters: { id: number; name: string }[];
+  programs: Program[];
+  semesters: Semester[];
+}
+
+interface NewCourseForm {
+  programId: string;
+  semesterId: string;
+  name: string;
+  code: string;
+  credits: string;
+  description: string;
 }
 
 interface CoursesClientComponentProps {
@@ -30,81 +48,73 @@ interface CoursesClientComponentProps {
 export default function CoursesClientComponent({ initialCourses, referenceData }: CoursesClientComponentProps) {
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("name"); // Default filter
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [filterBy, setFilterBy] = useState<keyof Course>("name");
   const [editId, setEditId] = useState<number | null>(null);
   const [editedCourse, setEditedCourse] = useState<Partial<Course>>({});
   const [showDetails, setShowDetails] = useState<Course | null>(null);
   const [showAddCourse, setShowAddCourse] = useState(false);
-  const [newCourse, setNewCourse] = useState({
-    programId: "", // Keep as string for select value
-    semesterId: "", // Keep as string for select value
+  const [newCourse, setNewCourse] = useState<NewCourseForm>({
+    programId: "",
+    semesterId: "",
     name: "",
     code: "",
-    credits: "", // Keep as string for input value
+    credits: "",
     description: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Filter courses based on search and filterBy criteria
   const filteredCourses = courses.filter((course: Course) => {
-    const value = (course as any)[filterBy]?.toString().toLowerCase();
-    return value ? value.includes(search.toLowerCase()) : false;
+    const value = course[filterBy]?.toString().toLowerCase() || "";
+    return value.includes(search.toLowerCase());
   });
 
-  // Handle edit button click
   const handleEdit = (course: Course) => {
     setEditId(course.id);
-    setEditedCourse(course);
+    setEditedCourse({ ...course });
     setFormError(null);
     setFormSuccess(null);
   };
 
-  // Handle save (update) action
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await updateCourse(id, formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to update course.") : null);
+        setFormError(result.error || "Failed to update course.");
         return;
       }
       setFormSuccess('Course updated successfully!');
       setEditId(null);
-      // Re-fetch all courses to ensure the local state is fully synchronized
       const updatedCourses = await getCourses();
       setCourses(updatedCourses);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update course.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to update course.");
     }
   };
 
-  // Handle add new course action
   const handleAddCourse = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createCourse(formData);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to create course.") : null);
+        setFormError(result.error || "Failed to create course.");
         return;
       }
       setFormSuccess('Course created successfully!');
       setShowAddCourse(false);
-      setNewCourse({ // Reset form fields
+      setNewCourse({
         programId: "", semesterId: "", name: "", code: "", credits: "", description: ""
       });
-      // Re-fetch all courses to ensure the local state is fully synchronized
       const updatedCourses = await getCourses();
       setCourses(updatedCourses);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create course.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to create course.");
     }
   };
 
-  // Handle delete course action
   const handleDeleteCourse = async (courseId: number) => {
     setFormError(null);
     setFormSuccess(null);
@@ -112,19 +122,18 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
     try {
       const result = await deleteCourse(courseId);
       if ('error' in result) {
-        setFormError(result.error ? String("Failed to delete course.") : null);
+        setFormError(result.error || "Failed to delete course.");
         return;
       }
       setFormSuccess('Course deleted successfully!');
       setCourses(courses.filter((course) => course.id !== courseId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete course.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete course.");
     }
   };
 
   return (
     <>
-      {/* Search and filter bar */}
       <div className="sticky top-[150px] z-20 px-12 py-4 bg-emerald-800 flex flex-wrap justify-between items-center gap-4 shadow-md">
         <div className="flex items-center gap-4">
           <input
@@ -137,7 +146,7 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
           <select
             className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
             value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
+            onChange={(e) => setFilterBy(e.target.value as keyof Course)}
           >
             <option className="bg-emerald-800" value="name">Name</option>
             <option className="bg-emerald-800" value="code">Code</option>
@@ -154,7 +163,6 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
         </button>
       </div>
 
-      {/* Status messages */}
       {formError && (
         <div className="mx-8 mt-4 p-3 bg-red-500/90 text-white rounded-lg shadow flex items-center gap-2">
           <FiX className="flex-shrink-0" />
@@ -168,7 +176,6 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
         </div>
       )}
 
-      {/* Table section */}
       <div className="px-12 py-6 h-[calc(100vh-250px)] overflow-hidden">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden h-full flex flex-col border border-white/20">
           <div className="overflow-x-auto h-full">
@@ -188,7 +195,7 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200/50">
-                    {filteredCourses.map((course: Course) => (
+                    {filteredCourses.map((course) => (
                       <tr key={course.id} className="hover:bg-emerald-50/50 transition-colors">
                         <td className="p-4 font-medium text-gray-800">{course.id}</td>
                         <td className="p-4">
@@ -217,7 +224,7 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                           {editId === course.id ? (
                             <input
                               type="number"
-                              step="0.01" // For numeric credits
+                              step="0.01"
                               className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedCourse.credits || ''}
                               onChange={(e) => setEditedCourse({ ...editedCourse, credits: e.target.value })}
@@ -233,22 +240,18 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                               value={editedCourse.programId || ''}
                               onChange={(e) => setEditedCourse({ ...editedCourse, programId: Number(e.target.value) })}
                             >
-                              <option className="bg-emerald-800 text-white" value="">Select Program</option>
+                              <option value="">Select Program</option>
                               {referenceData.programs.map((program) => (
-                                <option className="bg-emerald-800 text-white" key={program.id} value={program.id}>
+                                <option key={program.id} value={program.id}>
                                   {program.name} ({program.code})
                                 </option>
                               ))}
                             </select>
                           ) : (
-                            course.programId ? (
-                              <span className="text-gray-800">
-                                {referenceData.programs.find(p => p.id === course.programId)?.name +
-                                ` (ID: ${course.programId})`}
-                              </span>
-                            ) : (
-                              <span className="text-gray-800">N/A</span>
-                            )
+                            <span className="text-gray-800">
+                              {referenceData.programs.find(p => p.id === course.programId)?.name || 'N/A'}
+                              {course.programId && ` (ID: ${course.programId})`}
+                            </span>
                           )}
                         </td>
                         <td className="p-4">
@@ -258,22 +261,18 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                               value={editedCourse.semesterId || ''}
                               onChange={(e) => setEditedCourse({ ...editedCourse, semesterId: Number(e.target.value) })}
                             >
-                              <option className="bg-emerald-800 text-white" value="">Select Semester</option>
+                              <option value="">Select Semester</option>
                               {referenceData.semesters.map((semester) => (
-                                <option className="bg-emerald-800 text-white" key={semester.id} value={semester.id}>
+                                <option key={semester.id} value={semester.id}>
                                   {semester.name} (ID: {semester.id})
                                 </option>
                               ))}
                             </select>
                           ) : (
-                            course.semesterId ? (
-                              <span className="text-gray-800">
-                                {referenceData.semesters.find(s => s.id === course.semesterId)?.name +
-                                ` (ID: ${course.semesterId})`}
-                              </span>
-                            ) : (
-                              <span className="text-gray-800">N/A</span>
-                            )
+                            <span className="text-gray-800">
+                              {referenceData.semesters.find(s => s.id === course.semesterId)?.name || 'N/A'}
+                              {course.semesterId && ` (ID: ${course.semesterId})`}
+                            </span>
                           )}
                         </td>
                         <td className="p-4">
@@ -349,7 +348,6 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
         </div>
       </div>
 
-      {/* Add Course Modal */}
       {showAddCourse && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl">
@@ -411,9 +409,9 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                     onChange={(e) => setNewCourse({ ...newCourse, programId: e.target.value })}
                     required
                   >
-                    <option className="bg-emerald-800 text-white" value="">Select Program</option>
+                    <option value="">Select Program</option>
                     {referenceData.programs.map((program) => (
-                      <option className="bg-emerald-800 text-white" key={program.id} value={program.id}>
+                      <option key={program.id} value={program.id}>
                         {program.name} ({program.code})
                       </option>
                     ))}
@@ -429,9 +427,9 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                     onChange={(e) => setNewCourse({ ...newCourse, semesterId: e.target.value })}
                     required
                   >
-                    <option className="bg-emerald-800 text-white" value="">Select Semester</option>
+                    <option value="">Select Semester</option>
                     {referenceData.semesters.map((semester) => (
-                      <option className="bg-emerald-800 text-white" key={semester.id} value={semester.id}>
+                      <option key={semester.id} value={semester.id}>
                         {semester.name} (ID: {semester.id})
                       </option>
                     ))}
@@ -469,7 +467,6 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
         </div>
       )}
 
-      {/* View Details Modal */}
       {showDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full">
@@ -503,23 +500,15 @@ export default function CoursesClientComponent({ initialCourses, referenceData }
                 <div>
                   <p className="text-sm text-gray-500">Program</p>
                   <p className="font-medium text-gray-800">
-                    {showDetails.programId ? (
-                      referenceData.programs.find(p => p.id === showDetails.programId)?.name +
-                      ` (ID: ${showDetails.programId})`
-                    ) : (
-                      'N/A'
-                    )}
+                    {referenceData.programs.find(p => p.id === showDetails.programId)?.name || 'N/A'}
+                    {showDetails.programId && ` (ID: ${showDetails.programId})`}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Semester</p>
                   <p className="font-medium text-gray-800">
-                    {showDetails.semesterId ? (
-                      referenceData.semesters.find(s => s.id === showDetails.semesterId)?.name +
-                      ` (ID: ${showDetails.semesterId})`
-                    ) : (
-                      'N/A'
-                    )}
+                    {referenceData.semesters.find(s => s.id === showDetails.semesterId)?.name || 'N/A'}
+                    {showDetails.semesterId && ` (ID: ${showDetails.semesterId})`}
                   </p>
                 </div>
                 <div className="col-span-2">

@@ -14,7 +14,7 @@ import {
   users,
   timetables, // <--- ADDED timetables import
 } from '@/lib/db/schema'; // Added necessary schemas for joins
-import { eq, and } from 'drizzle-orm'; // Added 'and' for combined queries
+import { eq } from 'drizzle-orm'; // Added 'and' for combined queries
 import { getAuthUser } from '@/lib/auth';
 import { checkPermission } from '@/lib/rbac';
 
@@ -35,17 +35,17 @@ const ROLES = {
   STUDENT: 'Student',
 };
 
-function allowedRolesForManagingGrades() {
-  return [ROLES.ADMIN, ROLES.LECTURER]; // Lecturer can manage grades for their courses
-}
+// function allowedRolesForManagingGrades() {
+//   return [ROLES.ADMIN, ROLES.LECTURER]; // Lecturer can manage grades for their courses
+// }
 
 function allowedRolesForViewingAllGrades() {
   return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.LECTURER, ROLES.HOD]; // HOD can view grades in their department
 }
 
-function allowedRolesForViewingIndividualOrStudentGrades() {
-  return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.LECTURER, ROLES.HOD, ROLES.STUDENT]; // Student can view their own
-}
+// function allowedRolesForViewingIndividualOrStudentGrades() {
+//   return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.LECTURER, ROLES.HOD, ROLES.STUDENT]; // Student can view their own
+// }
 
 // Helper function to calculate letter grade and GPA
 function calculateGradeDetails(catScore: number | null, examScore: number | null) {
@@ -168,10 +168,10 @@ export async function createGrade(formData: FormData) {
     }
 
     return { success: 'Grade created successfully.', data: createdGrade };
-  } catch (err: any) {
-    console.error('[CREATE_GRADE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create grade due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  throw error;
+}
 }
 
 /**
@@ -210,8 +210,13 @@ export async function updateGrade(gradeId: number, formData: FormData) {
     if (!gradeRecord) {
       return { error: 'Grade not found.' };
     }
+    
+    // Ensure enrollment exists if you're going to access its properties
+    if (!gradeRecord.enrollment) {
+        return { error: 'Enrollment record not found for this grade.' };
+    }
 
-    const assignedLecturerUserId = gradeRecord.enrollment?.course?.timetables?.[0]?.lecturer?.userId;
+    const assignedLecturerUserId = gradeRecord.enrollment.course?.timetables?.[0]?.lecturer?.userId;
     const isAuthorizedAsLecturer =
       authUser.role === ROLES.LECTURER && authUser.userId === assignedLecturerUserId;
 
@@ -224,13 +229,13 @@ export async function updateGrade(gradeId: number, formData: FormData) {
 
     const updates: Partial<NewGrade> = {};
 
-    let newCatScore: number | null =
+    const newCatScore: number | null =
       catScoreStr !== null
         ? parseFloat(catScoreStr)
         : gradeRecord.catScore !== null
           ? parseFloat(gradeRecord.catScore)
           : null;
-    let newExamScore: number | null =
+    const newExamScore: number | null =
       examScoreStr !== null
         ? parseFloat(examScoreStr)
         : gradeRecord.examScore !== null
@@ -262,10 +267,12 @@ export async function updateGrade(gradeId: number, formData: FormData) {
 
     revalidatePath('/dashboard/grades');
     revalidatePath(`/dashboard/grades/${gradeId}`);
-    if (gradeRecord.enrollmentId) revalidatePath(`/dashboard/enrollments/${gradeRecord.enrollmentId}`);
+    // Use non-null assertion here
+    if (gradeRecord.enrollmentId) revalidatePath(`/dashboard/enrollments/${gradeRecord.enrollmentId!}`);
     // Revalidate student's transcript or grades page
     const studentForRevalidation = await db.query.enrollments.findFirst({
-      where: eq(enrollments.id, gradeRecord.enrollmentId),
+      // Use non-null assertion here
+      where: eq(enrollments.id, gradeRecord.enrollmentId!),
       with: { student: { columns: { id: true } } },
     });
     if (studentForRevalidation?.student?.id) {
@@ -274,10 +281,10 @@ export async function updateGrade(gradeId: number, formData: FormData) {
     }
 
     return { success: 'Grade updated successfully.', data: updatedGrade };
-  } catch (err: any) {
-    console.error('[UPDATE_GRADE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update grade due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  throw error;
+}
 }
 
 /**
@@ -337,10 +344,11 @@ export async function deleteGrade(gradeId: number) {
     }
 
     return { success: 'Grade deleted successfully.', data: deletedGrade };
-  } catch (err: any) {
-    console.error('[DELETE_GRADE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete grade due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -366,7 +374,7 @@ export async function getGrades() {
         studentId: enrollments.studentId,
         studentFirstName: students.firstName,
         studentLastName: students.lastName,
-        studentRegNo: students.registrationNumber, // <--- FIX: Used registrationNumber
+        studentRegNo: students.registrationNumber,
         studentUserEmail: users.email,
         courseId: enrollments.courseId,
         courseName: courses.name,
@@ -375,7 +383,7 @@ export async function getGrades() {
         semesterName: semesters.name,
       })
       .from(grades)
-      .leftJoin(enrollments, eq(grades.enrollmentId, enrollments.id))
+      .innerJoin(enrollments, eq(grades.enrollmentId, enrollments.id))
       .leftJoin(students, eq(enrollments.studentId, students.id))
       .leftJoin(users, eq(students.userId, users.id))
       .leftJoin(courses, eq(enrollments.courseId, courses.id))
@@ -383,7 +391,7 @@ export async function getGrades() {
 
     const allGrades = result.map((g) => ({
       id: g.id,
-      enrollmentId: g.enrollmentId,
+      enrollmentId: g.enrollmentId!,
       catScore: g.catScore || null,
       examScore: g.examScore || null,
       totalScore: g.totalScore || null,
@@ -392,7 +400,7 @@ export async function getGrades() {
       studentId: g.studentId || null,
       studentFullName:
         g.studentFirstName && g.studentLastName ? `${g.studentFirstName} ${g.studentLastName}` : null,
-      studentRegNo: g.studentRegNo || null, // <--- FIX: Used aliased name
+      studentRegNo: g.studentRegNo || null,
       studentUserEmail: g.studentUserEmail || null,
       courseId: g.courseId || null,
       courseName: g.courseName || null,
@@ -402,10 +410,11 @@ export async function getGrades() {
     }));
 
     return allGrades;
-  } catch (err: any) {
-    console.error('[GET_GRADES_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch grades due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -504,10 +513,10 @@ export async function getGradeById(id: number) {
           ? `${gradeRecord.lecturerFirstName} ${gradeRecord.lecturerLastName}`
           : null,
     };
-  } catch (err: any) {
-    console.error('[GET_GRADE_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch grade due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  throw error;
+}
 }
 
 /**
@@ -591,10 +600,10 @@ export async function getGradesByStudentId(studentId: number) {
     }));
 
     return studentGrades;
-  } catch (err: any) {
-    console.error('[GET_GRADES_BY_STUDENT_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student grades due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  throw error;
+}
 }
 
 /**
@@ -678,8 +687,8 @@ export async function getGradesByLecturerId(lecturerId: number) {
     }));
 
     return lecturerGrades;
-  } catch (err: any) {
-    console.error('[GET_GRADES_BY_LECTURER_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch lecturer grades due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  throw error;
+}
 }

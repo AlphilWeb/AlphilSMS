@@ -114,6 +114,7 @@ export async function getDownloadUrl(
       } catch (e) {
         // If URL parsing fails, assume fileUrl is already the key
         console.warn('Failed to parse fileUrl as URL, using as-is:', fileUrl);
+        console.log(e)
       }
     }
 

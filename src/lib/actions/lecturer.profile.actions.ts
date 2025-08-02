@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db/index';
-import { staff, users, departments } from '@/lib/db/schema';
+import { staff } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 

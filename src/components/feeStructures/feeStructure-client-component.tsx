@@ -30,7 +30,6 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(initialFeeStructures);
   const [search, setSearch] = useState("");
   const [filterBy, setFilterBy] = useState("programId"); // Default filter
-  const [selectedFeeStructureId, setSelectedFeeStructureId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [editedFeeStructure, setEditedFeeStructure] = useState<Partial<FeeStructure>>({});
   const [showDetails, setShowDetails] = useState<FeeStructure | null>(null);
@@ -39,7 +38,6 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
     programId: "", // Keep as string for select value
     semesterId: "", // Keep as string for select value
     totalAmount: "", // Corrected from 'amount'
-    // Removed dueDate
     description: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -65,7 +63,9 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
     } else if (filterBy === 'semesterId') {
       value = getSemesterDisplayName(feeStructure.semesterId).toLowerCase();
     } else {
-      value = (feeStructure as any)[filterBy]?.toString().toLowerCase() || '';
+      // Type-safe property access
+      const propValue = feeStructure[filterBy as keyof FeeStructure];
+      value = propValue?.toString().toLowerCase() || '';
     }
     return value.includes(search.toLowerCase());
   });
@@ -97,8 +97,8 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
       // Re-fetch all fee structures to ensure the local state is fully synchronized
       const updatedFeeStructures = await getFeeStructures();
       setFeeStructures(updatedFeeStructures);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update fee structure.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to update fee structure.");
     }
   };
 
@@ -120,8 +120,8 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
       // Re-fetch all fee structures to ensure the local state is fully synchronized
       const updatedFeeStructures = await getFeeStructures();
       setFeeStructures(updatedFeeStructures);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create fee structure.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to create fee structure.");
     }
   };
 
@@ -138,8 +138,8 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
       }
       setFormSuccess('Fee structure deleted successfully!');
       setFeeStructures(feeStructures.filter((feeStructure) => feeStructure.id !== feeStructureId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete fee structure.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete fee structure.");
     }
   };
 
@@ -201,7 +201,6 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
                       <th className="p-4 text-left">Program</th>
                       <th className="p-4 text-left">Semester</th>
                       <th className="p-4 text-left">Total Amount</th> {/* Corrected */}
-                      {/* Removed Due Date header */}
                       <th className="p-4 text-left">Description</th>
                       <th className="p-4 text-left w-40">Actions</th>
                     </tr>
@@ -259,7 +258,6 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
                             <span className="text-gray-800">{feeStructure.totalAmount}</span> 
                           )}
                         </td>
-                        {/* Removed Due Date cell */}
                         <td className="p-4">
                           {editId === feeStructure.id ? (
                             <textarea
@@ -383,19 +381,18 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="feeTotalAmount" className="block mb-2 text-sm font-medium text-gray-700">Total Amount</label> {/* Corrected */}
+                  <label htmlFor="feeTotalAmount" className="block mb-2 text-sm font-medium text-gray-700">Total Amount</label>
                   <input
                     type="number"
                     step="0.01"
                     id="feeTotalAmount"
-                    name="totalAmount" // Corrected
+                    name="totalAmount"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
-                    value={newFeeStructure.totalAmount} // Corrected
-                    onChange={(e) => setNewFeeStructure({ ...newFeeStructure, totalAmount: e.target.value })} // Corrected
+                    value={newFeeStructure.totalAmount}
+                    onChange={(e) => setNewFeeStructure({ ...newFeeStructure, totalAmount: e.target.value })}
                     required
                   />
                 </div>
-                {/* Removed Due Date input */}
                 <div>
                   <label htmlFor="feeDescription" className="block mb-2 text-sm font-medium text-gray-700">Description (Optional)</label>
                   <textarea
@@ -456,10 +453,9 @@ export default function FeeStructuresClientComponent({ initialFeeStructures, ref
                   <p className="font-medium text-gray-800">{getSemesterDisplayName(showDetails.semesterId)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Total Amount</p> {/* Corrected */}
-                  <p className="font-medium text-gray-800">{showDetails.totalAmount}</p> {/* Corrected */}
+                  <p className="text-sm text-gray-500">Total Amount</p>
+                  <p className="font-medium text-gray-800">{showDetails.totalAmount}</p>
                 </div>
-                {/* Removed Due Date display */}
                 <div className="col-span-2">
                   <p className="text-sm text-gray-500">Description</p>
                   <p className="font-medium text-gray-800">{showDetails.description || 'N/A'}</p>

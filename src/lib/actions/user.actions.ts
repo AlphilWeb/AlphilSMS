@@ -75,11 +75,11 @@ export async function createUser(formData: FormData) {
 
     return { success: 'User created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_USER_ACTION_ERROR]', err);
-    // Throw ActionError for unhandled server errors
-    throw new ActionError('Failed to create user due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -116,10 +116,11 @@ export async function updateUser(userId: number, formData: FormData) {
 
     return { success: 'User updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_USER_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update user due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -137,10 +138,11 @@ export async function deleteUser(userId: number) {
 
     return { success: 'User deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_USER_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete user due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**

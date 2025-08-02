@@ -9,7 +9,7 @@ import {
   students,
   staff,
 } from '@/lib/db/schema';
-import { and, eq, desc, gt, isNull, sql } from 'drizzle-orm';
+import { and, eq, desc, sql } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 

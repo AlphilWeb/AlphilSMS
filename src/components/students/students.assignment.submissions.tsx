@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   getStudentAssignments,
   submitAssignment,
@@ -12,7 +12,6 @@ import {
   FiUpload,
   FiTrash2,
   FiDownload,
-  FiClock,
   FiCheckCircle,
   FiAlertCircle,
 } from 'react-icons/fi';
@@ -204,7 +203,7 @@ export default function StudentAssignmentsManager({
                     <StatusBadge assignment={assignment} />
                     {assignment.submission?.grade !== null && (
                       <div className="text-sm text-gray-900 mt-1">
-                        Grade: {assignment.submission.grade}
+                        Grade: {assignment.submission?.grade}
                       </div>
                     )}
                   </td>

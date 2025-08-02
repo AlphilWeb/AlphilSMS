@@ -19,7 +19,7 @@ export default async function SemestersPage() {
   }));
 
   // No referenceData needed for semesters as per schema (no foreign keys to other tables for dropdowns)
-  const referenceData = {}; // Empty object for consistency, or omit if not passed
+  // const referenceData = {}; // Empty object for consistency, or omit if not passed
 
   return (
     <>

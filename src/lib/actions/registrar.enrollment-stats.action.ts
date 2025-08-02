@@ -7,10 +7,9 @@ import {
   students, 
   programs, 
   departments,
-  semesters,
   courses
 } from '@/lib/db/schema';
-import { and, eq, sql, desc, count, between } from 'drizzle-orm';
+import { and, eq, desc, count, between } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 export type EnrollmentStatsFilters = {

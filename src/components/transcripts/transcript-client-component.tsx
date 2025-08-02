@@ -31,7 +31,7 @@ export default function TranscriptsClientComponent({ initialTranscripts, referen
   const [transcripts, setTranscripts] = useState<Transcript[]>(initialTranscripts);
   const [search, setSearch] = useState("");
   const [filterBy, setFilterBy] = useState("studentId"); // Default filter
-  const [selectedTranscriptId, setSelectedTranscriptId] = useState<number | null>(null);
+  // const [selectedTranscriptId, setSelectedTranscriptId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [editedTranscript, setEditedTranscript] = useState<Partial<Transcript>>({});
   const [showDetails, setShowDetails] = useState<Transcript | null>(null);
@@ -67,7 +67,8 @@ export default function TranscriptsClientComponent({ initialTranscripts, referen
     } else if (filterBy === 'semesterId') {
       value = getSemesterDisplayName(transcript.semesterId).toLowerCase();
     } else {
-      value = (transcript as any)[filterBy]?.toString().toLowerCase() || '';
+      value = (transcript as unknown as Record<string, unknown>)[filterBy]?.toString().toLowerCase() || '';
+
     }
     return value.includes(search.toLowerCase());
   });
@@ -105,11 +106,13 @@ export default function TranscriptsClientComponent({ initialTranscripts, referen
         ...t,
         generatedDate: t.generatedDate instanceof Date ? t.generatedDate.toISOString() : t.generatedDate,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update transcript.");
-    }
-  };
-
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    setFormError(error.message || "Failed to create transcript.");
+  } else {
+    setFormError("Failed to create transcript.");
+  }
+}}
   // Handle add new transcript action
   const handleAddTranscript = async (formData: FormData) => {
     setFormError(null);
@@ -131,10 +134,13 @@ export default function TranscriptsClientComponent({ initialTranscripts, referen
         ...t,
         generatedDate: t.generatedDate instanceof Date ? t.generatedDate.toISOString() : t.generatedDate,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create transcript.");
-    }
-  };
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    setFormError(error.message || "Failed to create transcript.");
+  } else {
+    setFormError("Failed to create transcript.");
+  }
+}};
 
   // Handle delete transcript action
   const handleDeleteTranscript = async (transcriptId: number) => {
@@ -149,10 +155,13 @@ export default function TranscriptsClientComponent({ initialTranscripts, referen
       }
       setFormSuccess('Transcript deleted successfully!');
       setTranscripts(transcripts.filter((transcript) => transcript.id !== transcriptId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete transcript.");
-    }
-  };
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    setFormError(error.message || "Failed to delete transcript.");
+  } else {
+    setFormError("Failed to delete transcript.");
+  }
+}};
 
   return (
     <>

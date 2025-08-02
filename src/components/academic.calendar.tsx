@@ -11,16 +11,14 @@ import {
   FiCalendar,
   FiChevronLeft,
   FiChevronRight,
-  FiPlus,
   FiInfo,
   FiClock,
   FiMapPin,
-  FiBook,
-  FiFilter,
+
   FiList,
   FiGrid
 } from 'react-icons/fi';
-import { FaChalkboardTeacher, FaUniversity } from 'react-icons/fa';
+import {  FaUniversity } from 'react-icons/fa';
 import { format, addDays, addMonths, isSameMonth, isSameDay } from 'date-fns';
 import Modal from '@/components/ui/modal'
 

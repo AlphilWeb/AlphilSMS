@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/db/index';
-import { timetables, courses, staff, semesters, enrollments, students } from '@/lib/db/schema';
+import { timetables, courses, staff, enrollments, students } from '@/lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 

@@ -1,4 +1,3 @@
-// components/registrar/students/students-table.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,18 +5,40 @@ import { FiEdit, FiFileText, FiX, FiSave, FiCheck } from 'react-icons/fi';
 import Pagination from '../ui/pagination';
 import { updateStudentRecord } from '@/lib/actions/registrar.students.action';
 
-export default function StudentsTable({
-  students,
-  currentPage,
-  totalPages,
-}: {
-  students: any[];
+// Define the shape of a Program object
+interface Program {
+  id: number;
+  name: string;
+}
+
+// Define the shape of a Semester object
+interface Semester {
+  id: number;
+  name: string;
+}
+
+// Define the shape of a Student object
+interface Student {
+  id: number;
+  registrationNumber: string;
+  firstName: string;
+  lastName: string;
+  program: Program | null;
+  currentSemester: Semester | null;
+}
+
+interface StudentsTableProps {
+  students: Student[];
   currentPage: number;
   totalPages: number;
-}) {
-  const [editStudent, setEditStudent] = useState<any | null>(null);
+}
+
+export default function StudentsTable({ students, currentPage, totalPages }: StudentsTableProps) {
+  // Use the new Student type for the state
+  const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [formStatus, setFormStatus] = useState<{ success: string | null; error: string | null }>({ success: null, error: null });
 
+  // Explicitly type the event to improve type safety
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormStatus({ success: null, error: null });
@@ -27,16 +48,16 @@ export default function StudentsTable({
     try {
       const formData = new FormData(e.currentTarget);
       const result = await updateStudentRecord(editStudent.id, {
-        registrationNumber: formData.get('registrationNumber')?.toString(),
+        registrationNumber: formData.get('registrationNumber')?.toString() || '',
         programId: Number(formData.get('programId')),
         currentSemesterId: Number(formData.get('currentSemesterId')),
       });
-      if (result?.length) {
+      if (result) { // Assuming result is truthy on success, or check its length if it returns an array
         setFormStatus({ success: 'Student updated successfully!', error: null });
         setEditStudent(null);
       }
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to update student.' });
+    } catch (error: unknown) { // Use 'unknown' for type-safe error handling
+      setFormStatus({ success: null, error: (error as Error).message || 'Failed to update student.' });
     }
   };
 
@@ -100,7 +121,7 @@ export default function StudentsTable({
                   <input
                     type="text"
                     name="registrationNumber"
-                    defaultValue={editStudent.registrationNumber || ''}
+                    defaultValue={editStudent.registrationNumber}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
                     required
                   />

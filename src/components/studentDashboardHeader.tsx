@@ -9,7 +9,6 @@ import {
   FiHome,
   FiBook,
   FiCalendar,
-  FiFileText,
   FiClock,
   FiPieChart,
   FiSettings,

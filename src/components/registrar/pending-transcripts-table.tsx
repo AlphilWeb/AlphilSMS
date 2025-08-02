@@ -4,7 +4,27 @@
 import Link from 'next/link';
 import { FiFileText, FiCheck, FiX } from 'react-icons/fi';
 
-export default function PendingTranscriptsTable({ transcripts }: { transcripts: any[] }) {
+// Define the shape of the student data
+interface Student {
+  id: number;
+  firstName: string;
+  lastName: string;
+  registrationNumber: string;
+}
+
+// Define the shape of a single transcript object
+interface PendingTranscript {
+  id: number;
+  student: Student;
+  generatedDate: string | Date; // Or use whatever type matches your data
+}
+
+// Define the component props with the new, specific type
+interface PendingTranscriptsTableProps {
+  transcripts: PendingTranscript[];
+}
+
+export default function PendingTranscriptsTable({ transcripts }: PendingTranscriptsTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm text-left text-gray-500">
@@ -29,20 +49,20 @@ export default function PendingTranscriptsTable({ transcripts }: { transcripts: 
                 {new Date(transcript.generatedDate).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 flex space-x-2">
-                <Link 
+                <Link
                   href={`/dashboard/registrar/transcripts/${transcript.id}/generate`}
                   className="p-2 text-emerald-600 hover:text-emerald-800"
                   title="Generate Transcript"
                 >
                   <FiFileText className="w-5 h-5" />
                 </Link>
-                <button 
+                <button
                   className="p-2 text-green-600 hover:text-green-800"
                   title="Mark as Completed"
                 >
                   <FiCheck className="w-5 h-5" />
                 </button>
-                <button 
+                <button
                   className="p-2 text-red-600 hover:text-red-800"
                   title="Reject Request"
                 >
@@ -53,7 +73,7 @@ export default function PendingTranscriptsTable({ transcripts }: { transcripts: 
           ))}
         </tbody>
       </table>
-      
+
       {transcripts.length === 0 && (
         <div className="bg-white p-6 text-center text-gray-500">
           No pending transcript requests

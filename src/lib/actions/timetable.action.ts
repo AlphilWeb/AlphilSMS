@@ -11,7 +11,6 @@ import {
   courses,
   semesters,
   programs, // Make sure programs is imported for joining
-  users,
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm'; // Import 'and' for complex WHERE clauses
 import { getAuthUser } from '@/lib/auth';
@@ -85,10 +84,11 @@ export async function createTimetable(formData: FormData) {
     revalidatePath(`/dashboard/courses/${courseId}`);
     revalidatePath(`/dashboard/staff/${lecturerId}`); // Revalidate lecturer's timetable view
     return { success: 'Timetable entry created successfully.' };
-  } catch (err: any) {
-    console.error('[CREATE_TIMETABLE_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create timetable entry due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -172,10 +172,11 @@ export async function updateTimetable(timetableId: number, formData: FormData) {
     if (courseId) revalidatePath(`/dashboard/courses/${courseId}`);
     if (lecturerId) revalidatePath(`/dashboard/staff/${lecturerId}`);
     return { success: 'Timetable entry updated successfully.' };
-  } catch (err: any) {
-    console.error('[UPDATE_TIMETABLE_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update timetable entry due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -192,10 +193,11 @@ export async function deleteTimetable(timetableId: number) {
 
     revalidatePath('/dashboard/timetables');
     return { success: 'Timetable entry deleted successfully.' };
-  } catch (err: any) {
-    console.error('[DELETE_TIMETABLE_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete timetable entry due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -252,10 +254,11 @@ export async function getTimetables() {
     }));
 
     return allTimetables;
-  } catch (err: any) {
-    console.error('[GET_TIMETABLES_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch timetables due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -319,10 +322,11 @@ export async function getTimetableById(id: number) {
       // semesterYear: timetable.semesterYear || null, // REMOVED: Not in your schema
       // semesterType: timetable.semesterType || null, // REMOVED: Not in your schema
     };
-  } catch (err: any) {
-    console.error('[GET_TIMETABLE_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch timetable entry due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -393,10 +397,11 @@ export async function getTimetablesByLecturerId(lecturerId: number) {
     }));
 
     return lecturerTimetables;
-  } catch (err: any) {
-    console.error('[GET_TIMETABLES_BY_LECTURER_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch lecturer timetable due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -478,8 +483,9 @@ export async function getTimetablesForStudent(studentId: number) {
     }));
 
     return studentTimetables;
-  } catch (err: any) {
-    console.error('[GET_TIMETABLES_FOR_STUDENT_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student timetable due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

@@ -1,6 +1,6 @@
 import LecturerDashboardHeader from '@/components/lecturerDashboardHeader';
-import ErrorMessage from '@/components/ui/error-message';
-import { Suspense } from 'react';
+// import ErrorMessage from '@/components/ui/error-message';
+// import { Suspense } from 'react';
 import LecturerDashboardClient from '@/components/lecturer/lecturer.dashboard';
 // import DashboardSkeleton from '@/components/skeletons/dashboard-skeleton';
 
@@ -14,7 +14,7 @@ export default function LecturerDashboardPage() {
           {/* Welcome Banner */}
           <div className="bg-white rounded-lg shadow p-6">
             <h1 className="text-2xl font-bold text-gray-800">Lecturer Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's your teaching overview.</p>
+            <p className="text-gray-600">Welcome back! Here&apos;s your teaching overview.</p>
           </div>
 
           {/* Main Dashboard Content */}

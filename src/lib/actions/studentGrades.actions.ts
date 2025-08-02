@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/db/index';
 import { grades, enrollments, courses, students } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 export async function getStudentGrades() {

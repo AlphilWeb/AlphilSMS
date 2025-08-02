@@ -1,13 +1,12 @@
-// src/components/registrar/graduation-list/index.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Input } from '@/components/ui/input';
 import { GraduationListFilters, getGraduationList } from '@/lib/actions/registrar.graduation.action';
 import { Select, SelectItem } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { GraduationCandidateCard } from './graduation-candidate-card';
-import { useTransition } from 'react';
+import { SelectTrigger, SelectValue } from '@radix-ui/react-select';
+ // Assuming this component exists
 
 type GraduationListProps = {
   data: Awaited<ReturnType<typeof getGraduationList>>;
@@ -18,7 +17,14 @@ export default function GraduationList({ data }: GraduationListProps) {
   const [filteredData, setFilteredData] = useState(data);
   const [isPending, startTransition] = useTransition();
 
-  const handleFilterChange = (key: keyof GraduationListFilters, value: any) => {
+  // Helper type to allow only keys of GraduationListFilters for filtering
+  type FilterKey = keyof GraduationListFilters;
+
+  // Helper type to map keys to their expected value types
+  type FilterValue<K extends FilterKey> = GraduationListFilters[K];
+
+  // Strongly typed handler for all filter changes
+  const handleFilterChange = <K extends FilterKey>(key: K, value: FilterValue<K>) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     startTransition(async () => {
       const updated = await getGraduationList({ ...filters, [key]: value });
@@ -29,10 +35,14 @@ export default function GraduationList({ data }: GraduationListProps) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* The 'disabled' prop is applied to the SelectTrigger, not the Select wrapper */}
         <Select
-          placeholder="Filter by Semester"
-          onValueChange={(val: any) => handleFilterChange('semesterId', Number(val))}
+          onValueChange={(val: string) => handleFilterChange('semesterId', Number(val))}
+          value={filters.semesterId?.toString() || ''}
         >
+          <SelectTrigger disabled={isPending}>
+            <SelectValue placeholder="Filter by Semester" />
+          </SelectTrigger>
           {data.filters.semesters.map((sem) => (
             <SelectItem key={sem.id} value={sem.id.toString()}>
               {sem.name}
@@ -41,9 +51,12 @@ export default function GraduationList({ data }: GraduationListProps) {
         </Select>
 
         <Select
-          placeholder="Filter by Program"
-          onValueChange={(val: any) => handleFilterChange('programId', Number(val))}
+          onValueChange={(val: string) => handleFilterChange('programId', Number(val))}
+          value={filters.programId?.toString() || ''}
         >
+          <SelectTrigger disabled={isPending}>
+            <SelectValue placeholder="Filter by Program" />
+          </SelectTrigger>
           {data.filters.programs.map((p) => (
             <SelectItem key={p.id} value={p.id.toString()}>
               {p.name}
@@ -52,9 +65,12 @@ export default function GraduationList({ data }: GraduationListProps) {
         </Select>
 
         <Select
-          placeholder="Filter by Department"
-          onValueChange={(val: any) => handleFilterChange('departmentId', Number(val))}
+          onValueChange={(val: string) => handleFilterChange('departmentId', Number(val))}
+          value={filters.departmentId?.toString() || ''}
         >
+          <SelectTrigger disabled={isPending}>
+            <SelectValue placeholder="Filter by Department" />
+          </SelectTrigger>
           {data.filters.departments.map((d) => (
             <SelectItem key={d.id} value={d.id.toString()}>
               {d.name}
@@ -63,9 +79,17 @@ export default function GraduationList({ data }: GraduationListProps) {
         </Select>
 
         <Select
-          placeholder="Graduation Status"
-          onValueChange={(val: any) => handleFilterChange('graduationStatus', val)}
+          onValueChange={(val) =>
+            handleFilterChange(
+              'graduationStatus',
+              val as 'pending' | 'approved' | 'completed'
+            )
+          }
+          value={filters.graduationStatus || ''}
         >
+          <SelectTrigger disabled={isPending}>
+            <SelectValue placeholder="Graduation Status" />
+          </SelectTrigger>
           <SelectItem value="pending">Pending</SelectItem>
           <SelectItem value="approved">Approved</SelectItem>
           <SelectItem value="completed">Completed</SelectItem>
@@ -74,7 +98,10 @@ export default function GraduationList({ data }: GraduationListProps) {
 
       <Input
         placeholder="Search by name or registration number"
-        onChange={(e: { target: { value: any; }; }) => handleFilterChange('searchQuery', e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          handleFilterChange('searchQuery', e.target.value)
+        }
+        disabled={isPending}
       />
 
       <div className="text-sm text-gray-600">
@@ -83,11 +110,17 @@ export default function GraduationList({ data }: GraduationListProps) {
         {filteredData.stats.completed} completed
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {filteredData.candidates.map((candidate) => (
-          <GraduationCandidateCard key={candidate.id} candidate={candidate} />
-        ))}
-      </div>
+      {isPending ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">Loading candidates...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {filteredData.candidates.map((candidate) => (
+            <GraduationCandidateCard key={candidate.id} candidate={candidate} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

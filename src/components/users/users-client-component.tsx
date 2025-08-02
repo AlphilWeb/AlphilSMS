@@ -1,148 +1,151 @@
-// components/users/users-client-component.tsx
 'use client';
 
-import { useState, useEffect } from "react";
-import {
-  FiPlus,
-  FiEdit,
-  FiTrash2,
-  FiEye,
-  FiX,
-  FiSave,
-  FiCheck,
-} from "react-icons/fi";
-import {
-  createUser,
-  updateUser,
-  deleteUser,
-  getUsers, // Keep getUsers here to refresh the list after adding
-} from "@/lib/actions/user.actions";
-
+import { useState } from "react";
+import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-icons/fi";
+import { createUser, updateUser, deleteUser, getUsers } from "@/lib/actions/user.actions";
+import Image from "next/image";
 interface Role {
   id: number;
   name: string;
 }
 
+interface ApiUser {
+  id: number;
+  email: string;
+  roleId: number;
+  roleName: string | null;
+  fullName: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface User {
   id: number;
   email: string;
-  roleId: number; // Added
-  roleName: string | null; // Changed to allow null
-  fullName: string | null; // Changed to allow null
-  photoUrl: string | null; // Changed to allow null
-  createdAt: string; // Added
-  updatedAt: string; // Added
+  roleId: number;
+  roleName: string | null;
+  fullName: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface UsersClientComponentProps {
-  initialUsers: User[];
+  initialUsers: ApiUser[];
   roles: Role[];
 }
 
-export default function UsersClientComponent({
-  initialUsers,
-  roles,
-}: UsersClientComponentProps) {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+const transformApiUser = (apiUser: ApiUser): User => {
+  return {
+    id: apiUser.id,
+    email: apiUser.email,
+    roleId: apiUser.roleId,
+    roleName: apiUser.roleName,
+    fullName: apiUser.fullName,
+    photoUrl: apiUser.photoUrl,
+    createdAt: apiUser.createdAt,
+    updatedAt: apiUser.updatedAt
+  };
+};
+
+export default function UsersClientComponent({ initialUsers, roles }: UsersClientComponentProps) {
+  const [users, setUsers] = useState<User[]>(initialUsers.map(transformApiUser));
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState<"email" | "fullName" | "roleName">(
-    "email"
-  );
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [filterBy, setFilterBy] = useState<"email" | "fullName" | "roleName">("email");
   const [editId, setEditId] = useState<number | null>(null);
-  const [editedUser, setEditedUser] = useState<Partial<User>>({}); // Use Partial<User> for editing
+  const [editedUser, setEditedUser] = useState<Partial<User>>({});
   const [showDetails, setShowDetails] = useState<User | null>(null);
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({
     email: "",
     roleId: "",
-    password: "",
+    password: ""
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Filter users based on search and filterBy
   const filteredUsers = users.filter((user: User) => {
-    const value =
-      filterBy === "fullName"
-        ? user.fullName ?? ""
-        : filterBy === "roleName"
-        ? user.roleName ?? ""
-        : user.email ?? "";
+    const value = filterBy === "fullName" 
+      ? user.fullName ?? "" 
+      : filterBy === "roleName" 
+      ? user.roleName ?? "" 
+      : user.email;
     return value.toLowerCase().includes(search.toLowerCase());
   });
 
-  // Handle editing user
+  // const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  //   setFilterBy(e.target.value as "email" | "fullName" | "roleName");
+  // };
+
   const handleEdit = (user: User) => {
     setEditId(user.id);
-    setEditedUser(user); // Initialize editedUser with current user data
+    setEditedUser({
+      ...user,
+      fullName: user.fullName ?? '',
+      roleName: user.roleName ?? ''
+    });
     setFormError(null);
     setFormSuccess(null);
   };
 
-  // Save edited user
   const handleSave = async (id: number, formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
-      // It's crucial to send the complete `editedUser` state data if you have multiple editable fields.
-      // For now, based on your original snippet, only email and roleId are prepared.
-      // Ensure your `updateUser` server action expects these fields via FormData.
       const result = await updateUser(id, formData);
-      if (result?.error) {
+      if ('error' in result) {
         setFormError(result.error ?? "Failed to update user.");
         return;
       }
-      setFormSuccess("User updated successfully!");
+      setFormSuccess('User updated successfully!');
       setEditId(null);
-
-      // Refresh users list after update to get the latest data including timestamps/fullName
+      
       const updatedUsers = await getUsers();
-      setUsers(updatedUsers);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update user.");
+      setUsers(updatedUsers.map(transformApiUser));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to update user.");
     }
   };
 
-  // Add a new user
   const handleAddUser = async (formData: FormData) => {
     setFormError(null);
     setFormSuccess(null);
     try {
       const result = await createUser(formData);
-      if ("error" in result) {
+      if ('error' in result) {
         setFormError(result.error ?? "Failed to create user.");
         return;
       }
-      setFormSuccess("User created successfully!");
+      setFormSuccess('User created successfully!');
       setShowAddUser(false);
       setNewUser({ email: "", roleId: "", password: "" });
 
-      // Refresh users list after add to get the newly created user with correct data format
       const updatedUsers = await getUsers();
-      setUsers(updatedUsers);
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create user.");
+      setUsers(updatedUsers.map(transformApiUser));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to create user.");
     }
   };
 
-  // Delete a user
   const handleDeleteUser = async (userId: number) => {
     setFormError(null);
     setFormSuccess(null);
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
       const result = await deleteUser(userId);
-      if ("error" in result) {
+      if ('error' in result) {
         setFormError(result.error ?? "Failed to delete user.");
         return;
       }
-      setFormSuccess("User deleted successfully!");
-      setUsers(users.filter((user) => user.id !== userId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete user.");
+      setFormSuccess('User deleted successfully!');
+      setUsers(users.filter(user => user.id !== userId));
+    } catch (error: unknown) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete user.");
     }
   };
+
+  // JSX portion remains the same...
 
   return (
     <>
@@ -223,17 +226,21 @@ export default function UsersClientComponent({
                       >
                         <td className="p-4 font-medium">{user.id}</td>
                         <td className="p-4">
-                          {user.photoUrl ? (
-                            <img
-                              src={user.photoUrl}
-                              alt={`${user.fullName || user.email} photo`}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-sm">
-                              N/A
-                            </div>
-                          )}
+{user.photoUrl ? (
+  <div className="w-10 h-10 rounded-full overflow-hidden">
+    <Image
+      src={user.photoUrl}
+      alt={`${user.fullName || user.email} photo`}
+      width={40}
+      height={40}
+      className="object-cover"
+    />
+  </div>
+) : (
+  <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-sm">
+    N/A
+  </div>
+)}
                         </td>
                         <td className="p-4 font-medium">
                           {editId === user.id ? (
@@ -507,17 +514,22 @@ export default function UsersClientComponent({
             </div>
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-4">
-                {showDetails.photoUrl ? (
-                  <img
-                    src={showDetails.photoUrl}
-                    alt={`${showDetails.fullName || showDetails.email} photo`}
-                    className="w-20 h-20 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-lg">
-                    N/A
-                  </div>
-                )}
+{showDetails.photoUrl ? (
+  <div className="w-10 h-10 rounded-full overflow-hidden">
+    <Image
+      src={showDetails.photoUrl}
+      alt={`${showDetails} photo`}
+      width={40}
+      height={40}
+      className="object-cover"
+    />
+  </div>
+) : (
+  <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-sm">
+    N/A
+  </div>
+)}
+
                 <div>
                   <p className="text-xl font-semibold">
                     {showDetails.fullName || "No Name"}

@@ -2,8 +2,8 @@
 'use server';
 
 import { db, testConnection } from '@/lib/db';
-import { timetables, courses, semesters, staff, userLogs } from '@/lib/db/schema';
-import { and, eq, sql, desc } from 'drizzle-orm';
+import { timetables, userLogs } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 

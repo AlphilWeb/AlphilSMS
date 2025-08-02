@@ -12,9 +12,11 @@ export type SelectProps = {
   value?: string;
   children: React.ReactNode;
   className?: string;
+  // Add the disabled prop here
+  disabled?: boolean;
 };
 
-export function Select({ placeholder, onValueChange, value, children, className }: SelectProps) {
+export function Select({ placeholder, onValueChange, value, children, className, disabled }: SelectProps) {
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
       <SelectPrimitive.Trigger
@@ -24,6 +26,8 @@ export function Select({ placeholder, onValueChange, value, children, className 
           'transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
           className
         )}
+        // Pass the disabled prop down to the primitive trigger
+        disabled={disabled}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon asChild>

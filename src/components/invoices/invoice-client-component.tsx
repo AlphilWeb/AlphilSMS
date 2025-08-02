@@ -31,12 +31,13 @@ interface InvoicesClientComponentProps {
   initialInvoices: Invoice[];
   referenceData: ReferenceData;
 }
+type FilterOptions = keyof Invoice | 'studentId' | 'semesterId' | 'feeStructureId';
+
 
 export default function InvoicesClientComponent({ initialInvoices, referenceData }: InvoicesClientComponentProps) {
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("studentId"); // Default filter
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+const [filterBy, setFilterBy] = useState<FilterOptions>("studentId");
   const [editId, setEditId] = useState<number | null>(null);
   const [editedInvoice, setEditedInvoice] = useState<Partial<Invoice>>({});
   const [showDetails, setShowDetails] = useState<Invoice | null>(null);
@@ -76,19 +77,21 @@ export default function InvoicesClientComponent({ initialInvoices, referenceData
   };
 
   // Filter invoices based on search and filterBy criteria
-  const filteredInvoices = invoices.filter((invoice: Invoice) => {
-    let value = '';
-    if (filterBy === 'studentId') {
-      value = getStudentDisplayName(invoice.studentId).toLowerCase();
-    } else if (filterBy === 'semesterId') {
-      value = getSemesterDisplayName(invoice.semesterId).toLowerCase();
-    } else if (filterBy === 'feeStructureId') {
-      value = getFeeStructureDisplayName(invoice.feeStructureId).toLowerCase();
-    } else {
-      value = (invoice as any)[filterBy]?.toString().toLowerCase() || '';
-    }
-    return value.includes(search.toLowerCase());
-  });
+const filteredInvoices = invoices.filter((invoice: Invoice) => {
+  let value = '';
+  if (filterBy === 'studentId') {
+    value = getStudentDisplayName(invoice.studentId).toLowerCase();
+  } else if (filterBy === 'semesterId') {
+    value = getSemesterDisplayName(invoice.semesterId).toLowerCase();
+  } else if (filterBy === 'feeStructureId') {
+    value = getFeeStructureDisplayName(invoice.feeStructureId).toLowerCase();
+  } else {
+    // Type-safe property access for Invoice properties
+    const propValue = invoice[filterBy];
+    value = propValue?.toString().toLowerCase() || '';
+  }
+  return value.includes(search.toLowerCase());
+});
 
   // Handle edit button click
   const handleEdit = (invoice: Invoice) => {
@@ -99,9 +102,7 @@ export default function InvoicesClientComponent({ initialInvoices, referenceData
       amountPaid: invoice.amountPaid || '',
       dueDate: invoice.dueDate || '',
       status: invoice.status || '',
-      // Ensure issuedDate is formatted for date input, handling potential null/undefined
       issuedDate: invoice.issuedDate ? new Date(invoice.issuedDate).toISOString().split('T')[0] : '',
-      // feeStructureId is number | null, assign directly. Select's value will handle string conversion.
       feeStructureId: invoice.feeStructureId,
     });
     setFormError(null);
@@ -126,8 +127,8 @@ export default function InvoicesClientComponent({ initialInvoices, referenceData
         ...inv,
         issuedDate: inv.issuedDate instanceof Date ? inv.issuedDate.toISOString() : inv.issuedDate,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update invoice.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to update invoice.");
     }
   };
 
@@ -152,8 +153,8 @@ export default function InvoicesClientComponent({ initialInvoices, referenceData
         ...inv,
         issuedDate: inv.issuedDate instanceof Date ? inv.issuedDate.toISOString() : inv.issuedDate,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create invoice.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to create invoice.");
     }
   };
 
@@ -170,8 +171,8 @@ export default function InvoicesClientComponent({ initialInvoices, referenceData
       }
       setFormSuccess('Invoice deleted successfully!');
       setInvoices(invoices.filter((invoice) => invoice.id !== invoiceId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete invoice.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to delete invoice.");
     }
   };
 
@@ -187,16 +188,16 @@ export default function InvoicesClientComponent({ initialInvoices, referenceData
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
-            <option className="bg-emerald-800" value="studentId">Student</option>
-            <option className="bg-emerald-800" value="semesterId">Semester</option>
-            <option className="bg-emerald-800" value="status">Status</option>
-            <option className="bg-emerald-800" value="id">ID</option>
-          </select>
+<select
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+  value={filterBy}
+  onChange={(e) => setFilterBy(e.target.value as FilterOptions)}
+>
+  <option className="bg-emerald-800" value="studentId">Student</option>
+  <option className="bg-emerald-800" value="semesterId">Semester</option>
+  <option className="bg-emerald-800" value="status">Status</option>
+  <option className="bg-emerald-800" value="id">ID</option>
+</select>
         </div>
         <button
           className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"

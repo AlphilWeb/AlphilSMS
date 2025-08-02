@@ -2,8 +2,8 @@
 'use server';
 
 import { db, testConnection } from '@/lib/db';
-import { courses, programs, semesters, userLogs } from '@/lib/db/schema';
-import { and, eq, sql, desc, count, isNull } from 'drizzle-orm';
+import { courses, userLogs } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
@@ -87,6 +87,7 @@ export async function createCourse(data: {
   code: string;
   credits: number;
   description?: string;
+  lecturerId: number; // Optional field
 }) {
   try {
     const isConnected = await testConnection();
@@ -129,6 +130,7 @@ export async function updateCourse(
     code: string;
     credits: number;
     description?: string;
+    lecturerId?: number; // Optional field
   }
 ) {
   try {

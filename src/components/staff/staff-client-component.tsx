@@ -6,8 +6,8 @@ import { FiPlus, FiEdit, FiTrash2, FiEye, FiX, FiSave, FiCheck } from "react-ico
 import { createStaff, updateStaff, deleteStaff, getStaff } from "@/lib/actions/staff.action";
 
 // Define the interface for a Staff member based on your schema's SelectStaff
-
-
+// --- Type Definitions ---
+// Define a more complete Staff interface
 interface Staff {
   id: number;
   userId: number;
@@ -20,8 +20,22 @@ interface Staff {
   nationalIdPhotoUrl: string | null;
   academicCertificatesUrl: string | null;
   passportPhotoUrl: string | null;
-
+  createdAt?: string | Date; // Optional, as it might not be in the initial data
+  updatedAt?: string | Date; // Optional, as it might not be in the initial data
 }
+
+// Define the shape of the data returned by API actions
+// interface ActionError {
+//   error: string | null;
+// }
+
+// interface StaffActionSuccess {
+//   // Define what a successful response looks like, e.g.,
+//   message: string;
+// }
+
+// Define the types for your filter keys
+// type StaffFilterKey = 'email' | 'firstName' | 'lastName' | 'position' | 'id';
 
 interface ReferenceData {
   departments: { id: number; name: string }[];
@@ -31,35 +45,35 @@ interface StaffClientComponentProps {
   initialStaff: Staff[];
   referenceData: ReferenceData;
 }
-
+// --- End of Type Definitions ---
 
 export default function StaffClientComponent({ initialStaff }: StaffClientComponentProps) {
   const [staff, setStaff] = useState<Staff[]>(initialStaff);
-  const [search, setSearch] = useState("");
-  const [filterBy, setFilterBy] = useState("email"); // Default filter
-  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [filterBy, setFilterBy] = useState<StaffFilterKey>('email'); // Use the new type
   const [editId, setEditId] = useState<number | null>(null);
   const [editedStaff, setEditedStaff] = useState<Partial<Staff>>({});
   const [showDetails, setShowDetails] = useState<Staff | null>(null);
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [newStaff, setNewStaff] = useState({
-    userId: "",
-    departmentId: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    position: "",
-    employmentDocumentsUrl: "",
-    nationalIdPhotoUrl: "",
-    academicCertificatesUrl: "",
-    passportPhotoUrl: "",
+    userId: '',
+    departmentId: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    position: '',
+    employmentDocumentsUrl: '',
+    nationalIdPhotoUrl: '',
+    academicCertificatesUrl: '',
+    passportPhotoUrl: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   // Filter staff members based on search and filterBy criteria
-  const filteredStaff = staff.filter((member: Staff) => {
-    const value = (member as any)[filterBy]?.toString().toLowerCase();
+  const filteredStaff = staff.filter((member) => {
+    // Safely access member properties using the `filterBy` key
+    const value = member[filterBy as keyof Staff]?.toString().toLowerCase();
     return value ? value.includes(search.toLowerCase()) : false;
   });
 
@@ -76,22 +90,29 @@ export default function StaffClientComponent({ initialStaff }: StaffClientCompon
     setFormError(null);
     setFormSuccess(null);
     try {
+      // Assuming updateStaff returns a result that matches `ActionError`
       const result = await updateStaff(id, formData);
-      if (result?.error) {
-        setFormError(typeof result.error === "string" ? result.error : "Failed to update staff member.");
+      if ('error' in result) {
+        const errorMessage = typeof result.error === 'string' ? result.error : 'Failed to update staff member.';
+        setFormError(errorMessage);
         return;
       }
       setFormSuccess('Staff member updated successfully!');
       setEditId(null);
+
       // Re-fetch all staff to ensure the local state is fully synchronized
       const updatedStaff = await getStaff();
-      setStaff(updatedStaff.map((s: any) => ({
+      setStaff(updatedStaff.map((s: Staff) => ({
         ...s,
         createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
         updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to update staff member.");
+    } catch (error: unknown) { // Use unknown for type-safe error handling
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError('Failed to update staff member.');
+      }
     }
   };
 
@@ -102,25 +123,35 @@ export default function StaffClientComponent({ initialStaff }: StaffClientCompon
     try {
       const result = await createStaff(formData);
       if ('error' in result) {
-        setFormError(result.error ?? "Failed to create staff member.");
+        setFormError(result.error ?? 'Failed to create staff member.');
         return;
       }
       setFormSuccess('Staff member created successfully!');
       setShowAddStaff(false);
-      setNewStaff({ // Reset form fields
-        userId: "", departmentId: "", firstName: "", lastName: "", email: "",
-        position: "", employmentDocumentsUrl: "", nationalIdPhotoUrl: "",
-        academicCertificatesUrl: "", passportPhotoUrl: ""
+      setNewStaff({
+        userId: '',
+        departmentId: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        position: '',
+        employmentDocumentsUrl: '',
+        nationalIdPhotoUrl: '',
+        academicCertificatesUrl: '',
+        passportPhotoUrl: '',
       });
-      // Re-fetch all staff to ensure the local state is fully synchronized
       const updatedStaff = await getStaff();
-      setStaff(updatedStaff.map((s: any) => ({
+      setStaff(updatedStaff.map((s: Staff) => ({
         ...s,
         createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
         updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
       })));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to create staff member.");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError('Failed to create staff member.');
+      }
     }
   };
 
@@ -128,19 +159,25 @@ export default function StaffClientComponent({ initialStaff }: StaffClientCompon
   const handleDeleteStaff = async (staffId: number) => {
     setFormError(null);
     setFormSuccess(null);
-    if (!confirm("Are you sure you want to delete this staff member? This action cannot be undone.")) return;
+    if (!confirm('Are you sure you want to delete this staff member? This action cannot be undone.')) return;
     try {
       const result = await deleteStaff(staffId);
       if ('error' in result) {
-        setFormError(typeof result.error === "string" ? result.error : "Failed to delete staff member.");
+        setFormError(typeof result.error === 'string' ? result.error : 'Failed to delete staff member.');
         return;
       }
       setFormSuccess('Staff member deleted successfully!');
       setStaff(staff.filter((member) => member.id !== staffId));
-    } catch (error: any) {
-      setFormError(error.message || "Failed to delete staff member.");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError('Failed to delete staff member.');
+      }
     }
   };
+  type StaffFilterKey = "email" | "firstName" | "lastName" | "position" | "id";
+
 
   return (
     <>
@@ -154,17 +191,17 @@ export default function StaffClientComponent({ initialStaff }: StaffClientCompon
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <select
-            className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
-            value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
-          >
-            <option value="email">Email</option>
-            <option value="firstName">First Name</option>
-            <option value="lastName">Last Name</option>
-            <option value="position">Position</option>
-            <option value="id">ID</option>
-          </select>
+  <select
+    className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
+    value={filterBy}
+    onChange={(e) => setFilterBy(e.target.value as StaffFilterKey)}
+  >
+    <option value="email">Email</option>
+    <option value="firstName">First Name</option>
+    <option value="lastName">Last Name</option>
+    <option value="position">Position</option>
+    <option value="id">ID</option>
+  </select>
         </div>
         <button
           className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"

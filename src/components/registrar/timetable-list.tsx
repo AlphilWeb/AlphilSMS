@@ -6,13 +6,37 @@ import { FiEdit, FiCalendar, FiClock, FiTrash2, FiPlus } from 'react-icons/fi';
 import { deleteTimetable } from '@/lib/actions/registrar.timetable.action';
 import TimetableForm from './timetabe-form';
 
-export default function TimetablesList({ timetables }: { timetables: any[] }) {
-  const [editTimetable, setEditTimetable] = useState<any | null>(null);
+interface Course {
+  code: string;
+  name: string;
+}
+
+interface Lecturer {
+  firstName: string;
+  lastName: string;
+}
+
+export interface Timetable {
+  id: number;
+  course: Course;
+  lecturer: Lecturer;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  room?: string;
+}
+
+interface TimetablesListProps {
+  timetables: Timetable[];
+}
+
+export default function TimetablesList({ timetables }: TimetablesListProps) {
+  const [editTimetable, setEditTimetable] = useState<Timetable | null>(null);
   const [showAddTimetable, setShowAddTimetable] = useState(false);
-  const [formStatus, setFormStatus] = useState<{ success: string | null; error: string | null }>({ 
-    success: null, 
-    error: null 
-  });
+  const [formStatus, setFormStatus] = useState<{
+    success: string | null;
+    error: string | null;
+  }>({ success: null, error: null });
 
   const handleDelete = async (timetableId: number) => {
     if (!confirm('Are you sure you want to delete this timetable entry?')) return;
@@ -20,8 +44,9 @@ export default function TimetablesList({ timetables }: { timetables: any[] }) {
       await deleteTimetable(timetableId);
       setFormStatus({ success: 'Timetable deleted successfully!', error: null });
       window.location.reload();
-    } catch (error: any) {
-      setFormStatus({ success: null, error: error.message || 'Failed to delete timetable.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete timetable.';
+      setFormStatus({ success: null, error: message });
     }
   };
 
@@ -41,21 +66,11 @@ export default function TimetablesList({ timetables }: { timetables: any[] }) {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Course
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Day & Time
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Lecturer
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Room
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day & Time</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lecturer</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -67,8 +82,8 @@ export default function TimetablesList({ timetables }: { timetables: any[] }) {
                     <FiCalendar className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{timetable.course?.code}</div>
-                    <div className="text-sm text-gray-500">{timetable.course?.name}</div>
+                    <div className="text-sm font-medium text-gray-900">{timetable.course.code}</div>
+                    <div className="text-sm text-gray-500">{timetable.course.name}</div>
                   </div>
                 </div>
               </td>
@@ -86,7 +101,7 @@ export default function TimetablesList({ timetables }: { timetables: any[] }) {
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {timetable.lecturer?.lastName}, {timetable.lecturer?.firstName}
+                {timetable.lecturer.lastName}, {timetable.lecturer.firstName}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {timetable.room || '-'}
@@ -115,14 +130,14 @@ export default function TimetablesList({ timetables }: { timetables: any[] }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <TimetableForm
             initialData={editTimetable}
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               try {
-                // You would call updateTimetable here
                 setFormStatus({ success: 'Timetable updated successfully!', error: null });
                 setEditTimetable(null);
                 window.location.reload();
-              } catch (error: any) {
-                setFormStatus({ success: null, error: error.message || 'Failed to update timetable.' });
+              } catch (error) {
+                const message = error instanceof Error ? error.message : 'Failed to update timetable.';
+                setFormStatus({ success: null, error: message });
               }
             }}
             onCancel={() => {
@@ -139,14 +154,14 @@ export default function TimetablesList({ timetables }: { timetables: any[] }) {
       {showAddTimetable && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <TimetableForm
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               try {
-                // You would call createTimetable here
                 setFormStatus({ success: 'Timetable created successfully!', error: null });
                 setShowAddTimetable(false);
                 window.location.reload();
-              } catch (error: any) {
-                setFormStatus({ success: null, error: error.message || 'Failed to create timetable.' });
+              } catch (error) {
+                const message = error instanceof Error ? error.message : 'Failed to create timetable.';
+                setFormStatus({ success: null, error: message });
               }
             }}
             onCancel={() => {

@@ -10,16 +10,15 @@ import {
   semesters,
   departments,
   staff,
-  users,
   timetables,
   enrollments,
   students,
 } from '@/lib/db/schema';
 // Import SQL, and, eq, inArray, sql for type safety in where clauses
-import { eq, and, inArray, SQL, sql, or } from 'drizzle-orm';
+import { eq, and, inArray, SQL, or } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth'; // Ensure AuthPayload in here has departmentId and optionally programId
 import { checkPermission } from '@/lib/rbac';
-import type { AnyColumn, SQLWrapper, BuildQueryResult } from 'drizzle-orm'; // Import Drizzle types for clarity
+// import type { AnyColumn, SQLWrapper, BuildQueryResult } from 'drizzle-orm'; // Import Drizzle types for clarity
 
 class ActionError extends Error {
   constructor(message: string) {
@@ -38,9 +37,9 @@ const ROLES = {
   STUDENT: 'Student',
 };
 
-function allowedRolesForManagingCourses() {
-  return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.HOD]; // HOD can manage courses in their department
-}
+// function allowedRolesForManagingCourses() {
+//   return [ROLES.ADMIN, ROLES.REGISTRAR, ROLES.HOD]; // HOD can manage courses in their department
+// }
 
 function allowedRolesForViewingCourses() {
   return [
@@ -122,6 +121,7 @@ export async function createCourse(formData: FormData) {
       code,
       credits: String(credits),
       description: description || undefined,
+      lecturerId: 0
     };
 
     const [createdCourse] = await db.insert(courses).values(newCourse).returning();
@@ -131,10 +131,11 @@ export async function createCourse(formData: FormData) {
     revalidatePath(`/dashboard/semesters/${semesterId}`);
     revalidatePath(`/dashboard/departments/${programRecord.departmentId}`); // Revalidate department page
     return { success: 'Course created successfully.', data: createdCourse };
-  } catch (err: any) {
-    console.error('[CREATE_COURSE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create course due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -214,10 +215,11 @@ export async function updateCourse(courseId: number, formData: FormData) {
     }
 
     return { success: 'Course updated successfully.', data: updatedCourse };
-  } catch (err: any) {
-    console.error('[UPDATE_COURSE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update course due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -267,10 +269,11 @@ export async function deleteCourse(courseId: number) {
     if (courseDepartmentId) revalidatePath(`/dashboard/departments/${courseDepartmentId}`);
 
     return { success: 'Course deleted successfully.', data: deletedCourse };
-  } catch (err: any) {
-    console.error('[DELETE_COURSE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete course due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -379,10 +382,11 @@ export async function getCourses() {
     }));
 
     return allCourses;
-  } catch (err: any) {
-    console.error('[GET_COURSES_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch courses due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -483,10 +487,11 @@ export async function getCourseById(id: number) {
       semesterStartDate: courseRecord.semesterStartDate || null,
       semesterEndDate: courseRecord.semesterEndDate || null,
     };
-  } catch (err: any) {
-    console.error('[GET_COURSE_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch course due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -587,10 +592,11 @@ export async function getCoursesByProgramId(programId: number) {
     }));
 
     return programCourses;
-  } catch (err: any) {
-    console.error('[GET_COURSES_BY_PROGRAM_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch courses by program due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -660,10 +666,11 @@ export async function getCoursesByLecturerId(lecturerId: number) {
     }));
 
     return lecturerCourses;
-  } catch (err: any) {
-    console.error('[GET_COURSES_BY_LECTURER_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch lecturer courses due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -743,8 +750,9 @@ export async function getCoursesByStudentId(studentId: number) {
     }));
 
     return studentCourses;
-  } catch (err: any) {
-    console.error('[GET_COURSES_BY_STUDENT_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student courses due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

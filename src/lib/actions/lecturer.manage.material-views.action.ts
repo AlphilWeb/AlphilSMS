@@ -2,9 +2,9 @@
 
 import { db } from '@/lib/db';
 import { materialViews, courseMaterials, students, courses } from '@/lib/db/schema';
-import { and, eq, desc, count, sql } from 'drizzle-orm';
+import {  eq, desc, count, sql } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
-import { revalidatePath } from 'next/cache';
+// import { revalidatePath } from 'next/cache';
 
 // Types
 export type MaterialViewWithDetails = {

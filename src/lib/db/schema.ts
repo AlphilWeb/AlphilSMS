@@ -1,6 +1,6 @@
-import { pgTable, serial, text, timestamp, unique, index, foreignKey, integer, numeric, date, time, varchar, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, unique, foreignKey, integer, numeric, date, time, varchar, boolean } from 'drizzle-orm/pg-core';
 import { relations, InferInsertModel, InferSelectModel } from 'drizzle-orm';
-import { file } from 'zod';
+// import { file } from 'zod';
 
 // --- Core Tables ---
 

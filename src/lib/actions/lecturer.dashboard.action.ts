@@ -5,7 +5,6 @@ import { db } from '@/lib/db';
 import {
   courses,
   enrollments,
-  grades,
   semesters,
   staff,
   userLogs,
@@ -15,9 +14,8 @@ import {
   courseMaterials,
   assignments,
   quizzes,
-  students
 } from '@/lib/db/schema';
-import { and, eq, desc, count, isNull, sql, inArray } from 'drizzle-orm';
+import { and, eq, desc, count, isNull, inArray } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 type DashboardStats = {

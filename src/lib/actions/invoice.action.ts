@@ -106,10 +106,11 @@ export async function createInvoice(formData: FormData) {
     revalidatePath(`/dashboard/semesters/${semesterId}`); // Revalidate semester's finance overview
     if (feeStructureId) revalidatePath(`/dashboard/finance/fee-structures/${feeStructureId}`);
     return { success: 'Invoice created successfully.', data: createdInvoice };
-  } catch (err: any) {
-    console.error('[CREATE_INVOICE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create invoice due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -146,9 +147,9 @@ export async function updateInvoice(invoiceId: number, formData: FormData) {
     if (feeStructureId !== null) updates.feeStructureId = feeStructureId;
     if (dueDate !== null) updates.dueDate = dueDate;
 
-    let newAmountDue =
+    const newAmountDue =
       amountDueStr !== null ? parseFloat(amountDueStr) : parseFloat(existingInvoice.amountDue);
-    let newAmountPaid =
+    const newAmountPaid =
       amountPaidStr !== null ? parseFloat(amountPaidStr) : parseFloat(existingInvoice.amountPaid);
 
     if (isNaN(newAmountDue) || newAmountDue < 0 || isNaN(newAmountPaid) || newAmountPaid < 0) {
@@ -201,10 +202,11 @@ export async function updateInvoice(invoiceId: number, formData: FormData) {
       revalidatePath(`/dashboard/finance/fee-structures/${existingInvoice.feeStructureId}`);
 
     return { success: 'Invoice updated successfully.', data: updatedInvoice };
-  } catch (err: any) {
-    console.error('[UPDATE_INVOICE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update invoice due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -241,10 +243,11 @@ export async function deleteInvoice(invoiceId: number) {
     if (invoiceToDelete.feeStructureId)
       revalidatePath(`/dashboard/finance/fee-structures/${invoiceToDelete.feeStructureId}`);
     return { success: 'Invoice deleted successfully.', data: deletedInvoice };
-  } catch (err: any) {
-    console.error('[DELETE_INVOICE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete invoice due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -309,10 +312,11 @@ export async function getInvoices() {
     }));
 
     return allInvoices;
-  } catch (err: any) {
-    console.error('[GET_INVOICES_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch invoices due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -395,10 +399,11 @@ export async function getInvoiceById(id: number) {
       feeStructureTotalAmount: invoiceRecord.feeStructureTotalAmount || null,
       feeStructureDescription: invoiceRecord.feeStructureDescription || null,
     };
-  } catch (err: any) {
-    console.error('[GET_INVOICE_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch invoice due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -472,8 +477,9 @@ export async function getInvoicesByStudentId(studentId: number) {
     }));
 
     return studentInvoices;
-  } catch (err: any) {
-    console.error('[GET_INVOICES_BY_STUDENT_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch student invoices due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

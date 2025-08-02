@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiUserCheck, FiBook, FiCalendar, FiList, FiUsers } from 'react-icons/fi'; // Example icons
+import { FiUserCheck, FiBook, FiCalendar, FiUsers } from 'react-icons/fi'; // Example icons
 
 export default function EnrollmentsNav() {
   const pathname = usePathname();

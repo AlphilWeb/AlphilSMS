@@ -88,10 +88,11 @@ export async function createStaff(formData: FormData) {
     revalidatePath('/dashboard/staff');
     return { success: 'Staff created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_STAFF_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create staff due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -159,10 +160,11 @@ export async function updateStaff(staffId: number, formData: FormData) {
     revalidatePath(`/dashboard/staff/${staffId}`);
     return { success: 'Staff updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_STAFF_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update staff due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -180,10 +182,11 @@ export async function deleteStaff(staffId: number) {
     revalidatePath('/dashboard/staff');
     return { success: 'Staff deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_STAFF_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete staff due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -234,10 +237,11 @@ export async function getStaff() {
     }));
 
     return staffList;
-  } catch (err: any) {
-    console.error('[GET_STAFF_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch staff due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -308,8 +312,9 @@ export async function getStaffById(id: number) {
       departmentName: foundStaff.departmentName || null,
     };
 
-  } catch (err: any) {
-    console.error('[GET_STAFF_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch staff details due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

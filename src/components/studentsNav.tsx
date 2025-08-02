@@ -1,12 +1,11 @@
 // components/studentsNav.tsx
 'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+// import { usePathname } from "next/navigation";
 import { FiFilter, FiUpload, FiDownload } from "react-icons/fi";
 
 export default function StudentsNav() {
-  const pathname = usePathname();
+  // const pathname = usePathname();
   
   return (
     <div className="flex items-center gap-3">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getMyTimetable } from '@/lib/actions/lecturer.timetable.action';
-import { FiCalendar, FiClock, FiBook, FiMapPin } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 
 // Types from DB
@@ -36,6 +36,28 @@ export default function StaffTimetable({ initialTimetable }: { initialTimetable?
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // Transform DB data to client-side format
+  // const transformTimetableData = (dbData: DbTimetable[]): TimetableEntry[] => {
+  //   return dbData.map((item, index) => ({
+  //     id: `entry-${index}`,
+  //     day: item.day,
+  //     startTime: item.start,
+  //     endTime: item.end,
+  //     room: item.room || 'TBA',
+  //     courseName: item.course,
+  //     courseCode: item.courseCode,
+  //     semester: item.semester,
+  //     formattedTime: `${formatTime(item.start)} - ${formatTime(item.end)}`,
+  //   }));
+  // };
+
+  // Helper to format time (HH:MM:SS to HH:MM)
+  const formatTime = (timeString: string) => {
+    return timeString.split(':').slice(0, 2).join(':');
+  };
+
+  // Fetch timetable data
+useEffect(() => {
+  // Move the transform function inside
   const transformTimetableData = (dbData: DbTimetable[]): TimetableEntry[] => {
     return dbData.map((item, index) => ({
       id: `entry-${index}`,
@@ -50,34 +72,26 @@ export default function StaffTimetable({ initialTimetable }: { initialTimetable?
     }));
   };
 
-  // Helper to format time (HH:MM:SS to HH:MM)
-  const formatTime = (timeString: string) => {
-    return timeString.split(':').slice(0, 2).join(':');
-  };
-
-  // Fetch timetable data
-  useEffect(() => {
-    const fetchTimetable = async () => {
-      try {
-        setIsLoading(true);
-        const dbData = await getMyTimetable();
-        setTimetable(transformTimetableData(dbData));
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load timetable');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (!initialTimetable || initialTimetable.length === 0) {
-      fetchTimetable();
-    } else {
-      setTimetable(transformTimetableData(initialTimetable));
+  const fetchTimetable = async () => {
+    try {
+      setIsLoading(true);
+      const dbData = await getMyTimetable();
+      setTimetable(transformTimetableData(dbData));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load timetable');
+    } finally {
       setIsLoading(false);
     }
-  }, [initialTimetable]);
+  };
 
+  if (!initialTimetable || initialTimetable.length === 0) {
+    fetchTimetable();
+  } else {
+    setTimetable(transformTimetableData(initialTimetable));
+    setIsLoading(false);
+  }
+}, [initialTimetable]); // Now only depends on initialTimetable
   // Group timetable by day
   const timetableByDay = timetable.reduce((acc, entry) => {
     if (!acc[entry.day]) {

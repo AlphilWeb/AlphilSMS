@@ -67,10 +67,11 @@ export async function createStaffSalary(formData: FormData) {
     revalidatePath(`/dashboard/staff/${staffId}`); // Revalidate staff member's finance section
     return { success: 'Staff salary record created successfully.' };
 
-  } catch (err: any) {
-    console.error('[CREATE_STAFF_SALARY_ACTION_ERROR]', err);
-    throw new ActionError('Failed to create staff salary record due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -107,10 +108,11 @@ export async function updateStaffSalary(staffSalaryId: number, formData: FormDat
     if (staffId) revalidatePath(`/dashboard/staff/${staffId}`);
     return { success: 'Staff salary record updated successfully.' };
 
-  } catch (err: any) {
-    console.error('[UPDATE_STAFF_SALARY_ACTION_ERROR]', err);
-    throw new ActionError('Failed to update staff salary record due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -128,10 +130,11 @@ export async function deleteStaffSalary(staffSalaryId: number) {
     revalidatePath('/dashboard/finance/staff-salaries');
     return { success: 'Staff salary record deleted successfully.' };
 
-  } catch (err: any) {
-    console.error('[DELETE_STAFF_SALARY_ACTION_ERROR]', err);
-    throw new ActionError('Failed to delete staff salary record due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -176,10 +179,11 @@ export async function getStaffSalaries() {
     }));
 
     return staffSalariesList;
-  } catch (err: any) {
-    console.error('[GET_STAFF_SALARIES_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch staff salary records due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -236,10 +240,11 @@ export async function getStaffSalaryById(id: number) {
       userEmail: staffSalaryRecord.userEmail || null,
     };
 
-  } catch (err: any) {
-    console.error('[GET_STAFF_SALARY_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch staff salary record due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -293,8 +298,9 @@ export async function getStaffSalariesByStaffId(staffId: number) {
 
     return staffMemberSalaries;
 
-  } catch (err: any) {
-    console.error('[GET_STAFF_SALARIES_BY_STAFF_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch staff salaries due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }

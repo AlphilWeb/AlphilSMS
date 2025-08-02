@@ -25,9 +25,28 @@ import {
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
 
+interface Course {
+  id: number;
+  name: string;
+  code: string;
+}
+interface Assignment {
+  id: number;
+  title: string;
+  description: string | null;
+  fileUrl: string | null;
+  dueDate: Date;
+  assignedDate: Date;
+  course: Course;
+}
+interface LecturerAssignmentsManagerProps {
+  initialAssignments: Assignment[];
+}
 
-export default function LecturerAssignmentsManager() {
-  const [assignments, setAssignments] = useState<AssignmentWithCourse[]>([]);
+export default function LecturerAssignmentsManager({ 
+  initialAssignments 
+}: LecturerAssignmentsManagerProps) {
+  const [assignments, setAssignments] = useState<AssignmentWithCourse[]>(initialAssignments);
   const [selectedAssignment, setSelectedAssignment] = useState<{
     assignment: AssignmentWithCourse;
     submissions: AssignmentSubmissionWithStudent[];

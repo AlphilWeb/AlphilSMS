@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db/index';
-import { students, users, programs, departments } from '@/lib/db/schema';
+import { students } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 

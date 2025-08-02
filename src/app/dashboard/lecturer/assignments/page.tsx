@@ -4,10 +4,27 @@ import LecturerDashboardHeader from '@/components/lecturerDashboardHeader';
 import LecturerAssignmentsManager from '@/components/lecturer/lecturer.manage.assignments';
 import ErrorMessage from '@/components/ui/error-message';
 
+// Define the types directly in this file
+interface Course {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface Assignment {
+  id: number;
+  title: string;
+  description: string | null;
+  fileUrl: string | null;
+  dueDate: Date;
+  assignedDate: Date;
+  course: Course;
+}
+
 export default async function LecturerAssignmentsPage() {
   try {
     // Fetch initial assignments data from the server
-    const initialAssignments = await getLecturerAssignments();
+    const initialAssignments: Assignment[] = await getLecturerAssignments();
 
     return (
       <>

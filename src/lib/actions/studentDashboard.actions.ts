@@ -10,13 +10,11 @@ import {
   invoices, 
   payments, 
   courses,
-  programs,
-  semesters,
   staff,
   grades,
   userLogs  
 } from '@/lib/db/schema';
-import { and, eq, gte, lte, sql, asc, InferSelectModel } from 'drizzle-orm';
+import { and, eq, sql, asc, InferSelectModel } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 type UpcomingClassQueryResult = {

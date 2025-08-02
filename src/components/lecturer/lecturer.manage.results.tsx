@@ -7,7 +7,7 @@ import {
   type StudentResult,
   type LecturerCourse 
 } from '@/lib/actions/lecturer.manage.results.action';
-import { FiFileText, FiUser, FiAward, FiBarChart2 } from 'react-icons/fi';
+import { FiFileText, FiUser } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 
 export default function LecturerResultsManager({ 
@@ -46,22 +46,22 @@ export default function LecturerResultsManager({
   };
 
   // Load courses if not passed as props
-  useEffect(() => {
-    if (courses.length === 0) {
-      const fetchCourses = async () => {
-        try {
-          setIsLoading(true);
-          const data = await getLecturerCourses();
-          setCourses(data);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load courses');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchCourses();
-    }
-  }, []);
+useEffect(() => {
+  if (initialCourses.length === 0) {
+    const fetchCourses = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getLecturerCourses();
+        setCourses(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load courses');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCourses();
+  }
+}, [initialCourses.length]); // Add initialCourses.length to dependencies
 
   return (
     <div className="container mx-auto px-4 py-8">

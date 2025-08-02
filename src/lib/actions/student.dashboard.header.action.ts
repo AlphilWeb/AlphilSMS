@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { users, students, programs, userLogs } from '@/lib/db/schema';
+import { students, userLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';

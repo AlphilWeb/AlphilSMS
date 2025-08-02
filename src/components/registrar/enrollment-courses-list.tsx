@@ -5,22 +5,75 @@ import { FiUsers, FiPlus } from 'react-icons/fi';
 import { Dialog, DialogPanel, DialogTitle, DialogDescription } from '@headlessui/react';
 import { bulkEnrollStudents, getCourseEnrollments } from '@/lib/actions/registrar.enrollment.action';
 
-export default function EnrollmentCoursesList({ courses, semesterId }: { courses: any[], semesterId: number }) {
-  const [viewCourse, setViewCourse] = useState<any | null>(null);
-  const [addCourse, setAddCourse] = useState<any | null>(null);
+interface Program {
+  id: number;
+  name: string;
+}
+
+interface Course {
+  id: number;
+  code: string;
+  name: string;
+  credits: number;
+  program?: Program | null;
+}
+
+interface Student {
+  id: number;
+  fullName: string;
+  admissionNo: string;
+}
+
+// The Enrollment interface needs to match the structure of the data you're receiving
+// We'll update this based on the error message
+interface Enrollment {
+  id: number;
+  semesterId: number;
+  courseId: number;
+  studentId: number;
+  enrollmentDate: string | null;
+  student: Student;
+  // This interface also includes the grade object, but we will ignore it for now
+  // since the error is only on the student property
+}
+
+interface EnrollmentCoursesListProps {
+  courses: Course[];
+  semesterId: number;
+}
+
+export default function EnrollmentCoursesList({ courses, semesterId }: EnrollmentCoursesListProps) {
+  const [viewCourse, setViewCourse] = useState<Course | null>(null);
+  const [addCourse, setAddCourse] = useState<Course | null>(null);
   const [students, setStudents] = useState<number[]>([]);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleView = async (course: any) => {
+  const handleView = async (course: Course) => {
     setViewCourse(course);
     setLoading(true);
-    const data = await getCourseEnrollments(course.id, semesterId);
-    setEnrollments(data);
-    setLoading(false);
+    try {
+      const result = await getCourseEnrollments(course.id, semesterId);
+      if (result) {
+        // Transform the data to match the Enrollment interface
+        const transformedEnrollments = result.map(dbEnrollment => ({
+          ...dbEnrollment,
+          student: {
+            id: dbEnrollment.student.id,
+            fullName: `${dbEnrollment.student.firstName} ${dbEnrollment.student.lastName}`,
+            admissionNo: dbEnrollment.student.registrationNumber
+          },
+        }));
+        setEnrollments(transformedEnrollments);
+      } else {
+        setEnrollments([]);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAdd = async (course: any) => {
+  const handleAdd = (course: Course) => {
     setAddCourse(course);
   };
 
@@ -97,7 +150,7 @@ export default function EnrollmentCoursesList({ courses, semesterId }: { courses
             rows={3}
             value={students.join(', ')}
             onChange={(e) => setStudents(
-              e.target.value.split(',').map((id) => parseInt(id.trim())).filter(Boolean)
+              e.target.value.split(',').map((id) => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
             )}
           ></textarea>
           <div className="mt-4 flex justify-end gap-2">

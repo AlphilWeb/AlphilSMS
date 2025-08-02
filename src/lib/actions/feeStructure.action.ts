@@ -84,10 +84,11 @@ export async function createFeeStructure(formData: FormData) {
     revalidatePath(`/dashboard/semesters/${semesterId}`); // Revalidate semester page
     return { success: 'Fee structure created successfully.', data: createdFeeStructure };
 
-  } catch (err: any) {
-    console.error('[CREATE_FEE_STRUCTURE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to create fee structure due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -131,10 +132,11 @@ export async function updateFeeStructure(feeStructureId: number, formData: FormD
     if (semesterId) revalidatePath(`/dashboard/semesters/${semesterId}`);
     return { success: 'Fee structure updated successfully.', data: updatedFeeStructure };
 
-  } catch (err: any) {
-    console.error('[UPDATE_FEE_STRUCTURE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to update fee structure due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -165,10 +167,11 @@ export async function deleteFeeStructure(feeStructureId: number) {
     if (feeStructureToDelete.semesterId) revalidatePath(`/dashboard/semesters/${feeStructureToDelete.semesterId}`);
     return { success: 'Fee structure deleted successfully.', data: deletedFeeStructure };
 
-  } catch (err: any) {
-    console.error('[DELETE_FEE_STRUCTURE_ACTION_ERROR]', err);
-    throw new ActionError(err.message || 'Failed to delete fee structure due to a server error.');
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -213,10 +216,11 @@ export async function getFeeStructures() {
     }));
 
     return allFeeStructures;
-  } catch (err: any) {
-    console.error('[GET_FEE_STRUCTURES_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch fee structures due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
 
 /**
@@ -268,8 +272,9 @@ export async function getFeeStructureById(id: number) {
       semesterEndDate: feeStructure.semesterEndDate || null,
     };
 
-  } catch (err: any) {
-    console.error('[GET_FEE_STRUCTURE_BY_ID_ACTION_ERROR]', err);
-    throw new ActionError('Failed to fetch fee structure due to a server error: ' + err.message);
-  }
+  } catch (err: unknown) {
+  const error = err instanceof Error ? err : new Error(String(err));
+  console.error('[ERROR_CONTEXT]', error);
+  throw new ActionError(error.message);
+}
 }
