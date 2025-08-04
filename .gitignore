@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore OpenNext build output
+.open-next/
+
+# Optional: ignore deployment config
+open-next.config.ts
+

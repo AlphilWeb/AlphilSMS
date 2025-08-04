@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+  "pages:build": "npx @opennextjs/cloudflare build",
+  "preview": "npm run pages:build && npx @opennextjs/cloudflare preview",
+  "deploy": "npm run pages:build && npx @opennextjs/cloudflare deploy",
     "start": "next start",
     "push": "drizzle-kit push",
     "lint": "next lint",
