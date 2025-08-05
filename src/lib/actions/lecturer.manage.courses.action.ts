@@ -41,7 +41,8 @@ export type CourseMaterial = {
   id: number;
   title: string;
   type: string;
-  fileUrl: string;
+  fileUrl: string | null;
+  content?: string | null;
   uploadedAt: Date;
 };
 
@@ -182,7 +183,8 @@ export async function getCourseMaterials(courseId: number) {
       id: courseMaterials.id,
       title: courseMaterials.title,
       type: courseMaterials.type,
-      fileUrl: courseMaterials.fileUrl,
+      fileUrl: courseMaterials.fileUrl || null,
+      content: courseMaterials.content || null,
       uploadedAt: courseMaterials.uploadedAt,
     })
     .from(courseMaterials)
@@ -215,25 +217,57 @@ export async function uploadCourseMaterial(
 
   const title = formData.get('title') as string;
   const type = formData.get('type') as string;
-  const file = formData.get('file') as File;
 
-  if (!file) throw new Error('File is required');
+  // Conditional logic based on the material type
+  if (type === 'notes') {
+    // If it's a "notes" type, we expect a 'content' field
+    const content = formData.get('content') as string;
 
-  const fileUrl = await uploadFileToR2(file, 'course-materials');
+    if (!content || content.trim() === '') {
+      throw new Error('Content is required for notes');
+    }
 
-  const newMaterial = await db
-    .insert(courseMaterials)
-    .values({
-      courseId,
-      uploadedById: course.staff.id,
-      title,
-      type,
-      fileUrl,
-    })
-    .returning();
+    // Insert into the database without a file URL
+    const newMaterial = await db
+      .insert(courseMaterials)
+      .values({
+        courseId,
+        uploadedById: course.staff.id,
+        title,
+        type,
+        content,
+        fileUrl: null, // Explicitly set fileUrl to null
+      })
+      .returning();
 
-  revalidatePath(`/dashboard/lecturer/courses/${courseId}/materials`);
-  return newMaterial[0];
+    revalidatePath(`/dashboard/lecturer/courses/${courseId}/materials`);
+    return newMaterial[0];
+  } else {
+    // For all other types, we expect a file upload
+    const file = formData.get('file') as File;
+
+    if (!file || file.size === 0) {
+      throw new Error('File is required for this material type');
+    }
+
+    const fileUrl = await uploadFileToR2(file, 'course-materials');
+
+    // Insert into the database with a file URL
+    const newMaterial = await db
+      .insert(courseMaterials)
+      .values({
+        courseId,
+        uploadedById: course.staff.id,
+        title,
+        type,
+        fileUrl,
+        content: null, // Explicitly set content to null
+      })
+      .returning();
+
+    revalidatePath(`/dashboard/lecturer/courses/${courseId}/materials`);
+    return newMaterial[0];
+  }
 }
 
 // Delete course material

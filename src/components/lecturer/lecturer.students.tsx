@@ -3,22 +3,23 @@
 import { useState, useEffect } from 'react';
 import {
   getStudentsEnrolledInLecturerCourses,
-  // getStudentProfile,
+  getStudentProfile,
   getStudentCourses,
   getStudentPerformance,
-  // getStudentCourseSubmissions,
+  getStudentCourseSubmissions,
   type StudentProfile,
   type StudentCourse,
   type StudentPerformance,
   type StudentAssignmentSubmission,
   type StudentQuizSubmission
 } from '@/lib/actions/lecturer.students.action';
-// import { gradeSubmission } from '@/lib/actions/lecturer.assignment.submissions.action';
+import { gradeSubmission } from '@/lib/actions/lecturer.assignment.submissions.action';
 
 import {
   FiUser, FiFileText, FiAward, FiClock, 
   FiSearch, FiChevronDown, FiChevronUp,
-  FiDownload
+  FiDownload,
+  FiBook
 } from 'react-icons/fi';
 
 export default function LecturerStudentsClient() {
@@ -27,11 +28,11 @@ export default function LecturerStudentsClient() {
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [studentCourses, setStudentCourses] = useState<StudentCourse[]>([]);
   const [performance, setPerformance] = useState<StudentPerformance | null>(null);
-  const [submissions] = useState<{
-    assignments: StudentAssignmentSubmission[];
-    quizzes: StudentQuizSubmission[];
-  }>({ assignments: [], quizzes: [] });
-  // const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+const [submissions, setSubmissions] = useState<{
+  assignments: StudentAssignmentSubmission[];
+  quizzes: StudentQuizSubmission[];
+}>({ assignments: [], quizzes: [] });
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   
   // UI state
   const [loading, setLoading] = useState({
@@ -43,7 +44,7 @@ export default function LecturerStudentsClient() {
   });
   const [error, setError] = useState<string | null>(null);
   const [expandedView, setExpandedView] = useState<'performance' | 'submissions' | null>(null);
-  // const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
+  const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
 
   // Fetch all students on component mount
   useEffect(() => {
@@ -89,52 +90,55 @@ export default function LecturerStudentsClient() {
     }
   };
 
-  // // Load submissions for a specific course
-  // const handleSelectCourse = async (courseId: number) => {
-  //   if (!selectedStudent) return;
+  // Load submissions for a specific course
+const handleSelectCourse = async (courseId: number) => {
+  if (!selectedStudent) return;
+  
+  try {
+    setSelectedCourseId(courseId);
+    setLoading(prev => ({ ...prev, submissions: true }));
     
-  //   try {
-  //     setSelectedCourseId(courseId);
-  //     setLoading(prev => ({ ...prev, submissions: true }));
-      
-  //     const data = await getStudentCourseSubmissions(selectedStudent.id, courseId);
-  //     setSubmissions(data);
-  //     setExpandedView('submissions');
-      
-  //     // Initialize grade inputs
-  //     const initialGrades = data.assignments.reduce((acc: { [x: string]: any; }, submission: { grade: any; id: string | number; }) => {
-  //       if (submission.grade) acc[submission.id] = submission.grade;
-  //       return acc;
-  //     }, {} as Record<number, string>);
-  //     setGradeInputs(initialGrades);
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'Failed to load submissions');
-  //   } finally {
-  //     setLoading(prev => ({ ...prev, submissions: false }));
-  //   }
-  // };
-
-  // // Handle grade submission
-  // const handleGradeSubmit = async (submissionId: number, assignmentId: number) => {
-  //   if (!selectedStudent || !selectedCourseId) return;
+    const data = await getStudentCourseSubmissions(selectedStudent.id, courseId);
+    setSubmissions(data);
+    setExpandedView('submissions');
     
-  //   const grade = gradeInputs[submissionId];
-  //   if (!grade) return;
+    // Initialize grade inputs with proper typing
+    const initialGrades = data.assignments.reduce((acc: Record<number, string>, submission) => {
+      if (submission.grade) {
+        acc[submission.id] = submission.grade.toString();
+      }
+      return acc;
+    }, {} as Record<number, string>);
+    
+    setGradeInputs(initialGrades);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to load submissions');
+  } finally {
+    setLoading(prev => ({ ...prev, submissions: false }));
+  }
+};
 
-  //   try {
-  //     await gradeSubmission(
-  //       submissionId,
-  //       parseFloat(grade),
-  //       `Graded by lecturer on ${new Date().toLocaleDateString()}`
-  //     );
+  // Handle grade submission
+  const handleGradeSubmit = async (submissionId: number, assignmentId: number) => {
+    if (!selectedStudent || !selectedCourseId) return;
+    
+    const grade = gradeInputs[submissionId];
+    if (!grade) return;
+
+    try {
+      await gradeSubmission(
+        submissionId,
+        parseFloat(grade),
+        `Graded by lecturer on ${new Date().toLocaleDateString()}`
+      );
       
-  //     // Refresh submissions
-  //     const data = await getStudentCourseSubmissions(selectedStudent.id, selectedCourseId);
-  //     setSubmissions(data);
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'Failed to submit grade');
-  //   }
-  // };
+      // Refresh submissions
+      const data = await getStudentCourseSubmissions(selectedStudent.id, selectedCourseId);
+      setSubmissions(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit grade');
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -310,51 +314,52 @@ export default function LecturerStudentsClient() {
                 )}
               </div>
 
-              {/* Student Courses
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <h3 className="font-semibold text-gray-800 p-4 border-b flex items-center gap-2">
-                  <FiBook className="text-blue-500" />
-                  Enrolled Courses
-                </h3>
-                <div className="divide-y">
-                  {loading.courses ? (
-                    <div className="p-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="h-12 bg-gray-100 rounded mb-2 animate-pulse"></div>
-                      ))}
-                    </div>
-                  ) : studentCourses.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">
-                      No courses found
-                    </div>
-                  ) : (
-                    studentCourses.map((course) => (
-                      <div 
-                        key={course.id}
-                        className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                          selectedCourseId === course.id ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => handleSelectCourse(course.id)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h4 className="font-medium text-gray-800">{course.name}</h4>
-                            <p className="text-sm text-gray-500">
-                              {course.code} • Enrolled on {new Date(course.enrollmentDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                          {course.grade?.totalScore && (
-                            <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                              {course.grade.totalScore}%
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div> */}
-
+{/* Student Courses */}
+<div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+  <h3 className="font-semibold text-gray-800 p-4 border-b flex items-center gap-2">
+    <FiBook className="text-blue-500" />
+    Enrolled Courses
+  </h3>
+  <div className="divide-y">
+    {loading.courses ? (
+      <div className="p-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-12 bg-gray-100 rounded mb-2 animate-pulse"></div>
+        ))}
+      </div>
+    ) : studentCourses.length === 0 ? (
+      <div className="p-4 text-center text-gray-500">
+        No courses found
+      </div>
+    ) : (
+      studentCourses.map((course) => (
+        <div 
+          key={course.id}
+          className={`p-4 hover:bg-gray-50 cursor-pointer ${
+            selectedCourseId === course.id ? 'bg-blue-50' : ''
+          }`}
+          onClick={() => handleSelectCourse(course.id)}
+        >
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="font-medium text-gray-800">{course.name}</h4>
+              <p className="text-sm text-gray-500">
+                {course.code} • {course.enrollmentDate ? 
+                  `Enrolled on ${new Date(course.enrollmentDate).toLocaleDateString()}` : 
+                  'Enrollment date not available'}
+              </p>
+            </div>
+{course.grade?.totalScore != null && (
+  <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+    {Number(course.grade.totalScore).toFixed(1)}%
+  </div>
+)}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
               {/* Course Submissions */}
               {expandedView === 'submissions' && (
                 <div className="space-y-6">
@@ -401,7 +406,7 @@ export default function LecturerStudentsClient() {
                               </div>
                             </div>
                             
-                            {/* <div className="mt-3 flex items-center gap-3">
+                            <div className="mt-3 flex items-center gap-3">
                               <input
                                 type="number"
                                 min="0"
@@ -425,7 +430,7 @@ export default function LecturerStudentsClient() {
                                   Current: {submission.grade}%
                                 </span>
                               )}
-                            </div> */}
+                            </div>
                           </div>
                         ))
                       )}
