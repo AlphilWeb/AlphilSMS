@@ -21,9 +21,11 @@ import {
   FiDownload,
   FiClock,
   FiUser,
+  FiUpload,
 } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
+import { getLecturerCourses } from '@/lib/actions/lecturer.manage.results.action';
 
 interface Course {
   id: number;
@@ -60,7 +62,7 @@ export default function LecturerAssignmentsManager({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentWithCourse | null>(null);
   const [currentSubmission, setCurrentSubmission] = useState<AssignmentSubmissionWithStudent | null>(null);
-
+  const [lecturerCourses, setLecturerCourses] = useState<Course[]>([]);
   // Form states
   const [grade, setGrade] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -83,6 +85,27 @@ export default function LecturerAssignmentsManager({
 
     fetchAssignments();
   }, []);
+
+  useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [assignments, courses] = await Promise.all([
+        getLecturerAssignments(),
+        getLecturerCourses() // You'll need to implement this function
+      ]);
+      setAssignments(assignments);
+      setLecturerCourses(courses);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   // Fetch assignment details when selected
 const handleSelectAssignment = async (id: number) => {
@@ -409,7 +432,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Assigned</p>
-                        <p className="font-medium">{formatDate(selectedAssignment.assignment.assignedDate)}</p>
+                        <p className="font-medium text-pink-500">{formatDate(selectedAssignment.assignment.assignedDate)}</p>
                       </div>
                     </div>
 
@@ -419,7 +442,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Due Date</p>
-                        <p className="font-medium">{formatDate(selectedAssignment.assignment.dueDate)}</p>
+                        <p className="font-medium text-pink-500">{formatDate(selectedAssignment.assignment.dueDate)}</p>
                       </div>
                     </div>
                   </div>
@@ -530,127 +553,165 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         )}
       </div>
 
-      {/* Assignment Form Modal */}
-      {showAssignmentFormModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">
-                {editingAssignment ? 'Edit Assignment' : 'Create New Assignment'}
-              </h2>
-              
-              <form onSubmit={handleAssignmentSubmit}>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
-                      name="title"
-                      defaultValue={editingAssignment?.title || ''}
-                      required
-                      className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+{showAssignmentFormModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4 text-pink-500">
+          {editingAssignment ? 'Edit Assignment' : 'Create New Assignment'}
+        </h2>
+        
+        <form onSubmit={handleAssignmentSubmit}>
+          <div className="space-y-4">
+            {/* Title Field */}
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Title
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                defaultValue={editingAssignment?.title || ''}
+                required
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+              />
+            </div>
 
-                  <div>
-                    <label htmlFor="courseId" className="block text-sm font-medium text-gray-700 mb-1">
-                      Course
-                    </label>
-                    <select
-                      id="courseId"
-                      name="courseId"
-                      defaultValue={editingAssignment?.course.id || ''}
-                      required
-                      className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {assignments
-                        .reduce((courses, assignment) => {
-                          if (!courses.some(c => c.id === assignment.course.id)) {
-                            courses.push(assignment.course);
-                          }
-                          return courses;
-                        }, [] as { id: number; code: string; name: string }[])
-                        .map(course => (
-                          <option key={course.id} value={course.id}>
-                            {course.code} - {course.name}
-                          </option>
-                        ))}
-                        <option value="" disabled>course 2</option>
-                    </select>
-                  </div> 
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      defaultValue={editingAssignment?.description || ''}
-                      rows={3}
-                      className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+            {/* Course Select Field */}
+            <div>
+              <label htmlFor="courseId" className="block text-sm font-medium text-gray-700 mb-1">
+                Course
+              </label>
+              <select
+                id="courseId"
+                name="courseId"
+                defaultValue={editingAssignment?.course.id || ''}
+                required
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+              >
+                <option value="" disabled>Select a course</option>
+                {lecturerCourses.map(course => (
+                  <option key={course.id} value={course.id}>
+                    {course.code} - {course.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                  <div>
-                    <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-1">
-                      Assignment File
-                    </label>
-                    <input
-                      type="file"
-                      id="file"
-                      name="file"
-                      onChange={handleFileChange}
-                      className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    {editingAssignment?.fileUrl && !selectedFile && (
-                      <p className="mt-1 text-sm text-gray-500">
-                        Current file: <a href={editingAssignment.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600">View file</a>
+            {/* Description Field */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                defaultValue={editingAssignment?.description || ''}
+                rows={3}
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+              />
+            </div>
+
+            {/* File Upload Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assignment File
+              </label>
+              <div className="relative">
+                <label className={`flex flex-col items-center justify-center w-full px-4 py-6 border-2 border-dashed ${
+                  selectedFile ? 'border-pink-300' : 'border-gray-300'
+                } rounded-md cursor-pointer hover:border-pink-400 transition-colors`}>
+                  <input
+                    type="file"
+                    id="file"
+                    name="file"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <FiUpload className="w-6 h-6 mb-2 text-gray-400" />
+                    {selectedFile ? (
+                      <p className="text-sm font-medium text-pink-600">
+                        {selectedFile.name}
                       </p>
+                    ) : editingAssignment?.fileUrl ? (
+                      <>
+                        <p className="text-sm font-medium text-pink-600">
+                          Current file: {editingAssignment.fileUrl.split('/').pop()}
+                        </p>
+                        <p className="text-xs italic text-gray-400 mt-1">
+                          Click to change file
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs italic text-gray-400 mt-1">
+                          PDF, DOCX, PPTX (Max 10MB)
+                        </p>
+                      </>
                     )}
                   </div>
-
-                  <div>
-                    <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
-                      Due Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      id="dueDate"
-                      name="dueDate"
-                      defaultValue={editingAssignment ? formatDateForInput(editingAssignment.dueDate) : ''}
-                      required
-                      className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAssignmentFormModal(false);
-                        setEditingAssignment(null);
-                        setSelectedFile(null);
-                      }}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      {editingAssignment ? 'Update Assignment' : 'Create Assignment'}
-                    </button>
-                  </div>
+                </label>
+              </div>
+              {editingAssignment?.fileUrl && !selectedFile && (
+                <div className="mt-2 flex justify-center">
+                  <a 
+                    href={editingAssignment.fileUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-pink-600 hover:text-pink-800"
+                  >
+                    View current file
+                  </a>
                 </div>
-              </form>
+              )}
+            </div>
+
+            {/* Due Date Field */}
+            <div>
+              <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Due Date
+              </label>
+              <input
+                type="datetime-local"
+                id="dueDate"
+                name="dueDate"
+                defaultValue={editingAssignment ? formatDateForInput(editingAssignment.dueDate) : ''}
+                required
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+              />
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAssignmentFormModal(false);
+                  setEditingAssignment(null);
+                  setSelectedFile(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700"
+              >
+                {editingAssignment ? 'Update Assignment' : 'Create Assignment'}
+              </button>
             </div>
           </div>
-        </div>
-      )}
+        </form>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Grade Submission Modal */}
       {showGradeModal && currentSubmission && (
