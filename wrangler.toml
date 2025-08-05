@@ -3,5 +3,9 @@ compatibility_date = "2025-08-02"
 compatibility_flags = ["nodejs_compat"]
 
 [[r2_buckets]]
-binding = "R2"  # Used in your code as env.R2
+binding = "R2"  # Optional: for your app's file upload logic
+bucket_name = "alphilsms"
+
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"  # REQUIRED for OpenNext deploy
 bucket_name = "alphilsms"

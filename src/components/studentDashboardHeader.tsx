@@ -14,7 +14,8 @@ import {
   FiSettings,
   FiLogOut,
   FiDollarSign,
-  FiUser
+  FiUser,
+  FiUserPlus
 } from 'react-icons/fi';
 import { HiOutlineDocumentReport } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
@@ -61,7 +62,9 @@ export default function StudentDashboardHeader() {
     {
       category: "Registration",
       items: [
-        { href: "/dashboard/student/academic-calendar", icon: <FiCalendar className="w-5 h-5" />, label: "Academic Calendar" }
+        { href: "/dashboard/student/academic-calendar", icon: <FiCalendar className="w-5 h-5" />, label: "Academic Calendar" },
+        { href: "/dashboard/student/enrollment", icon: <FiUserPlus className="w-5 h-5" />, label: "Enrollment" }
+
       ]
     },
     {
@@ -74,7 +77,6 @@ export default function StudentDashboardHeader() {
       category: "Account",
       items: [
         { href: "/dashboard/student/profile", icon: <FiUser className="w-5 h-5" />, label: "My Profile" },
-        { href: "/dashboard/student/settings", icon: <FiSettings className="w-5 h-5" />, label: "Settings" }
       ]
     }
   ];

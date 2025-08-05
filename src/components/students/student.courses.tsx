@@ -23,25 +23,13 @@ import {
   FiUpload,
   FiFileText,
   FiCheckCircle,
-  FiXCircle
+  FiXCircle,
+  FiChevronDown,
+  FiChevronUp,
+  FiTrash2
 } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
-
-// interface StudentCourseManagerProps {
-//   enrolledCourses: EnrolledCourse[];
-//   availableCourses: {
-//     id: number;
-//     name: string;
-//     code: string;
-//     credits: number;
-//     description: string | null;
-//     lecturer: {
-//       firstName: string | null;
-//       lastName: string | null;
-//     } | null;
-//   }[];
-// }
 
 interface StudentCourseManagerProps {
   enrolledCourses: EnrolledCourse[];
@@ -57,13 +45,10 @@ interface StudentCourseManagerProps {
     } | null;
   }[];
 }
-//   const [courses, setCourses] = useState<EnrolledCourse[]>([]);
 
 export default function StudentCourseManager({
   enrolledCourses: initialEnrolledCourses,
 }: StudentCourseManagerProps) {
-  // const [enrolledCourses] = useState(initialEnrolledCourses);
-  // const [availableCourses] = useState(initialAvailableCourses);
   const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(
     initialEnrolledCourses[0] || null
   );
@@ -79,6 +64,19 @@ export default function StudentCourseManager({
   const [selectedAssignment, setSelectedAssignment] = useState<CourseAssignment | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<CourseQuiz | null>(null);
   const [submissionFile, setSubmissionFile] = useState<File | null>(null);
+  const [expandedMaterialIds, setExpandedMaterialIds] = useState<Set<number>>(new Set());
+
+  const toggleExpanded = (id: number) => {
+    setExpandedMaterialIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   // Fetch all enrolled courses
   useEffect(() => {
@@ -127,19 +125,6 @@ export default function StudentCourseManager({
     fetchCourseDetails();
   }, [selectedCourse]);
 
-  // // Handle material view
-  // const handleMaterialView = async (materialId: number) => {
-  //   try {
-  //     await recordMaterialView(materialId);
-  //     setMaterials(materials.map(m => 
-  //       m.id === materialId ? { ...m, viewed: true } : m
-  //     ));
-  //   } catch (err) {
-  //     console.error('Failed to record material view:', err);
-  //   }
-  // };
-
-  // Handle assignment submission
   const handleAssignmentSubmit = async () => {
     if (!selectedAssignment || !submissionFile) return;
 
@@ -173,7 +158,6 @@ export default function StudentCourseManager({
     }
   };
 
-  // Handle quiz submission
   const handleQuizSubmit = async () => {
     if (!selectedQuiz || !submissionFile) return;
 
@@ -205,7 +189,7 @@ export default function StudentCourseManager({
       setIsLoading(false);
     }
   };
-  // Handle file selection
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSubmissionFile(e.target.files[0]);
@@ -217,11 +201,10 @@ export default function StudentCourseManager({
       const result = await getDownloadUrl(itemId, itemType);
       
       if (result.success && result.url) {
-        // Create a temporary anchor element to trigger the download
         const a = document.createElement('a');
         a.href = result.url;
-        a.download = ''; // Let the Content-Disposition header handle the filename
-        a.target = '_blank'; // Open in new tab
+        a.download = '';
+        a.target = '_blank';
         a.rel = 'noopener noreferrer';
         document.body.appendChild(a);
         a.click();
@@ -234,7 +217,6 @@ export default function StudentCourseManager({
     }
   };
 
-  // Format date for display
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -374,7 +356,7 @@ export default function StudentCourseManager({
               </div>
             ) : (
               <>
-                {/* Materials Tab */}
+                {/* Materials Tab - Updated with collapsible cards */}
                 {activeTab === 'materials' && (
                   <div className="space-y-4">
                     {materials.length === 0 ? (
@@ -384,56 +366,72 @@ export default function StudentCourseManager({
                       </div>
                     ) : (
                       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {materials.map((material) => (
-                              <tr key={material.id}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="font-medium text-gray-900">
-                                    {material.title}
+                        <div className="divide-y divide-gray-200">
+                          {materials.map((material) => {
+                            const isExpanded = expandedMaterialIds.has(material.id);
+
+                            return (
+                              <div key={material.id} className="bg-white">
+                                {/* Card Header */}
+                                <div 
+                                  className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+                                  onClick={() => toggleExpanded(material.id)}
+                                >
+                                  <div>
+                                    <h4 className="font-medium text-gray-800">{material.title}</h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full capitalize">
+                                        {material.type.replace('_', ' ')}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        Uploaded {formatDate(material.uploadedAt)}
+                                      </span>
+                                    </div>
                                   </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {material.type}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(material.uploadedAt)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  {material.viewed ? (
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                      Viewed
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                      New
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <div className="flex gap-3">
-<button
-  onClick={() => handleDownload(material.id, 'course-material')}
-  className="text-blue-600 hover:text-blue-900"
-  title="Download"
->
-  <FiDownload size={16} />
-</button>
+                                  <div className="flex items-center gap-3">
+                                    {material.type !== 'notes' && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownload(material.id, 'course-material');
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 p-1"
+                                        title="Download"
+                                      >
+                                        <FiDownload size={16} />
+                                      </button>
+                                    )}
+                                    {isExpanded ? (
+                                      <FiChevronUp className="text-gray-500" />
+                                    ) : (
+                                      <FiChevronDown className="text-gray-500" />
+                                    )}
                                   </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                </div>
+
+                                {/* Card Content - Collapsible */}
+                                {isExpanded && (
+                                  <div className="px-4 pb-4 border-t border-gray-100">
+                                    {material.type === 'notes' ? (
+                                      <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                                        <p className="text-gray-700 whitespace-pre-line">{material.content}</p>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-3 flex justify-end">
+                                        <button
+                                          onClick={() => handleDownload(material.id, 'course-material')}
+                                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                        >
+                                          Download Material
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -472,15 +470,13 @@ export default function StudentCourseManager({
                                     </div>
                                   )}
                                   {assignment.fileUrl && (
-<button
-  onClick={() => handleDownload(assignment.id, 'assignment')}
-  className="text-blue-600 hover:text-blue-900"
-  title="Download assignment"
->
-  <FiDownload size={16} />
-</button>
-
-
+                                    <button
+                                      onClick={() => handleDownload(assignment.id, 'assignment')}
+                                      className="text-blue-600 hover:text-blue-900"
+                                      title="Download assignment"
+                                    >
+                                      <FiDownload size={16} />
+                                    </button>
                                   )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -525,15 +521,15 @@ export default function StudentCourseManager({
                                       </button>
                                     ) : (
                                       <>
-{assignment.submitted && (
-  <button
-    onClick={() => window.open(assignment.submission?.fileUrl, '_blank')}
-    className="text-blue-600 hover:text-blue-900"
-    title="Download submission"
-  >
-    <FiDownload size={16} />
-  </button>
-)}
+                                        {assignment.submitted && (
+                                          <button
+                                            onClick={() => handleDownload(assignment.id, 'assignment')}
+                                            className="text-blue-600 hover:text-blue-900"
+                                            title="Download submission"
+                                          >
+                                            <FiDownload size={16} />
+                                          </button>
+                                        )}
                                         {assignment.submission?.grade !== null && (
                                           <span className="text-green-600">
                                             <FiCheckCircle size={16} />
@@ -622,13 +618,13 @@ export default function StudentCourseManager({
                                       </button>
                                     ) : quiz.submitted ? (
                                       <>
-<button
-  onClick={() => handleDownload(quiz.id, 'quiz')}
-  className="text-blue-600 hover:text-blue-900"
-  title="Download quiz"
->
-  <FiDownload size={16} />
-</button>
+                                        <button
+                                          onClick={() => handleDownload(quiz.id, 'quiz')}
+                                          className="text-blue-600 hover:text-blue-900"
+                                          title="Download quiz"
+                                        >
+                                          <FiDownload size={16} />
+                                        </button>
                                         {quiz.submission?.score !== null && (
                                           <span className="text-green-600">
                                             <FiCheckCircle size={16} />
