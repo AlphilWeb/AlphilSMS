@@ -25,9 +25,10 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiChevronDown,
-  FiChevronUp,
-  FiTrash2
-} from 'react-icons/fi';
+  FiChevronUp
+
+}
+from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
 

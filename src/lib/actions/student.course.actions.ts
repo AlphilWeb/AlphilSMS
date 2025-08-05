@@ -483,6 +483,7 @@ export async function enrollInCourse(courseId: number) {
     // ... rest of the code
   } catch (error) {
     // ...
+    console.error('[ENROLL_IN_COURSE_ERROR]', error);
   }
 }
 

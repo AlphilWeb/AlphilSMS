@@ -83,6 +83,10 @@ export async function getDownloadUrl(
       const url = new URL(fileUrl);
       fileKey = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
     } catch (e) {
+      // Log the error for debugging purposes
+      console.warn('Failed to parse fileUrl as URL, using as-is:', fileUrl);
+      console.error(e); // <--- Use the 'e' variable here
+      
       // If URL parsing fails, assume fileUrl is already the key
       fileKey = fileUrl;
     }

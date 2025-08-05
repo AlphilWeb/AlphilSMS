@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   getStudentsEnrolledInLecturerCourses,
-  getStudentProfile,
+  // getStudentProfile,
   getStudentCourses,
   getStudentPerformance,
   getStudentCourseSubmissions,
@@ -119,7 +119,7 @@ const handleSelectCourse = async (courseId: number) => {
 };
 
   // Handle grade submission
-  const handleGradeSubmit = async (submissionId: number, assignmentId: number) => {
+  const handleGradeSubmit = async (submissionId: number) => {
     if (!selectedStudent || !selectedCourseId) return;
     
     const grade = gradeInputs[submissionId];
@@ -420,7 +420,7 @@ const handleSelectCourse = async (courseId: number) => {
                                 placeholder="Grade"
                               />
                               <button
-                                onClick={() => handleGradeSubmit(submission.id, submission.assignmentId)}
+                                onClick={() => handleGradeSubmit(submission.id)}
                                 className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                               >
                                 {submission.grade ? 'Update' : 'Submit'} Grade
