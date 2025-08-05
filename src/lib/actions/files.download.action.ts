@@ -7,7 +7,6 @@ import { db } from '@/lib/db';
 import { assignments, quizzes, courseMaterials } from '@/lib/db/schema';
 import { getAuthUser } from '../auth';
 
-// Validate environment variables
 const r2BucketName = process.env.R2_BUCKET_NAME;
 const r2Endpoint = process.env.R2_ENDPOINT;
 const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -17,7 +16,6 @@ if (!r2BucketName || !r2Endpoint || !r2AccessKeyId || !r2SecretAccessKey) {
   throw new Error('Missing required R2 environment variables');
 }
 
-// Configure the S3 client for Cloudflare R2
 const s3Client = new S3Client({
   region: 'auto',
   endpoint: r2Endpoint.includes('://') ? r2Endpoint : `https://${r2Endpoint}`,
@@ -32,7 +30,6 @@ export async function getDownloadUrl(
   itemType: 'assignment' | 'quiz' | 'course-material'
 ) {
   try {
-    // Authorization check
     const authUser = await getAuthUser();
     if (!authUser) {
       throw new Error('Unauthorized: User not authenticated');
@@ -40,63 +37,39 @@ export async function getDownloadUrl(
 
     let fileUrl: string | null = null;
     let fileName: string = '';
+    let fileKey: string = '';
 
-    // Query the appropriate table based on itemType
     switch (itemType) {
       case 'assignment': {
-        const assignment = await db.query.assignments.findFirst({
+        const item = await db.query.assignments.findFirst({
           where: eq(assignments.id, itemId),
-          columns: {
-            fileUrl: true,
-            title: true,
-          },
+          columns: { fileUrl: true, title: true },
         });
-
-        if (!assignment) {
-          throw new Error('Assignment not found');
-        }
-
-        fileUrl = assignment.fileUrl;
-        fileName = assignment.title;
+        if (!item) throw new Error('Assignment not found');
+        fileUrl = item.fileUrl;
+        fileName = item.title;
         break;
       }
-
       case 'quiz': {
-        const quiz = await db.query.quizzes.findFirst({
+        const item = await db.query.quizzes.findFirst({
           where: eq(quizzes.id, itemId),
-          columns: {
-            fileUrl: true,
-            title: true,
-          },
+          columns: { fileUrl: true, title: true },
         });
-
-        if (!quiz) {
-          throw new Error('Quiz not found');
-        }
-
-        fileUrl = quiz.fileUrl;
-        fileName = quiz.title;
+        if (!item) throw new Error('Quiz not found');
+        fileUrl = item.fileUrl;
+        fileName = item.title;
         break;
       }
-
       case 'course-material': {
-        const material = await db.query.courseMaterials.findFirst({
+        const item = await db.query.courseMaterials.findFirst({
           where: eq(courseMaterials.id, itemId),
-          columns: {
-            fileUrl: true,
-            title: true,
-          },
+          columns: { fileUrl: true, title: true },
         });
-
-        if (!material) {
-          throw new Error('Course material not found');
-        }
-
-        fileUrl = material.fileUrl;
-        fileName = material.title;
+        if (!item) throw new Error('Course material not found');
+        fileUrl = item.fileUrl;
+        fileName = item.title;
         break;
       }
-
       default:
         throw new Error('Invalid item type');
     }
@@ -105,24 +78,38 @@ export async function getDownloadUrl(
       throw new Error('File not found for the requested item');
     }
 
-    // Extract the key from the fileUrl (handle both full URLs and raw keys)
-    let key = fileUrl;
-    if (fileUrl.startsWith('http')) {
-      try {
-        const url = new URL(fileUrl);
-        key = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-      } catch (e) {
-        // If URL parsing fails, assume fileUrl is already the key
-        console.warn('Failed to parse fileUrl as URL, using as-is:', fileUrl);
-        console.log(e)
-      }
+    // Extract the key from the fileUrl
+    try {
+      const url = new URL(fileUrl);
+      fileKey = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
+    } catch (e) {
+      // If URL parsing fails, assume fileUrl is already the key
+      fileKey = fileUrl;
     }
+    
+    // --- THIS IS THE CRUCIAL PART ---
+    // Fetch the object's metadata to get the Content-Type
+    const headCommand = new GetObjectCommand({
+      Bucket: r2BucketName,
+      Key: fileKey,
+    });
+    
+    // This is more efficient than getting the whole object
+    const headObject = await s3Client.send(headCommand);
+    const contentType = headObject.ContentType || 'application/octet-stream';
+    const originalFileName = fileKey.split('/').pop();
 
-    // Generate presigned URL
+    // Create a dynamic filename with the correct extension
+    const fileExtension = originalFileName?.split('.').pop() || 'txt';
+    const finalFileName = `${fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${fileExtension}`;
+
+
+    // Generate presigned URL with both Content-Disposition and Content-Type
     const command = new GetObjectCommand({
       Bucket: r2BucketName,
-      Key: key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(fileName)}"`,
+      Key: fileKey,
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(finalFileName)}"`,
+      ResponseContentType: contentType, // <--- Add this line
     });
 
     const signedUrl = await getSignedUrl(s3Client, command, {
