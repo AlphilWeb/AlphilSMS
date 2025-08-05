@@ -23,7 +23,7 @@ import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { uploadFileToR2 } from '../file-upload';
 
-// Types
+// Updated Types
 export type EnrolledCourse = {
   id: number;
   name: string;
@@ -54,8 +54,13 @@ export type CourseMaterial = {
   id: number;
   title: string;
   type: string;
-  fileUrl: string;
+  fileUrl: string | null; // Updated to match schema (nullable)
+  content: string | null; // Added to match schema
   uploadedAt: Date;
+  uploadedBy: {
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
   viewed: boolean;
 };
 
@@ -255,7 +260,12 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
         title: courseMaterials.title,
         type: courseMaterials.type,
         fileUrl: courseMaterials.fileUrl,
+        content: courseMaterials.content,
         uploadedAt: courseMaterials.uploadedAt,
+        uploadedBy: {
+          firstName: staff.firstName,
+          lastName: staff.lastName
+        },
         viewed: sql<number>`(
           SELECT COUNT(*) 
           FROM ${materialViews} 
@@ -264,6 +274,7 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
         )`.as('viewed')
       })
       .from(courseMaterials)
+      .leftJoin(staff, eq(courseMaterials.uploadedById, staff.id))
       .where(eq(courseMaterials.courseId, courseId))
       .orderBy(desc(courseMaterials.uploadedAt));
 
@@ -272,7 +283,9 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
       title: m.title,
       type: m.type,
       fileUrl: m.fileUrl,
+      content: m.content,
       uploadedAt: m.uploadedAt,
+      uploadedBy: m.uploadedBy,
       viewed: Number(m.viewed) > 0
     }));
   } catch (error) {
@@ -445,6 +458,34 @@ export async function submitAssignment(assignmentId: number, formData: FormData)
   return submission[0];
 }
 
+export async function enrollInCourse(courseId: number) {
+  try {
+    const authUser = await getAuthUser();
+    if (!authUser?.userId) throw new Error('Unauthorized');
+
+    const student = await db.query.students.findFirst({
+      where: eq(students.userId, authUser.userId),
+      columns: { id: true, currentSemesterId: true }
+    });
+
+    if (!student || !student.currentSemesterId) {
+      throw new Error('Student record not found or semester not set');
+    }
+
+    // --- The fix is here: convert the Date to an ISO string ---
+    await db.insert(enrollments).values({
+      courseId,
+      studentId: student.id,
+      semesterId: student.currentSemesterId,
+      enrollmentDate: new Date().toISOString() // <-- Change this line
+    });
+
+    // ... rest of the code
+  } catch (error) {
+    // ...
+  }
+}
+
 export async function submitQuiz(quizId: number, formData: FormData) {
   const authUser = await getAuthUser();
   if (!authUser?.userId) throw new Error('Unauthorized');
@@ -541,3 +582,4 @@ export async function recordMaterialView(materialId: number): Promise<{ success:
     throw new Error('Failed to record material view');
   }
 }
+
