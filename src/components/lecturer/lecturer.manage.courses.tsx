@@ -19,7 +19,7 @@ import {
 
 import {
   FiBook, FiUsers, FiFileText, FiClock, FiUpload, 
-  FiTrash2, FiDownload, FiChevronRight, FiChevronDown, FiChevronUp,
+  FiTrash2, FiDownload, FiChevronDown, FiChevronUp,
 } from 'react-icons/fi';
 
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
