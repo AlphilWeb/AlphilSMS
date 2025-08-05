@@ -154,7 +154,8 @@ export const courseMaterials = pgTable('course_materials', {
   uploadedById: integer('uploaded_by_id').notNull(), // staff
   title: varchar('title', { length: 255 }).notNull(),
   type: varchar('type', { length: 50 }).notNull(), // e.g., 'notes', 'presentation', 'video'
-  fileUrl: text('file_url').notNull(),
+  fileUrl: text('file_url'),
+  content: text('content'), // Optional: if the material is text-based
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
@@ -173,6 +174,7 @@ export const assignments = pgTable('assignments', {
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
   fileUrl: text('file_url'), // Optional: if there's an attachment
+  content: text('content'), // Optional: if the assignment is text-based
   dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
   assignedDate: timestamp('assigned_date', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
