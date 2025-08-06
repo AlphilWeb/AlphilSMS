@@ -1,6 +1,6 @@
 // app/dashboard/lecturer/courses/page.tsx
 import LecturerDashboardHeader from '@/components/lecturerDashboardHeader';
-import LecturerCoursesClient from '@/components/lecturer/lecturer.manage.courses';
+import LecturerCoursesWrapper from '@/components/lecturer/LecturerCoursesWrapper';
 import ErrorMessage from '@/components/ui/error-message';
 
 export default async function LecturerCoursesPage() {
@@ -8,7 +8,7 @@ export default async function LecturerCoursesPage() {
     return (
       <>
         <LecturerDashboardHeader />
-        
+
         <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
           <div className="p-6 space-y-6 max-w-7xl mx-auto">
             {/* Welcome Banner */}
@@ -19,8 +19,7 @@ export default async function LecturerCoursesPage() {
 
             {/* Main Courses Content */}
             <div className="bg-white rounded-lg shadow p-6">
-              {/* Use the new client component that handles its own data fetching */}
-              <LecturerCoursesClient />
+              <LecturerCoursesWrapper />
             </div>
           </div>
         </main>
