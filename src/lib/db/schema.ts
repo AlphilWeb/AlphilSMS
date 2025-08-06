@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, unique, foreignKey, integer, numeric, date, time, varchar, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, unique, foreignKey, integer, numeric, date, time, varchar, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations, InferInsertModel, InferSelectModel } from 'drizzle-orm';
 // import { file } from 'zod';
 
@@ -151,11 +151,11 @@ export type SelectCourse = InferSelectModel<typeof courses>;
 export const courseMaterials = pgTable('course_materials', {
   id: serial('id').primaryKey(),
   courseId: integer('course_id').notNull(),
-  uploadedById: integer('uploaded_by_id').notNull(), // staff
+  uploadedById: integer('uploaded_by_id').notNull(),
   title: varchar('title', { length: 255 }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // e.g., 'notes', 'presentation', 'video'
+  type: varchar('type', { length: 50 }).notNull(),
   fileUrl: text('file_url'),
-  content: text('content'), // Optional: if the material is text-based
+  content: jsonb('content').$type<object>(), 
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
