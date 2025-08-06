@@ -383,7 +383,7 @@ export default function LecturerCoursesClient() {
                           type="text"
                           value={newMaterial.title}
                           onChange={(e) => setNewMaterial({...newMaterial, title: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-pink-500"
                           placeholder="Material title"
                         />
                       </div>
@@ -394,7 +394,7 @@ export default function LecturerCoursesClient() {
                         <select
                           value={newMaterial.type}
                           onChange={(e) => setNewMaterial({...newMaterial, type: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-pink-500"
                         >
                           <option value="notes">Lecture Notes</option>
                           <option value="slides">Slides</option>
@@ -413,7 +413,7 @@ export default function LecturerCoursesClient() {
                             value={newMaterial.content}
                             onChange={(e) => setNewMaterial({...newMaterial, content: e.target.value})}
                             rows={6}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md resize-y"
+                            className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md resize-y"
                             placeholder="Enter your lecture notes content..."
                           />
                         </div>
