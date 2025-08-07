@@ -50,12 +50,20 @@ export type AvailableCourse = {
   } | null;
 };
 
+// In student.course.actions.ts
+export type CourseMaterialContent = {
+  html: string;
+  json?: object;
+  createdAt?: string;
+  version?: string;
+};
+
 export type CourseMaterial = {
   id: number;
   title: string;
   type: string;
-  fileUrl: string | null; // Updated to match schema (nullable)
-  content: string | null; // Added to match schema
+  fileUrl: string | null;
+  content: string | CourseMaterialContent | null; // Updated type
   uploadedAt: Date;
   uploadedBy: {
     firstName: string | null;
@@ -260,7 +268,7 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
         title: courseMaterials.title,
         type: courseMaterials.type,
         fileUrl: courseMaterials.fileUrl,
-        content: courseMaterials.content,
+        content: sql<string | object | null>`${courseMaterials.content}`,
         uploadedAt: courseMaterials.uploadedAt,
         uploadedBy: {
           firstName: staff.firstName,
@@ -278,16 +286,48 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
       .where(eq(courseMaterials.courseId, courseId))
       .orderBy(desc(courseMaterials.uploadedAt));
 
-    return materials.map(m => ({
-      id: m.id,
-      title: m.title,
-      type: m.type,
-      fileUrl: m.fileUrl,
-      content: m.content,
-      uploadedAt: m.uploadedAt,
-      uploadedBy: m.uploadedBy,
-      viewed: Number(m.viewed) > 0
-    }));
+    return materials.map(material => {
+      // Convert raw database content to our expected type
+      let processedContent: string | CourseMaterialContent | null = null;
+      
+      if (material.content !== null) {
+        if (typeof material.content === 'string') {
+          // Try to parse as JSON if it's a string
+          try {
+            const parsed = JSON.parse(material.content);
+            processedContent = {
+              html: parsed.html || material.content,
+              json: parsed.json || {},
+              createdAt: parsed.createdAt || new Date().toISOString(),
+              version: parsed.version || '1.0'
+            };
+          } catch {
+            // If parsing fails, treat as plain string
+            processedContent = material.content;
+          }
+        } else if (typeof material.content === 'object') {
+          // Directly convert object to our type
+            const contentObj = material.content as {
+              html?: string;
+              json?: object;
+              createdAt?: string;
+              version?: string;
+            };
+            processedContent = {
+            html: contentObj.html || '',
+            json: contentObj.json || {},
+            createdAt: contentObj.createdAt || new Date().toISOString(),
+            version: contentObj.version || '1.0'
+          };
+        }
+      }
+
+      return {
+        ...material,
+        content: processedContent,
+        viewed: Number(material.viewed) > 0
+      };
+    });
   } catch (error) {
     console.error('[GET_COURSE_MATERIALS_ERROR]', error);
     throw new Error('Failed to fetch course materials');
