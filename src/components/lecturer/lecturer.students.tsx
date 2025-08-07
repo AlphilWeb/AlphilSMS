@@ -21,6 +21,7 @@ import {
   FiDownload,
   FiBook
 } from 'react-icons/fi';
+import { getDownloadUrl } from '@/lib/actions/files.download.action';
 
 export default function LecturerStudentsClient() {
   // State management
@@ -137,6 +138,25 @@ const handleSelectCourse = async (courseId: number) => {
       setSubmissions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit grade');
+    }
+  };
+
+  const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
+    try {
+      const result = await getDownloadUrl(itemId, itemType);
+      
+      if (result.success && result.url) {
+        const a = document.createElement('a');
+        a.href = result.url;
+        a.download = 'document.pdf'; // Add a proper filename
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        throw new Error(result.error || 'Failed to get download URL');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Download failed');
     }
   };
 
@@ -393,7 +413,7 @@ const handleSelectCourse = async (courseId: number) => {
                                   <p className="text-sm text-gray-600 mt-1">{submission.remarks}</p>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3">
+                              {/* <div className="flex items-center gap-3">
                                 <a
                                   // href={submission.fileUrl}
                                   target="_blank"
@@ -403,7 +423,17 @@ const handleSelectCourse = async (courseId: number) => {
                                 >
                                   <FiDownload />
                                 </a>
-                              </div>
+                              </div> */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(submission.id, 'assignment');
+                                }}
+                                className="text-blue-600 hover:text-blue-800 p-1"
+                                title="Download"
+                              >
+                                <FiDownload size={16} />
+                              </button>
                             </div>
                             
                             <div className="mt-3 flex items-center gap-3">
@@ -471,7 +501,17 @@ const handleSelectCourse = async (courseId: number) => {
                                     {quiz.score}%
                                   </span>
                                 )}
-                                <a
+                                <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(quiz.id, 'quiz');
+                                }}
+                                className="text-blue-600 hover:text-blue-800 p-1"
+                                title="Download"
+                              >
+                                <FiDownload size={16} />
+                              </button>
+                                {/* <a
                                   // href={quiz.fileUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -479,8 +519,9 @@ const handleSelectCourse = async (courseId: number) => {
                                   title="Download"
                                 >
                                   <FiDownload />
-                                </a>
+                                </a> */}
                               </div>
+                              
                             </div>
                           </div>
                         ))
