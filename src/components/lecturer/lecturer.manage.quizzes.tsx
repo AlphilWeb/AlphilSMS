@@ -21,10 +21,12 @@ import {
   FiDownload,
   FiClock,
   FiUser,
+  FiUpload,
 } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
+import { getLecturerCourses } from '@/lib/actions/lecturer.manage.courses.action';
 
 export default function LecturerQuizzesManager({ initialQuizzes }: { initialQuizzes: QuizWithCourse[] }) {
   const [quizzes, setQuizzes] = useState<QuizWithCourse[]>(initialQuizzes);
@@ -41,10 +43,21 @@ export default function LecturerQuizzesManager({ initialQuizzes }: { initialQuiz
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<QuizWithCourse | null>(null);
   const [currentSubmission, setCurrentSubmission] = useState<QuizSubmissionWithStudent | null>(null);
-
+const [courses, setCourses] = useState<{ id: number; code: string; name: string }[]>([]);
   // Form states
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
+
+  const [quizFile, setQuizFile] = useState<File | null>(null);
+const [isUploading, setIsUploading] = useState(false);
+
+
+const handleQuizFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files?.[0]) {
+    setQuizFile(e.target.files[0]);
+  }
+};
+
 
   // Fetch all quizzes on client-side if needed
   useEffect(() => {
@@ -65,6 +78,19 @@ export default function LecturerQuizzesManager({ initialQuizzes }: { initialQuiz
     }
   }, [initialQuizzes]);
 
+  useEffect(() => {
+  const fetchCourses = async () => {
+    try {
+      const lecturerCourses = await getLecturerCourses(); // You'll need to implement this function
+      setCourses(lecturerCourses);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load courses');
+    }
+  };
+  
+  fetchCourses();
+}, []);
+
   // Fetch quiz details when selected
 const handleSelectQuiz = async (id: number) => {
   try {
@@ -72,18 +98,18 @@ const handleSelectQuiz = async (id: number) => {
     const data = await getQuizWithSubmissions(id);
     
     // Transform the submissions array to convert the score
-    const transformedSubmissions = data.submissions.map(submission => ({
-      ...submission,
-      score: submission.score !== null ? Number(submission.score) : null,
-    }));
+    // const transformedSubmissions = data.submissions.map(submission => ({
+    //   ...submission,
+    //   score: submission.score !== null ? Number(submission.score) : null,
+    // }));
     
-    // Reconstruct the data object with the transformed submissions
-    const transformedData = {
-      ...data,
-      submissions: transformedSubmissions
-    };
+    // // Reconstruct the data object with the transformed submissions
+    // const transformedData = {
+    //   ...data,
+    //   submissions: transformedSubmissions
+    // };
 
-    setSelectedQuiz(transformedData);
+    setSelectedQuiz(data);
     setError(null);
   } catch (err) {
     setError(err instanceof Error ? err.message : 'Failed to load quiz details');
@@ -95,26 +121,27 @@ const handleSelectQuiz = async (id: number) => {
   // Handle quiz form submit
 const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
-  const formData = new FormData(e.currentTarget);
+  setIsUploading(true);
   
   try {
+    const formData = new FormData(e.currentTarget);
+    
     // Format the quiz date correctly
     const quizDate = formData.get('quizDate') as string;
     if (quizDate) {
       formData.set('quizDate', new Date(quizDate).toISOString());
     }
 
-    if (editingQuiz) {
-      // The updateQuiz action returns a plain quiz
-      const updated = await updateQuiz(editingQuiz.id, formData);
-      
-      // Get the full course object from the original editingQuiz
-      const course = editingQuiz.course;
+    // Add file if it exists (for new or updated quizzes)
+    if (quizFile) {
+      formData.append('file', quizFile);
+    }
 
-      // Create a new object that matches the QuizWithCourse type
+    if (editingQuiz) {
+      const updated = await updateQuiz(editingQuiz.id, formData);
       const quizWithCourse = {
         ...updated,
-        course: course // Attach the course object
+        course: editingQuiz.course
       };
 
       setQuizzes(quizzes.map(q => q.id === quizWithCourse.id ? quizWithCourse : q));
@@ -126,21 +153,16 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         });
       }
     } else {
-      // The createQuiz action returns a plain quiz
       const created = await createQuiz(formData);
-
-      // We need to find the course object for the new quiz.
-      // Assuming all quizzes on this page belong to the same course,
-      // we can get it from an existing quiz in the state.
-      const course = quizzes[0]?.course;
-
+      const course = courses.find(c => c.id === Number(formData.get('courseId')));
+      
       if (!course) {
-        throw new Error('Could not find course information for new quiz.');
+        throw new Error('Course not found');
       }
       
       const newQuizWithCourse = {
         ...created,
-        course: course // Attach the course object
+        course: course
       };
       
       setQuizzes([newQuizWithCourse, ...quizzes]);
@@ -148,8 +170,11 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     
     setShowQuizFormModal(false);
     setEditingQuiz(null);
+    setQuizFile(null);
   } catch (err) {
     setError(err instanceof Error ? err.message : 'Failed to save quiz');
+  } finally {
+    setIsUploading(false);
   }
 };
 
@@ -170,7 +195,7 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           submissions: selectedQuiz.submissions.map(s => 
             s.id === graded.id ? { 
               ...s, 
-              score: graded.score ? parseFloat(graded.score) : null, 
+              score: graded.score, 
               feedback: graded.feedback 
             } : s
           )
@@ -383,7 +408,7 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Created</p>
-                        <p className="font-medium">{formatDate(selectedQuiz.quiz.createdAt)}</p>
+                        <p className="text-pink-500 font-medium">{formatDate(selectedQuiz.quiz.createdAt)}</p>
                       </div>
                     </div>
 
@@ -393,7 +418,7 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Quiz Date</p>
-                        <p className="font-medium">{formatDate(selectedQuiz.quiz.quizDate)}</p>
+                        <p className="text-pink-500 font-medium">{formatDate(selectedQuiz.quiz.quizDate)}</p>
                       </div>
                     </div>
 
@@ -403,7 +428,7 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Total Marks</p>
-                        <p className="font-medium">{selectedQuiz.quiz.totalMarks}</p>
+                        <p className="text-pink-500 font-medium">{selectedQuiz.quiz.totalMarks}</p>
                       </div>
                     </div>
                   </div>
@@ -494,122 +519,168 @@ const handleQuizSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       </div>
 
       {/* Quiz Form Modal */}
-      {showQuizFormModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">
-                {editingQuiz ? 'Edit Quiz' : 'Create New Quiz'}
-              </h2>
-              
-              <form onSubmit={handleQuizSubmit}>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
-                      name="title"
-                      defaultValue={editingQuiz?.title || ''}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+{showQuizFormModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4">
+          {editingQuiz ? 'Edit Quiz' : 'Create New Quiz'}
+        </h2>
+        
+        <form onSubmit={handleQuizSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Title
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                defaultValue={editingQuiz?.title || ''}
+                required
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
-                  <div>
-                    <label htmlFor="courseId" className="block text-sm font-medium text-gray-700 mb-1">
-                      Course
-                    </label>
-                    <select
-                      id="courseId"
-                      name="courseId"
-                      defaultValue={editingQuiz?.course.id || ''}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {quizzes
-                        .reduce((courses, quiz) => {
-                          if (!courses.some(c => c.id === quiz.course.id)) {
-                            courses.push(quiz.course);
-                          }
-                          return courses;
-                        }, [] as { id: number; code: string; name: string }[])
-                        .map(course => (
-                          <option key={course.id} value={course.id}>
-                            {course.code} - {course.name}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
+            <div>
+              <label htmlFor="courseId" className="block text-sm font-medium text-gray-700 mb-1">
+                Course
+              </label>
+              <select
+                id="courseId"
+                name="courseId"
+                defaultValue={editingQuiz?.course.id || ''}
+                required
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                {courses.map(course => (
+                  <option key={course.id} value={course.id}>
+                    {course.code} - {course.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                  <div>
-                    <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-1">
-                      Instructions
-                    </label>
-                    <textarea
-                      id="instructions"
-                      name="instructions"
-                      defaultValue={editingQuiz?.instructions || ''}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+            <div>
+              <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-1">
+                Instructions
+              </label>
+              <textarea
+                id="instructions"
+                name="instructions"
+                defaultValue={editingQuiz?.instructions || ''}
+                rows={3}
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
-                  <div>
-                    <label htmlFor="totalMarks" className="block text-sm font-medium text-gray-700 mb-1">
-                      Total Marks
-                    </label>
-                    <input
-                      type="number"
-                      id="totalMarks"
-                      name="totalMarks"
-                      defaultValue={editingQuiz?.totalMarks || ''}
-                      required
-                      min="1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+            <div>
+              <label htmlFor="totalMarks" className="block text-sm font-medium text-gray-700 mb-1">
+                Total Marks
+              </label>
+              <input
+                type="number"
+                id="totalMarks"
+                name="totalMarks"
+                defaultValue={editingQuiz?.totalMarks || ''}
+                required
+                min="1"
+                className="text-black w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
-                  <div>
-                    <label htmlFor="quizDate" className="block text-sm font-medium text-gray-700 mb-1">
-                      Quiz Date
-                    </label>
-                    <input
-                      type="datetime-local"
-                      id="quizDate"
-                      name="quizDate"
-                      defaultValue={editingQuiz ? formatDateForInput(editingQuiz.quizDate) : ''}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+            <div>
+              <label htmlFor="quizDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Quiz Date
+              </label>
+              <input
+                type="datetime-local"
+                id="quizDate"
+                name="quizDate"
+                defaultValue={editingQuiz ? formatDateForInput(editingQuiz.quizDate) : ''}
+                required
+                className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
 
-                  <div className="flex justify-end gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowQuizFormModal(false);
-                        setEditingQuiz(null);
-                      }}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      {editingQuiz ? 'Update Quiz' : 'Create Quiz'}
-                    </button>
-                  </div>
+            <div>
+              <label htmlFor="quizFile" className="block text-sm font-medium text-gray-700 mb-1">
+                Quiz File {!editingQuiz && '(Required)'}
+              </label>
+              {editingQuiz?.fileUrl && (
+                <div className="mb-2">
+                  <p className="text-sm text-gray-600">Current file: {editingQuiz.fileUrl.split('/').pop()}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(editingQuiz.id, 'quiz')}
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 mt-1"
+                  >
+                    <FiDownload size={14} /> Download current file
+                  </button>
                 </div>
-              </form>
+              )}
+              <div className="relative">
+                <label className={`flex flex-col items-center justify-center w-full px-4 py-6 border-2 border-dashed ${
+                  quizFile ? 'border-blue-300' : 'border-gray-300'
+                } rounded-md cursor-pointer hover:border-blue-400 transition-colors`}>
+                  <input
+                    type="file"
+                    id="quizFile"
+                    name="quizFile"
+                    onChange={handleQuizFileChange}
+                    className="hidden"
+                    required={!editingQuiz}
+                  />
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <FiUpload className="w-6 h-6 mb-2 text-gray-400" />
+                    {quizFile ? (
+                      <p className="text-sm font-medium text-gray-900">
+                        {quizFile.name}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs italic text-gray-400">
+                          PDF, DOCX files accepted
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuizFormModal(false);
+                  setEditingQuiz(null);
+                  setQuizFile(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isUploading || (!editingQuiz && !quizFile)}
+                className={`px-4 py-2 text-white rounded-md ${
+                  isUploading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                } ${(!editingQuiz && !quizFile) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isUploading ? 'Uploading...' : editingQuiz ? 'Update Quiz' : 'Create Quiz'}
+              </button>
             </div>
           </div>
-        </div>
-      )}
+        </form>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Grade Submission Modal */}
       {showGradeModal && currentSubmission && (
