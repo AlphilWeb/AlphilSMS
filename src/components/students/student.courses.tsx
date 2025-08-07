@@ -25,12 +25,14 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiChevronDown,
-  FiChevronUp
-
-}
-from 'react-icons/fi';
+  FiChevronUp,
+  FiEye
+} from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
+import DocumentViewer from '../documentViewer';
+import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
+
 
 interface StudentCourseManagerProps {
   enrolledCourses: EnrolledCourse[];
@@ -46,6 +48,20 @@ interface StudentCourseManagerProps {
     } | null;
   }[];
 }
+
+// interface MaterialContent {
+//   html: string;
+//   json: object;
+// }
+
+// type CourseMaterials = {
+//   id: number;
+//   title: string;
+//   type: 'notes' | 'pdf' | 'other';
+//   content: string | MaterialContent;
+//   uploadedAt: Date;
+//   fileUrl?: string;
+// };
 
 export default function StudentCourseManager({
   enrolledCourses: initialEnrolledCourses,
@@ -66,6 +82,15 @@ export default function StudentCourseManager({
   const [selectedQuiz, setSelectedQuiz] = useState<CourseQuiz | null>(null);
   const [submissionFile, setSubmissionFile] = useState<File | null>(null);
   const [expandedMaterialIds, setExpandedMaterialIds] = useState<Set<number>>(new Set());
+  
+  // Document viewer state
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<{
+    url: string;
+    type: string;
+    title: string;
+    content?: string;
+  } | null>(null);
 
   const toggleExpanded = (id: number) => {
     setExpandedMaterialIds((prev) => {
@@ -218,6 +243,66 @@ export default function StudentCourseManager({
     }
   };
 
+  const handleViewMaterial = async (material: CourseMaterial) => {
+    if (!material.id) {
+      setError('Invalid material');
+      return;
+    }
+
+    try {
+      setError(null);
+
+      if (material.type === 'notes') {
+        setCurrentDocument({
+          url: '',
+          type: 'notes',
+          title: material.title,
+          content: material.content as string,
+        });
+        setIsViewerOpen(true);
+        return;
+      }
+
+      const result = await getDocumentViewerUrl(material.id, 'course-material');
+      if (!result.success || !result.fileUrl) {
+        setError(result.error || 'Failed to retrieve document URL');
+        return;
+      }
+
+      setCurrentDocument({
+        url: result.fileUrl,
+        type: 'pdf',
+        title: material.title,
+      });
+      setIsViewerOpen(true);
+    } catch (error) {
+      console.error('Error retrieving document URL:', error);
+      setError('Failed to open document viewer');
+    }
+  };
+
+  const getMaterialContent = (material: CourseMaterial): string => {
+    if (!material.content) return '';
+
+    if (typeof material.content === 'string') {
+      return material.content;
+    }
+
+    if (typeof material.content === 'object' && material.content !== null) {
+      if ('html' in material.content && typeof material.content.html === 'string') {
+        return material.content.html;
+      }
+      
+      try {
+        return JSON.stringify(material.content);
+      } catch {
+        return '';
+      }
+    }
+
+    return '';
+  };
+
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -357,7 +442,7 @@ export default function StudentCourseManager({
               </div>
             ) : (
               <>
-                {/* Materials Tab - Updated with collapsible cards */}
+                {/* Materials Tab - Updated with collapsible cards and view functionality */}
                 {activeTab === 'materials' && (
                   <div className="space-y-4">
                     {materials.length === 0 ? (
@@ -391,16 +476,28 @@ export default function StudentCourseManager({
                                   </div>
                                   <div className="flex items-center gap-3">
                                     {material.type !== 'notes' && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDownload(material.id, 'course-material');
-                                        }}
-                                        className="text-blue-600 hover:text-blue-800 p-1"
-                                        title="Download"
-                                      >
-                                        <FiDownload size={16} />
-                                      </button>
+                                      <>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleViewMaterial(material);
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800 p-1"
+                                          title="View"
+                                        >
+                                          <FiEye size={16} />
+                                        </button>
+                                        {/* <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownload(material.id, 'course-material');
+                                          }}
+                                          className="text-emerald-600 hover:text-emerald-800 p-1"
+                                          title="Download"
+                                        >
+                                          <FiDownload size={16} />
+                                        </button> */}
+                                      </>
                                     )}
                                     {isExpanded ? (
                                       <FiChevronUp className="text-gray-500" />
@@ -414,17 +511,26 @@ export default function StudentCourseManager({
                                 {isExpanded && (
                                   <div className="px-4 pb-4 border-t border-gray-100">
                                     {material.type === 'notes' ? (
-                                      <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                                        <p className="text-gray-700 whitespace-pre-line">{material.content}</p>
-                                      </div>
+  <div className="mt-3 p-3 bg-gray-50 rounded-md">
+    <div 
+      className="prose prose-sm max-w-none" 
+      dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }}
+    />
+  </div>
                                     ) : (
-                                      <div className="mt-3 flex justify-end">
-                                        <button
-                                          onClick={() => handleDownload(material.id, 'course-material')}
+                                      <div className="">
+                                        {/* <button
+                                          onClick={() => handleViewMaterial(material)}
                                           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                                         >
-                                          Download Material
+                                          View Material
                                         </button>
+                                        <button
+                                          onClick={() => handleDownload(material.id, 'course-material')}
+                                          className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                                        >
+                                          Download Material
+                                        </button> */}
                                       </div>
                                     )}
                                   </div>
@@ -760,6 +866,14 @@ export default function StudentCourseManager({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Document Viewer Modal */}
+      {isViewerOpen && currentDocument && (
+        <DocumentViewer 
+          document={currentDocument} 
+          onClose={() => setIsViewerOpen(false)} 
+        />
       )}
     </div>
   );

@@ -37,13 +37,23 @@ export type CourseWithProgram = {
   };
 };
 
+// In lib/actions/lecturer.manage.courses.action.ts
 export type CourseMaterial = {
   id: number;
+  courseId?: number; // Make optional since it might not always be returned
+  uploadedById?: number; // Make optional
   title: string;
   type: string;
   fileUrl: string | null;
-  content?: string | null;
+  content: string | object | null; // Accept both string and object for backward compatibility
   uploadedAt: Date;
+};
+
+export type CourseMaterialContent = {
+  html: string;
+  json?: object; // Make this optional for backward compatibility
+  createdAt?: string;
+  version?: string;
 };
 
 export type CourseDetails = CourseWithProgram & {
@@ -178,7 +188,7 @@ export async function getCourseMaterials(courseId: number) {
 
   if (!course) throw new Error('Course not found or unauthorized');
 
-  return db
+  const materials = await db
     .select({
       id: courseMaterials.id,
       title: courseMaterials.title,
@@ -190,6 +200,34 @@ export async function getCourseMaterials(courseId: number) {
     .from(courseMaterials)
     .where(eq(courseMaterials.courseId, courseId))
     .orderBy(desc(courseMaterials.uploadedAt));
+
+  return materials.map(material => {
+    if (material.type === 'notes' && material.content) {
+      try {
+        // Handle both string and object content
+        const content = typeof material.content === 'string' 
+          ? JSON.parse(material.content) 
+          : material.content;
+        
+        return {
+          ...material,
+          content: {
+            html: content.html || (typeof material.content === 'string' ? material.content : ''),
+            json: content.json || {}
+          }
+        };
+      } catch {
+        return {
+          ...material,
+          content: {
+            html: typeof material.content === 'string' ? material.content : '',
+            json: {}
+          }
+        };
+      }
+    }
+    return material;
+  });
 }
 
 // Upload new course material
@@ -218,32 +256,45 @@ export async function uploadCourseMaterial(
   const title = formData.get('title') as string;
   const type = formData.get('type') as string;
 
-  // Conditional logic based on the material type
-  if (type === 'notes') {
-    // If it's a "notes" type, we expect a 'content' field
-    const content = formData.get('content') as string;
+if (type === 'notes') {
+  const content = formData.get('content') as string;
+  
+  // Parse the content if it's a JSON string
+  let contentData: CourseMaterialContent;
+  try {
+    const parsedContent = JSON.parse(content);
+    contentData = {
+      html: parsedContent.html || parsedContent,
+      json: parsedContent.json || {},
+      createdAt: new Date().toISOString(),
+      version: '1.0'
+    };
+  } catch {
+    // Fallback to plain HTML if parsing fails
+    contentData = {
+      html: content,
+      json: {}, // Empty JSON as fallback
+      createdAt: new Date().toISOString(),
+      version: '1.0'
+    };
+  }
 
-    if (!content || content.trim() === '') {
-      throw new Error('Content is required for notes');
-    }
-
-    // Insert into the database without a file URL
-    const newMaterial = await db
-      .insert(courseMaterials)
-      .values({
-        courseId,
-        uploadedById: course.staff.id,
-        title,
-        type,
-        content,
-        fileUrl: null, // Explicitly set fileUrl to null
-      })
-      .returning();
+  const newMaterial = await db
+    .insert(courseMaterials)
+    .values({
+      courseId,
+      uploadedById: course.staff.id,
+      title,
+      type,
+      content: contentData,
+      fileUrl: null,
+    })
+    .returning();
 
     revalidatePath(`/dashboard/lecturer/courses/${courseId}/materials`);
     return newMaterial[0];
   } else {
-    // For all other types, we expect a file upload
+    // File upload handling remains the same
     const file = formData.get('file') as File;
 
     if (!file || file.size === 0) {
@@ -252,7 +303,6 @@ export async function uploadCourseMaterial(
 
     const fileUrl = await uploadFileToR2(file, 'course-materials');
 
-    // Insert into the database with a file URL
     const newMaterial = await db
       .insert(courseMaterials)
       .values({
@@ -261,7 +311,7 @@ export async function uploadCourseMaterial(
         title,
         type,
         fileUrl,
-        content: null, // Explicitly set content to null
+        content: null,
       })
       .returning();
 
