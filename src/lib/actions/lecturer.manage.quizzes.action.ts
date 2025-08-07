@@ -5,7 +5,7 @@ import { quizzes, quizSubmissions, courses, students, staff } from '@/lib/db/sch
 import { and, eq, desc } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-// import { uploadFileToR2 } from '@/lib/file-upload';
+import { uploadFileToR2 } from '@/lib/file-upload';
 
 // Types
 export type QuizWithCourse = {
@@ -15,6 +15,7 @@ export type QuizWithCourse = {
   totalMarks: number;
   quizDate: Date;
   createdAt: Date;
+  fileUrl: string;
   course: {
     id: number;
     name: string;
@@ -27,7 +28,7 @@ export type QuizSubmissionWithStudent = {
   fileUrl: string;
   submittedAt: Date;
   feedback: string | null;
-  score: number | null;
+  score: string | null; // Stored as string in DB to handle decimal places
   student: {
     id: number;
     firstName: string;
@@ -37,7 +38,7 @@ export type QuizSubmissionWithStudent = {
 };
 
 // Get all quizzes created by the lecturer
-export async function getLecturerQuizzes() {
+export async function getLecturerQuizzes(): Promise<QuizWithCourse[]> {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
 
@@ -49,6 +50,7 @@ export async function getLecturerQuizzes() {
       totalMarks: quizzes.totalMarks,
       quizDate: quizzes.quizDate,
       createdAt: quizzes.createdAt,
+      fileUrl: quizzes.fileUrl,
       course: {
         id: courses.id,
         name: courses.name,
@@ -67,54 +69,61 @@ export async function getQuizWithSubmissions(quizId: number) {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
 
+  // Verify the quiz belongs to the lecturer
   const quiz = await db
     .select()
     .from(quizzes)
     .innerJoin(staff, eq(staff.id, quizzes.createdById))
     .where(
-      and(eq(quizzes.id, quizId), eq(staff.userId, authUser.userId)),
+      and(
+        eq(quizzes.id, quizId),
+        eq(staff.userId, authUser.userId),
+      ),
     )
     .then((res) => res[0]?.quizzes);
 
   if (!quiz) throw new Error('Quiz not found or unauthorized');
 
-  const quizWithCourse = await db
-    .select({
-      id: quizzes.id,
-      title: quizzes.title,
-      instructions: quizzes.instructions,
-      totalMarks: quizzes.totalMarks,
-      quizDate: quizzes.quizDate,
-      createdAt: quizzes.createdAt,
-      course: {
-        id: courses.id,
-        name: courses.name,
-        code: courses.code,
-      },
-    })
-    .from(quizzes)
-    .innerJoin(courses, eq(courses.id, quizzes.courseId))
-    .where(eq(quizzes.id, quizId))
-    .then((res) => res[0]);
-
-  const submissions = await db
-    .select({
-      id: quizSubmissions.id,
-      fileUrl: quizSubmissions.fileUrl,
-      submittedAt: quizSubmissions.submittedAt,
-      feedback: quizSubmissions.feedback,
-      score: quizSubmissions.score,
-      student: {
-        id: students.id,
-        firstName: students.firstName,
-        lastName: students.lastName,
-        registrationNumber: students.registrationNumber,
-      },
-    })
-    .from(quizSubmissions)
-    .innerJoin(students, eq(students.id, quizSubmissions.studentId))
-    .where(eq(quizSubmissions.quizId, quizId))
-    .orderBy(desc(quizSubmissions.submittedAt));
+  const [quizWithCourse, submissions] = await Promise.all([
+    db
+      .select({
+        id: quizzes.id,
+        title: quizzes.title,
+        instructions: quizzes.instructions,
+        totalMarks: quizzes.totalMarks,
+        quizDate: quizzes.quizDate,
+        createdAt: quizzes.createdAt,
+        fileUrl: quizzes.fileUrl,
+        course: {
+          id: courses.id,
+          name: courses.name,
+          code: courses.code,
+        },
+      })
+      .from(quizzes)
+      .innerJoin(courses, eq(courses.id, quizzes.courseId))
+      .where(eq(quizzes.id, quizId))
+      .then((res) => res[0]),
+    
+    db
+      .select({
+        id: quizSubmissions.id,
+        fileUrl: quizSubmissions.fileUrl,
+        submittedAt: quizSubmissions.submittedAt,
+        feedback: quizSubmissions.feedback,
+        score: quizSubmissions.score,
+        student: {
+          id: students.id,
+          firstName: students.firstName,
+          lastName: students.lastName,
+          registrationNumber: students.registrationNumber,
+        },
+      })
+      .from(quizSubmissions)
+      .innerJoin(students, eq(students.id, quizSubmissions.studentId))
+      .where(eq(quizSubmissions.quizId, quizId))
+      .orderBy(desc(quizSubmissions.submittedAt)),
+  ]);
 
   return {
     quiz: quizWithCourse,
@@ -122,7 +131,7 @@ export async function getQuizWithSubmissions(quizId: number) {
   };
 }
 
-// Create a new quiz
+// Create a new quiz with file upload
 export async function createQuiz(formData: FormData) {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
@@ -140,14 +149,28 @@ export async function createQuiz(formData: FormData) {
   const instructions = formData.get('instructions') as string;
   const totalMarks = Number(formData.get('totalMarks'));
   const quizDate = new Date(formData.get('quizDate') as string);
+  const file = formData.get('file') as File;
 
+  // Verify the course exists and is taught by the lecturer
   const course = await db
     .select()
     .from(courses)
-    .where(eq(courses.id, courseId))
-    .then((res) => res[0]);
+    .innerJoin(staff, eq(staff.id, courses.lecturerId))
+    .where(
+      and(
+        eq(courses.id, courseId),
+        eq(staff.userId, authUser.userId),
+      ),
+    )
+    .then((res) => res[0]?.courses);
 
-  if (!course) throw new Error('Course not found');
+  if (!course) throw new Error('Course not found or unauthorized');
+
+  if (!file || file.size === 0) {
+    throw new Error('Quiz file is required');
+  }
+
+  const fileUrl = await uploadFileToR2(file, 'quizzes');
 
   const newQuiz = await db
     .insert(quizzes)
@@ -158,15 +181,23 @@ export async function createQuiz(formData: FormData) {
       instructions: instructions || null,
       totalMarks,
       quizDate,
-      fileUrl: '', // Add this required field
+      fileUrl,
     })
-    .returning();
+    .returning()
+    .then(res => res[0]);
 
   revalidatePath('/dashboard/lecturer/quizzes');
-  return newQuiz[0];
+  return {
+    ...newQuiz,
+    course: {
+      id: course.id,
+      name: course.name,
+      code: course.code,
+    },
+  };
 }
 
-// Update a quiz
+// Update a quiz with optional file upload
 export async function updateQuiz(quizId: number, formData: FormData) {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
@@ -190,6 +221,12 @@ export async function updateQuiz(quizId: number, formData: FormData) {
   const instructions = formData.get('instructions') as string;
   const totalMarks = Number(formData.get('totalMarks'));
   const quizDate = new Date(formData.get('quizDate') as string);
+  const file = formData.get('file') as File;
+
+  let fileUrl = quiz.fileUrl;
+  if (file && file.size > 0) {
+    fileUrl = await uploadFileToR2(file, 'quizzes');
+  }
 
   const updatedQuiz = await db
     .update(quizzes)
@@ -198,12 +235,28 @@ export async function updateQuiz(quizId: number, formData: FormData) {
       instructions: instructions || null,
       totalMarks,
       quizDate,
+      fileUrl,
     })
     .where(eq(quizzes.id, quizId))
-    .returning();
+    .returning()
+    .then(res => res[0]);
+
+  // Get course details for the response
+  const course = await db
+    .select({
+      id: courses.id,
+      name: courses.name,
+      code: courses.code,
+    })
+    .from(courses)
+    .where(eq(courses.id, updatedQuiz.courseId))
+    .then(res => res[0]);
 
   revalidatePath('/dashboard/lecturer/quizzes');
-  return updatedQuiz[0];
+  return {
+    ...updatedQuiz,
+    course,
+  };
 }
 
 // Delete a quiz
@@ -260,12 +313,13 @@ export async function gradeQuizSubmission(
   const updatedSubmission = await db
     .update(quizSubmissions)
     .set({
-      score: score.toString(),
+      score: score.toString(), // Store as string to preserve decimal precision
       feedback: feedback || null,
     })
     .where(eq(quizSubmissions.id, submissionId))
-    .returning();
+    .returning()
+    .then(res => res[0]);
 
   revalidatePath(`/dashboard/lecturer/quizzes/${submission.quizId}`);
-  return updatedSubmission[0];
+  return updatedSubmission;
 }
