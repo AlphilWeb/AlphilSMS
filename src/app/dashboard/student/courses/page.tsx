@@ -10,7 +10,7 @@ import StudentCoursesWrapper from '@/components/students/StudentCourseWrapper';
 export default async function StudentCoursesPage() {
   try {
     // Fetch data in parallel but add error handling for each request
-    const [enrolledCourses, availableCourses] = await Promise.all([
+    const [ availableCourses] = await Promise.all([
       getStudentEnrolledCourses().catch(() => []), // Return empty array if fails
       getAvailableCoursesForEnrollment().catch(() => [])
     ]);
