@@ -95,27 +95,24 @@ export default function LecturerSubmissionsManager() {
   };
 
   
-    const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
-      try {
-        const result = await getDownloadUrl(itemId, itemType);
-        
-        if (result.success && result.url) {
-          // Create a temporary anchor element to trigger the download
-          const a = document.createElement('a');
-          a.href = result.url;
-          a.download = ''; // Let the Content-Disposition header handle the filename
-          a.target = '_blank'; // Open in new tab
-          a.rel = 'noopener noreferrer';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        } else {
-          throw new Error(result.error || 'Failed to get download URL');
-        }
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Download failed');
-      }
-    };
+const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
+  try {
+    const result = await getDownloadUrl(itemId, itemType);
+    
+    if (result.success && result.url) {
+      const a = document.createElement('a');
+      a.href = result.url;
+      a.download = 'document.pdf'; // Add a proper filename
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      throw new Error(result.error || 'Failed to get download URL');
+    }
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Download failed');
+  }
+};
 
   // Status badge component
   const StatusBadge = ({ submission }: { submission: SubmissionWithDetails }) => {
@@ -287,10 +284,12 @@ export default function LecturerSubmissionsManager() {
                       </a> */}
 
 <button
-  onClick={() => handleDownload(submission.id, 'assignment')}
-  rel='noopener noreferrer'
-  className="text-blue-600 hover:text-blue-900"
-  title="Download Submission"
+  onClick={(e) => {
+    e.stopPropagation();
+    handleDownload(submission.id, 'assignment');
+  }}
+  className="text-blue-600 hover:text-blue-800 p-1"
+  title="Download"
 >
   <FiDownload size={16} />
 </button>
