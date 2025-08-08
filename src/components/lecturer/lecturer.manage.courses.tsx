@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-// import { useRouter } from 'next/router';
-
 import {
   getLecturerCourses,
   getCourseDetails,
@@ -19,9 +17,10 @@ import {
 
 import {
   FiBook, FiUsers, FiFileText, FiClock, FiUpload, 
-  FiTrash2, FiDownload, FiChevronDown, FiChevronUp,
+  FiTrash2, FiDownload, FiChevronDown, FiChevronUp
 } from 'react-icons/fi';
 
+import TipTapEditor from '@/components/TipTapEditor';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
 
 type TimetableEntry = {
@@ -31,8 +30,12 @@ type TimetableEntry = {
   room: string | null;
 };
 
+interface MaterialContent {
+  html: string;
+  json: object;
+}
+
 export default function LecturerCoursesClient() {
-  // const router = useRouter();
   const [courses, setCourses] = useState<CourseWithProgram[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<CourseDetails | null>(null);
   const [materials, setMaterials] = useState<CourseMaterial[]>([]);
@@ -49,11 +52,16 @@ export default function LecturerCoursesClient() {
   });
   const [error, setError] = useState<string | null>(null);
   const [expandedMaterialIds, setExpandedMaterialIds] = useState<Set<number>>(new Set());
-  const [newMaterial, setNewMaterial] = useState({
+  const [newMaterial, setNewMaterial] = useState<{
+    title: string;
+    type: 'notes' | 'pdf';
+    content: MaterialContent;
+    file: File | null;
+  }>({
     title: '',
     type: 'notes',
-    content: '',
-    file: null as File | null,
+    content: { html: '', json: {} },
+    file: null,
   });
 
   const toggleExpanded = (id: number) => {
@@ -139,17 +147,13 @@ export default function LecturerCoursesClient() {
       return;
     }
 
-    // Basic validation based on material type
-    if (newMaterial.type === 'notes') {
-      if (!newMaterial.content) {
-        setError('Content is required for notes.');
-        return;
-      }
-    } else {
-      if (!newMaterial.file) {
-        setError('File is required for this material type.');
-        return;
-      }
+    // Validation
+    if (newMaterial.type === 'notes' && !newMaterial.content.html.trim()) {
+      setError('Content is required for notes.');
+      return;
+    } else if (newMaterial.type === 'pdf' && !newMaterial.file) {
+      setError('PDF file is required.');
+      return;
     }
 
     try {
@@ -161,18 +165,25 @@ export default function LecturerCoursesClient() {
       formData.append('type', newMaterial.type);
 
       if (newMaterial.type === 'notes') {
-        formData.append('content', newMaterial.content);
+        formData.append('content', JSON.stringify(newMaterial.content));
       } else if (newMaterial.file) {
         formData.append('file', newMaterial.file);
       }
 
       const uploadedMaterial = await uploadCourseMaterial(selectedCourse.id, formData);
 
-      setMaterials(prev => [uploadedMaterial, ...prev]);
+      setMaterials(prev => [{
+        ...uploadedMaterial,
+        content: typeof uploadedMaterial.content === 'object' 
+          ? uploadedMaterial.content 
+          : { html: uploadedMaterial.content as string, json: {} }
+      }, ...prev]);
+      
+      // Reset form
       setNewMaterial({
         title: '',
         type: 'notes',
-        content: '',
+        content: { html: '', json: {} },
         file: null,
       });
     } catch (err) {
@@ -190,7 +201,6 @@ export default function LecturerCoursesClient() {
       setError(null);
       await deleteCourseMaterial(materialId);
       setMaterials(prev => prev.filter(m => m.id !== materialId));
-      // Remove from expanded set if it was expanded
       setExpandedMaterialIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(materialId);
@@ -201,33 +211,54 @@ export default function LecturerCoursesClient() {
     }
   };
 
-  const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
-    try {
-      const result = await getDownloadUrl(itemId, itemType);
-      
-      if (result.success && result.url) {
-        const a = document.createElement('a');
-        a.href = result.url;
-        a.download = '';
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        throw new Error(result.error || 'Failed to get download URL');
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Download failed');
+const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
+  try {
+    const result = await getDownloadUrl(itemId, itemType);
+    
+    if (result.success && result.url) {
+      const a = document.createElement('a');
+      a.href = result.url;
+      a.download = 'document.pdf'; // Add a proper filename
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      throw new Error(result.error || 'Failed to get download URL');
     }
-  };
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Download failed');
+  }
+};
+
 
   // Format time
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
     const date = new Date();
-    date.setHours(parseInt(hours), date.setMinutes(parseInt(minutes)));
+    date.setHours(parseInt(hours), parseInt(minutes));
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getMaterialContent = (material: CourseMaterial): string => {
+    if (!material.content) return '';
+
+    if (typeof material.content === 'string') {
+      return material.content;
+    }
+
+    if (typeof material.content === 'object' && material.content !== null) {
+      if ('html' in material.content && typeof material.content.html === 'string') {
+        return material.content.html;
+      }
+      
+      try {
+        return JSON.stringify(material.content);
+      } catch {
+        return '';
+      }
+    }
+
+    return '';
   };
 
   return (
@@ -376,14 +407,14 @@ export default function LecturerCoursesClient() {
                     </h3>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="text-gray-800 block text-sm font-medium mb-1">
                           Title
                         </label>
                         <input
                           type="text"
                           value={newMaterial.title}
                           onChange={(e) => setNewMaterial({...newMaterial, title: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-pink-500"
+                          className="text-gray-800 w-full px-3 py-2 border border-gray-300 rounded-md"
                           placeholder="Material title"
                         />
                       </div>
@@ -393,34 +424,35 @@ export default function LecturerCoursesClient() {
                         </label>
                         <select
                           value={newMaterial.type}
-                          onChange={(e) => setNewMaterial({...newMaterial, type: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-pink-500"
+                          onChange={(e) => setNewMaterial({
+                            ...newMaterial, 
+                            type: e.target.value as 'notes' | 'pdf',
+                            file: e.target.value === 'notes' ? null : newMaterial.file
+                          })}
+                          className="text-gray-800 w-full px-3 py-2 border border-gray-300 rounded-md"
                         >
                           <option value="notes">Lecture Notes</option>
-                          <option value="slides">Slides</option>
-                          <option value="assignment">Assignment</option>
-                          <option value="reading">Reading Material</option>
-                          <option value="other">Other</option>
+                          <option value="pdf">PDF</option>
                         </select>
                       </div>
                       
                       {newMaterial.type === 'notes' ? (
-                        <div>
+                        <div className="border">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Content
                           </label>
-                          <textarea
-                            value={newMaterial.content}
-                            onChange={(e) => setNewMaterial({...newMaterial, content: e.target.value})}
-                            rows={6}
-                            className="text-pink-500 w-full px-3 py-2 border border-gray-300 rounded-md resize-y"
-                            placeholder="Enter your lecture notes content..."
+                          <TipTapEditor
+                            content={newMaterial.content.html}
+                            onChange={({ html, json }) => setNewMaterial(prev => ({
+                              ...prev,
+                              content: { html, json }
+                            }))}
                           />
                         </div>
                       ) : (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            File Upload
+                            PDF File Upload
                           </label>
                           <div className="relative">
                             <label className={`flex flex-col items-center justify-center w-full px-4 py-6 border-2 border-dashed ${
@@ -430,6 +462,7 @@ export default function LecturerCoursesClient() {
                                 type="file"
                                 onChange={handleFileChange}
                                 className="hidden"
+                                accept=".pdf"
                               />
                               <div className="flex flex-col items-center justify-center text-center">
                                 <FiUpload className="w-6 h-6 mb-2 text-gray-400" />
@@ -440,10 +473,10 @@ export default function LecturerCoursesClient() {
                                 ) : (
                                   <>
                                     <p className="text-sm text-gray-500">
-                                      <span className="font-medium">Click to upload</span> or drag and drop
+                                      <span className="font-medium">Click to upload PDF</span>
                                     </p>
                                     <p className="text-xs italic text-gray-400">
-                                      No file chosen
+                                      PDF files only
                                     </p>
                                   </>
                                 )}
@@ -457,8 +490,8 @@ export default function LecturerCoursesClient() {
                         onClick={handleUploadMaterial}
                         disabled={
                           !newMaterial.title ||
-                          (newMaterial.type === 'notes' && !newMaterial.content) ||
-                          (newMaterial.type !== 'notes' && !newMaterial.file) ||
+                          (newMaterial.type === 'notes' && !newMaterial.content.html.trim()) ||
+                          (newMaterial.type === 'pdf' && !newMaterial.file) ||
                           loading.upload
                         }
                         className={`w-full px-4 py-2 rounded-md text-white flex items-center justify-center gap-2 ${
@@ -511,7 +544,7 @@ export default function LecturerCoursesClient() {
                                   <h4 className="font-medium text-gray-800">{material.title}</h4>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full capitalize">
-                                      {material.type.replace('_', ' ')}
+                                      {material.type}
                                     </span>
                                     <span className="text-xs text-gray-500">
                                       Uploaded {new Date(material.uploadedAt).toLocaleDateString()}
@@ -519,6 +552,28 @@ export default function LecturerCoursesClient() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
+                                  {material.type === 'pdf' && material.fileUrl && (
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    handleDownload(material.id, 'course-material');
+  }}
+  className="text-blue-600 hover:text-blue-800 p-1"
+  title="Download"
+>
+  <FiDownload size={16} />
+</button>
+                                        // <button
+                                        //   onClick={(e) => {
+                                        //     e.stopPropagation();
+                                        //     handleDownload(material.id, 'course-material');
+                                        //   }}
+                                        //   className="text-emerald-600 hover:text-emerald-800 p-1"
+                                        //   title="Download"
+                                        // >
+                                        //   <FiDownload size={16} />
+                                        // </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -541,29 +596,14 @@ export default function LecturerCoursesClient() {
                               {isExpanded && (
                                 <div className="px-4 pb-4 border-t border-gray-100">
                                   {material.type === 'notes' ? (
-                                    <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                                      <p className="text-gray-700 whitespace-pre-line">{material.content}</p>
+                                    <div className="prose prose-sm max-w-none mt-3 p-3 bg-gray-50 rounded-md">
+                                      <div dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }} />
                                     </div>
                                   ) : (
-                                    <div className="mt-3 flex justify-between items-center">
-                                      <a
-                                        href={material.fileUrl || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                                      >
-                                        View Material
-                                      </a>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDownload(material.id, 'course-material');
-                                        }}
-                                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                        title="Download"
-                                      >
-                                        <FiDownload size={16} />
-                                      </button>
+                                    <div className="mt-3">
+                                      <p className="text-sm text-gray-600">
+                                        PDF file: {material.fileUrl?.split('/').pop()}
+                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -611,12 +651,6 @@ export default function LecturerCoursesClient() {
                               </p>
                             )}
                             </div>
-                            {/* <button
-                              onClick={() => router.push(`/dashboard/lecturer/students/${enrollment.student.id}`)}
-                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                            >
-                              View <FiChevronRight />
-                            </button> */}
                           </div>
                         </div>
                       ))
