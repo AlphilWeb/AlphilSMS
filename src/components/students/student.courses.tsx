@@ -49,20 +49,6 @@ interface StudentCourseManagerProps {
   }[];
 }
 
-// interface MaterialContent {
-//   html: string;
-//   json: object;
-// }
-
-// type CourseMaterials = {
-//   id: number;
-//   title: string;
-//   type: 'notes' | 'pdf' | 'other';
-//   content: string | MaterialContent;
-//   uploadedAt: Date;
-//   fileUrl?: string;
-// };
-
 export default function StudentCourseManager({
   enrolledCourses: initialEnrolledCourses,
 }: StudentCourseManagerProps) {

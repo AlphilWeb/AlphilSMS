@@ -5,43 +5,22 @@ const nextConfig: NextConfig = {
   images: {
     domains: ['avatars.githubusercontent.com', 'example.com', 'yourdomain.com'],
   },
-  // Add these configurations
   webpack: (config, { isServer, webpack }) => {
-    // Exclude canvas from client bundles
     if (!isServer) {
       config.resolve.alias.canvas = false;
-      config.resolve.alias['canvas'] = false;
       config.resolve.alias.encoding = false;
-      
+
+      // Only ignore canvas (not pdfjs-dist)
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /canvas|pdfjs-dist/,
-          contextRegExp: /node_modules/
+          resourceRegExp: /^canvas$/,
         })
       );
     }
-    
-    // For pdfjs-dist
-    config.resolve.alias['pdfjs-dist'] = 'pdfjs-dist/legacy/build/pdf';
-    config.resolve.alias['@react-pdf-viewer/core'] = false;
-    
+
     return config;
   },
-  // Experimental configuration
-  experimental: {
-    serverComponentsExternalPackages: ['canvas', 'pdfjs-dist'],
-  },
-  // Turbopack configuration
-  turbo: {
-    loaders: {
-      '.pdf': ['arraybuffer-loader'],
-    },
-    rules: {
-      '*.node': {
-        loaders: ['file-loader'],
-      },
-    },
-  },
+  serverExternalPackages: ['canvas', 'pdfjs-dist'], // updated key
 };
 
 export default nextConfig;
