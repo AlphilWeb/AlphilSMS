@@ -88,7 +88,7 @@ export default function LoginPage() {
       </Head>
       
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-        {/* Background image with overlay */}
+        {/* Background image without blur */}
         <div className="absolute inset-0 z-0">
           <Image
             src="/background.jpg"
@@ -98,7 +98,7 @@ export default function LoginPage() {
             quality={100}
             priority
           />
-          <div className="absolute inset-0 bg-emerald-950/80" />
+          <div className="absolute inset-0 bg-emerald-950/70" />
         </div>
 
         <div className="relative z-10 w-full max-w-md px-4">
@@ -111,11 +111,11 @@ export default function LoginPage() {
           >
             <div className="flex flex-col items-center mb-8">
               <Image
-                src="/logo.png"
+                src="/icon.jpg"
                 alt="Alphil Training College Logo"
                 width={80}
                 height={80}
-                className="mb-4"
+                className="mb-4 border rounded-full "
                 priority
               />
               <h1 className="text-2xl font-bold text-emerald-800">Alphil Training College</h1>
@@ -134,7 +134,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                className="text-black w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 required
                 disabled={isLoading}
               />
@@ -146,7 +146,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-black"
                 required
                 disabled={isLoading}
               />

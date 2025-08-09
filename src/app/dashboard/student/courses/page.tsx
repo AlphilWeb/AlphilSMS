@@ -10,10 +10,10 @@ import StudentCoursesWrapper from '@/components/students/StudentCourseWrapper';
 export default async function StudentCoursesPage() {
   try {
     // Fetch data in parallel but add error handling for each request
-    const [ availableCourses] = await Promise.all([
-      getStudentEnrolledCourses().catch(() => []), // Return empty array if fails
-      getAvailableCoursesForEnrollment().catch(() => [])
-    ]);
+const [enrolledCourses, availableCourses] = await Promise.all([
+  getStudentEnrolledCourses().catch(() => []),
+  getAvailableCoursesForEnrollment().catch(() => [])
+]);
 
     return (
       <>
@@ -24,14 +24,11 @@ export default async function StudentCoursesPage() {
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">My Courses</h1>
-                {availableCourses.length > 0 && (
-                  <a
-                    href="/dashboard/student/enrollment"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Enroll in New Courses ({availableCourses.length})
-                  </a>
-                )}
+                  {availableCourses.length > 0 && (
+                    <a href="/dashboard/student/enrollment" className="...">
+                      Enroll in New Courses ({availableCourses.length} of {enrolledCourses.length + availableCourses.length})
+                    </a>
+                  )}
               </div>
               
               {/* Add Suspense for better loading state */}

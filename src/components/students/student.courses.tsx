@@ -30,7 +30,6 @@ import {
 } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
-// import DocumentViewer from '../documentViewer';
 import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
 import dynamic from 'next/dynamic';
 const DocumentViewer = dynamic(() => import('../documentViewer'), { ssr: false });
