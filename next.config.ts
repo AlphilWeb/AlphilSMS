@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-  serverExternalPackages: ['canvas', 'pdfjs-dist'], // updated key
+  serverExternalPackages: ['canvas', 'pdfjs-dist'],
 };
 
 export default nextConfig;
