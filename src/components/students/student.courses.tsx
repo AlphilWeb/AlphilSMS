@@ -500,7 +500,7 @@ export default function StudentCourseManager({
                                     {material.type === 'notes' ? (
   <div className="mt-3 p-3 bg-gray-50 rounded-md">
     <div 
-      className="prose prose-sm max-w-none" 
+      className="prose prose-sm max-w-none text-black" 
       dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }}
     />
   </div>
