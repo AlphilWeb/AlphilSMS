@@ -596,7 +596,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                               {isExpanded && (
                                 <div className="px-4 pb-4 border-t border-gray-100">
                                   {material.type === 'notes' ? (
-                                    <div className="prose prose-sm max-w-none mt-3 p-3 bg-gray-50 rounded-md">
+                                    <div className="prose prose-sm max-w-none mt-3 p-3 bg-gray-50 rounded-md text-black">
                                       <div dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }} />
                                     </div>
                                   ) : (
