@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
@@ -7,10 +7,17 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { isServer, webpack }) => {
     if (!isServer) {
-      config.resolve.alias.canvas = false;
-      config.resolve.alias.encoding = false;
+      // Use fallback instead of alias to disable canvas and encoding modules on client
+      config.resolve = {
+        ...(config.resolve || {}),
+        fallback: {
+          ...(config.resolve?.fallback || {}),
+          canvas: false,
+          encoding: false,
+        },
+      };
 
-      // Only ignore canvas (not pdfjs-dist)
+      // Ignore canvas module to prevent bundling it on client
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /^canvas$/,
@@ -20,6 +27,8 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+
+  // Prevent Next.js from bundling these native packages for serverless environments
   serverExternalPackages: ['canvas', 'pdfjs-dist'],
 };
 
