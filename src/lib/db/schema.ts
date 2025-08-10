@@ -1,5 +1,6 @@
 import { pgTable, serial, text, timestamp, unique, foreignKey, integer, numeric, date, time, varchar, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations, InferInsertModel, InferSelectModel } from 'drizzle-orm';
+// import { create } from 'domain';
 // import { file } from 'zod';
 
 // --- Core Tables ---
@@ -54,7 +55,9 @@ export type SelectUserLog = InferSelectModel<typeof userLogs>;
 export const departments = pgTable('departments', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
-  headOfDepartmentId: integer('head_of_department_id'), // This will be a foreign key to staff.id
+  headOfDepartmentId: integer('head_of_department_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 export type NewDepartment = InferInsertModel<typeof departments>;
 export type SelectDepartment = InferSelectModel<typeof departments>;
@@ -92,8 +95,10 @@ export const programs = pgTable('programs', {
   id: serial('id').primaryKey(),
   departmentId: integer('department_id').notNull(),
   name: varchar('name', { length: 255 }).notNull().unique(),
-  code: varchar('code', { length: 50 }).notNull().unique(),
+  code: varchar('code', { length: 50 }).notNull(),
   durationSemesters: integer('duration_semesters').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
     // Explicit Foreign Key Constraint: programs.departmentId -> departments.id
@@ -119,11 +124,13 @@ export const courses = pgTable('courses', {
   id: serial('id').primaryKey(),
   programId: integer('program_id').notNull(),
   semesterId: integer('semester_id').notNull(),
-  lecturerId: integer('lecturer_id').notNull(), // Added lecturerId field
+  lecturerId: integer('lecturer_id'), // Added lecturerId field
   name: varchar('name', { length: 255 }).notNull(),
   code: varchar('code', { length: 50 }).notNull(),
   credits: numeric('credits', { precision: 4, scale: 2 }).notNull(),
   description: text('description'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
     programCodeSemesterIdx: unique('program_code_semester_idx').on(table.programId, table.code, table.semesterId),
