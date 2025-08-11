@@ -3,21 +3,22 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { 
-  FiBell, 
-  FiChevronDown, 
-  FiHome, 
-  FiBook, 
+import {
+  FiBell,
+  FiChevronDown,
+  FiHome,
+  FiBook,
   FiCalendar,
   FiFileText,
   FiClock,
   FiPieChart,
   FiLogOut,
   FiUser,
-
-  FiEye
+  FiEye,
+  FiMenu,
+  FiX // Import a close icon for the hamburger menu
 } from 'react-icons/fi';
-import { 
+import {
   HiOutlineAcademicCap,
   HiOutlineDocumentReport
 } from 'react-icons/hi';
@@ -29,6 +30,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function LecturerDashboardHeader() {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // State to control the mobile menu visibility
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lecturerData, setLecturerData] = useState<LecturerHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,44 +49,49 @@ export default function LecturerDashboardHeader() {
     loadData();
   }, []);
 
+  // Close mobile menu when a new link is clicked
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
   const navItems = [
-    { 
-      category: "Overview", 
+    {
+      category: "Overview",
       items: [
         { href: "/dashboard/lecturer", icon: <FiHome className="w-5 h-5" />, label: "Dashboard" }
       ]
     },
-    { 
-      category: "Teaching", 
+    {
+      category: "Teaching",
       items: [
         { href: "/dashboard/lecturer/courses", icon: <FiBook className="w-5 h-5" />, label: "My Courses" },
         { href: "/dashboard/lecturer/students", icon: <FiUser className="w-5 h-5" />, label: "My Students" },
         { href: "/dashboard/lecturer/timetable", icon: <FiClock className="w-5 h-5" />, label: "Timetable" }
       ]
     },
-    { 
-      category: "Assignments & Quizzes", 
+    {
+      category: "Assignments & Quizzes",
       items: [
         { href: "/dashboard/lecturer/assignments", icon: <FiFileText className="w-5 h-5" />, label: "Manage Assignments" },
         { href: "/dashboard/lecturer/quizzes", icon: <HiOutlineAcademicCap className="w-5 h-5" />, label: "Manage Quizzes" }
       ]
     },
-    { 
-      category: "Assessment", 
+    {
+      category: "Assessment",
       items: [
         { href: "/dashboard/lecturer/grades", icon: <FiPieChart className="w-5 h-5" />, label: "Grade Students" },
         { href: "/dashboard/lecturer/results", icon: <HiOutlineDocumentReport className="w-5 h-5" />, label: "Results" },
         { href: "/dashboard/lecturer/material-views", icon: <FiEye className="w-5 h-5" />, label: "Material Views" }
       ]
     },
-    { 
-      category: "Academic", 
+    {
+      category: "Academic",
       items: [
         { href: "/dashboard/lecturer/academic-calendar", icon: <FiCalendar className="w-5 h-5" />, label: "Academic Calendar" }
       ]
     },
-    { 
-      category: "Account", 
+    {
+      category: "Account",
       items: [
         { href: "/dashboard/lecturer/profile", icon: <FiUser className="w-5 h-5" />, label: "Profile" },
       ]
@@ -116,8 +124,19 @@ export default function LecturerDashboardHeader() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4">
+            {/* Hamburger menu button for mobile screens */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
+            >
+              {isMobileMenuOpen ? (
+                <FiX className="w-6 h-6" />
+              ) : (
+                <FiMenu className="w-6 h-6" />
+              )}
+            </button>
             <Image
-              src="/favicon.ico"
+              src="/icon.jpg"
               alt="College Logo"
               width={40}
               height={40}
@@ -138,7 +157,7 @@ export default function LecturerDashboardHeader() {
             </button>
 
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-2 focus:outline-none"
               >
@@ -195,7 +214,18 @@ export default function LecturerDashboardHeader() {
         </div>
       </header>
 
-      <aside className="fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform -translate-x-full md:translate-x-0 border-r border-gray-200 bg-white overflow-y-auto">
+      {/* Mobile menu overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-gray-900 opacity-50 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
+      {/* Sidebar for all screens */}
+      <aside className={`fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform border-r border-gray-200 bg-white overflow-y-auto ${
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      } md:translate-x-0`}>
         <div className="px-4 py-6">
           <nav className="space-y-8">
             {navItems.map((section) => (
@@ -213,6 +243,7 @@ export default function LecturerDashboardHeader() {
                             ? "bg-emerald-50 text-emerald-700"
                             : "text-gray-700 hover:bg-gray-100"
                         }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span className={`mr-3 ${
                           pathname === item.href ? "text-emerald-500" : "text-gray-400"
