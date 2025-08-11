@@ -1,33 +1,36 @@
-"use client"
+'use client';
 
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { 
-  FiBell, 
-  FiChevronDown, 
-  FiHome, 
-  FiUsers, 
-  FiBook, 
-  FiDollarSign, 
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+import {
+  FiBell,
+  FiChevronDown,
+  FiHome,
+  FiUsers,
+  FiBook,
+  FiDollarSign,
   FiCalendar,
   FiFileText,
   FiClock,
   FiLayers,
   FiPieChart,
   FiSettings,
-  FiLogOut
-} from "react-icons/fi";
-import { 
+  FiLogOut,
+  FiMenu, // Import hamburger menu icon
+  FiX // Import close icon
+} from 'react-icons/fi';
+import {
   HiOutlineAcademicCap,
   HiOutlineUserGroup,
   HiOutlineDocumentReport
-} from "react-icons/hi";
-import { useState } from "react";
+} from 'react-icons/hi';
+import { useState, useEffect } from 'react';
 
 export default function AdminDashboardHeader() {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
 
   // Mock user data
   const currentUser = {
@@ -36,16 +39,21 @@ export default function AdminDashboardHeader() {
     avatar: "/default-avatar.jpg" // Replace with actual user image path
   };
 
+  // Close the mobile menu automatically when the route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
   // Main navigation items
   const navItems = [
-    { 
-      category: "Overview", 
+    {
+      category: "Overview",
       items: [
         { href: "/dashboard/admin", icon: <FiHome className="w-5 h-5" />, label: "Dashboard" }
       ]
     },
-    { 
-      category: "Academic Structure", 
+    {
+      category: "Academic Structure",
       items: [
         { href: "/dashboard/admin/departments", icon: <FiLayers className="w-5 h-5" />, label: "Departments" },
         { href: "/dashboard/admin/programs", icon: <HiOutlineAcademicCap className="w-5 h-5" />, label: "Programs" },
@@ -53,16 +61,16 @@ export default function AdminDashboardHeader() {
         { href: "/dashboard/admin/semesters", icon: <FiCalendar className="w-5 h-5" />, label: "Semesters" }
       ]
     },
-    { 
-      category: "User Management", 
+    {
+      category: "User Management",
       items: [
         { href: "/dashboard/admin/users", icon: <FiUsers className="w-5 h-5" />, label: "System Users" },
         { href: "/dashboard/admin/students", icon: <HiOutlineUserGroup className="w-5 h-5" />, label: "Students" },
         { href: "/dashboard/admin/staff", icon: <FiUsers className="w-5 h-5" />, label: "Staff" }
       ]
     },
-    { 
-      category: "Academic Records", 
+    {
+      category: "Academic Records",
       items: [
         { href: "/dashboard/admin/enrollments", icon: <FiFileText className="w-5 h-5" />, label: "Enrollments" },
         { href: "/dashboard/admin/grades", icon: <FiPieChart className="w-5 h-5" />, label: "Grades" },
@@ -70,8 +78,8 @@ export default function AdminDashboardHeader() {
         { href: "/dashboard/admin/timetables", icon: <FiClock className="w-5 h-5" />, label: "Timetables" }
       ]
     },
-    { 
-      category: "Finance", 
+    {
+      category: "Finance",
       items: [
         { href: "/dashboard/admin/finance/fee-structures", icon: <FiDollarSign className="w-5 h-5" />, label: "Fee Structures" },
         { href: "/dashboard/admin/finance/invoices", icon: <FiFileText className="w-5 h-5" />, label: "Invoices" },
@@ -79,8 +87,8 @@ export default function AdminDashboardHeader() {
         { href: "/dashboard/admin/finance/salaries", icon: <FiDollarSign className="w-5 h-5" />, label: "Staff Salaries" }
       ]
     },
-    { 
-      category: "System", 
+    {
+      category: "System",
       items: [
         { href: "/dashboard/admin/logs", icon: <FiFileText className="w-5 h-5" />, label: "Activity Logs" },
         { href: "/dashboard/admin/settings", icon: <FiSettings className="w-5 h-5" />, label: "Settings" }
@@ -93,10 +101,20 @@ export default function AdminDashboardHeader() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-3 flex items-center justify-between">
-          {/* Logo/Branding */}
+          {/* Logo/Branding and Hamburger menu button for mobile */}
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
+            >
+              {isMobileMenuOpen ? (
+                <FiX className="w-6 h-6" />
+              ) : (
+                <FiMenu className="w-6 h-6" />
+              )}
+            </button>
             <Image
-              src="/logo.png"
+              src="/icon.jpg" 
               alt="Alphil Training College"
               width={40}
               height={40}
@@ -117,7 +135,7 @@ export default function AdminDashboardHeader() {
 
             {/* User profile dropdown */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-2 focus:outline-none"
               >
@@ -170,8 +188,18 @@ export default function AdminDashboardHeader() {
         </div>
       </header>
 
+      {/* Mobile menu overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-gray-900 opacity-50 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform -translate-x-full md:translate-x-0 border-r border-gray-200 bg-white overflow-y-auto">
+      <aside className={`fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform border-r border-gray-200 bg-white overflow-y-auto ${
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      } md:translate-x-0`}>
         <div className="px-4 py-6">
           {/* Navigation */}
           <nav className="space-y-8">
@@ -190,6 +218,7 @@ export default function AdminDashboardHeader() {
                             ? "bg-emerald-50 text-emerald-700"
                             : "text-gray-700 hover:bg-gray-100"
                         }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span className={`mr-3 ${
                           pathname === item.href ? "text-emerald-500" : "text-gray-400"
