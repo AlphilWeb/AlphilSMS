@@ -26,7 +26,7 @@ export default function NextClassCard({
       <div className="flex justify-between items-start">
         <div>
           <h3 className="text-lg font-semibold text-black">Next Class</h3>
-          <h4 className="text-xl font-bold mt-2 text-pink-600">
+          <h4 className="text-xl font-bold mt-2 text-blue-600">
             {courseCode} - {courseName}
           </h4>
         </div>
@@ -41,19 +41,19 @@ export default function NextClassCard({
       <div className="mt-6 grid grid-cols-2 gap-4">
         <div className="flex items-center gap-2">
           <FiCalendar className="text-gray-400" />
-          <span className='text-pink-600'>{day}</span>
+          <span className='text-blue-600'>{day}</span>
         </div>
         <div className="flex items-center gap-2">
           <FiClock className="text-gray-400" />
-          <span className='text-pink-600'>{startTime} - {endTime}</span>
+          <span className='text-blue-600'>{startTime} - {endTime}</span>
         </div>
         <div className="col-span-2">
           <p className="text-sm text-gray-500">Room</p>
-          <p className="font-medium text-pink-600">{room || 'Not assigned'}</p>
+          <p className="font-medium text-blue-600">{room || 'Not assigned'}</p>
         </div>
         <div className="col-span-2">
           <p className="text-sm text-gray-500">Lecturer</p>
-          <p className="font-medium text-pink-600">{lecturer}</p>
+          <p className="font-medium text-blue-600">{lecturer}</p>
         </div>
       </div>
     </div>

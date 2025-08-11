@@ -138,12 +138,12 @@ export default function LecturerDashboardHeader() {
             <Image
               src="/icon.jpg"
               alt="College Logo"
-              width={40}
-              height={40}
+              width={50}
+              height={50}
               className="h-10 w-auto"
               priority
             />
-            <h1 className="text-xl font-bold text-gray-800 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <h1 className="text-xl font-bold text-blue-600 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           <div className="flex items-center space-x-6">

@@ -3,9 +3,9 @@
 export default function Footer() {
     return (
         <>
-        <footer className="footer sm:footer-horizontal footer-center bg-base-300 text-base-content px-12">
+        <footer className="footer sm:footer-horizontal footer-center bg-base-300 text-base-content px-12 py-6">
             <aside>
-                <p>Copyright © {new Date().getFullYear()} - All right reserved</p>
+                <p>Copyright © {new Date().getFullYear()} - All rights reserved</p>
             </aside>
         </footer>
         </>

@@ -15,7 +15,7 @@ export default function Card({ title, value, icon, link, linkText }: CardProps) 
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold mt-1 text-pink-600">{value}</p>
+          <p className="text-2xl font-bold mt-1 text-blue-600">{value}</p>
         </div>
         <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600">
           {icon}

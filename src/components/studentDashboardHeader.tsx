@@ -129,8 +129,8 @@ export default function StudentDashboardHeader() {
             <Image
               src="/icon.jpg"
               alt="College Logo"
-              width={40}
-              height={40}
+              width={50}
+              height={50}
               className="h-10 w-auto"
               priority
             />

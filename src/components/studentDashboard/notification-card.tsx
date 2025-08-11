@@ -15,7 +15,7 @@ export default function NotificationCard({
   return (
     <div className="border-b pb-4 last:border-0 last:pb-0">
       <div className="flex justify-between items-start">
-        <h4 className="font-medium text-pink-600">{title}</h4>
+        <h4 className="font-medium text-blue-600">{title}</h4>
         <span className="text-xs text-gray-400">
           {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
         </span>

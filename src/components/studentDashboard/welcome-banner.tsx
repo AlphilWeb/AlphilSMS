@@ -45,19 +45,19 @@ export default function WelcomeBanner({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <p className="text-sm text-gray-500">Program</p>
-              <p className="font-medium text-pink-600">{program}</p>
+              <p className="font-medium text-blue-600">{program}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Current Semester</p>
-              <p className="font-medium text-pink-600">{currentSemester}</p>
+              <p className="font-medium text-blue-600">{currentSemester}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Registration No.</p>
-              <p className="font-medium text-pink-600">{registrationNumber}</p>
+              <p className="font-medium text-blue-600">{registrationNumber}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Student No.</p>
-              <p className="font-medium text-pink-600">{studentNumber}</p>
+              <p className="font-medium text-blue-600">{studentNumber}</p>
             </div>
           </div>
         </div>
