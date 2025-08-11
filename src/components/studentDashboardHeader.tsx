@@ -15,7 +15,9 @@ import {
   FiLogOut,
   FiDollarSign,
   FiUser,
-  FiUserPlus
+  FiUserPlus,
+  FiMenu, // Import hamburger menu icon
+  FiX // Import close icon
 } from 'react-icons/fi';
 import { HiOutlineDocumentReport } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
@@ -26,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function StudentDashboardHeader() {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
   const [studentData, setStudentData] = useState<StudentHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,6 +45,11 @@ export default function StudentDashboardHeader() {
     };
     loadData();
   }, []);
+  
+  // Close the mobile menu automatically when the route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   const navItems = [
     {
@@ -107,8 +115,19 @@ export default function StudentDashboardHeader() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4">
+            {/* Hamburger menu button for mobile screens */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
+            >
+              {isMobileMenuOpen ? (
+                <FiX className="w-6 h-6" />
+              ) : (
+                <FiMenu className="w-6 h-6" />
+              )}
+            </button>
             <Image
-              src="/favicon.ico"
+              src="/icon.jpg"
               alt="College Logo"
               width={40}
               height={40}
@@ -129,7 +148,7 @@ export default function StudentDashboardHeader() {
             </button>
 
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-2 focus:outline-none"
               >
@@ -193,7 +212,18 @@ export default function StudentDashboardHeader() {
         </div>
       </header>
 
-      <aside className="fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform -translate-x-full md:translate-x-0 border-r border-gray-200 bg-white overflow-y-auto">
+      {/* Mobile menu overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-gray-900 opacity-50 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
+      {/* Sidebar for all screens */}
+      <aside className={`fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform border-r border-gray-200 bg-white overflow-y-auto ${
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      } md:translate-x-0`}>
         <div className="px-4 py-6">
           <nav className="space-y-8">
             {navItems.map((section) => (
@@ -211,6 +241,7 @@ export default function StudentDashboardHeader() {
                             ? "bg-emerald-50 text-emerald-700"
                             : "text-gray-700 hover:bg-gray-100"
                         }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span className={`mr-3 ${
                           pathname === item.href ? "text-emerald-500" : "text-gray-400"
