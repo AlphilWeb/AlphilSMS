@@ -143,7 +143,7 @@ export default function LecturerDashboardHeader() {
               className="h-10 w-auto"
               priority
             />
-            <h1 className="text-xl font-bold text-blue-600 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <h1 className="text-xl font-bold text-blue-500 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           <div className="flex items-center space-x-6">

@@ -56,7 +56,7 @@ export default function ProfileSection({ profileData }: {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 ) : (
-                  <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.firstName}</p>
+                  <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">{profileData.firstName}</p>
                 )}
               </div>
 
@@ -69,7 +69,7 @@ export default function ProfileSection({ profileData }: {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 ) : (
-                  <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.lastName}</p>
+                  <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">{profileData.lastName}</p>
                 )}
               </div>
 
@@ -77,21 +77,21 @@ export default function ProfileSection({ profileData }: {
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiMail className="mr-2" /> Email
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.email}</p>
+                <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">{profileData.email}</p>
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiHash className="mr-2" /> Student Number
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.studentNumber}</p>
+                <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">{profileData.studentNumber}</p>
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiBook className="mr-2" /> Program
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">
+                <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">
                   {profileData.programName} ({profileData.programCode})
                 </p>
               </div>
@@ -100,14 +100,14 @@ export default function ProfileSection({ profileData }: {
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiUser className="mr-2" /> Department
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.departmentName}</p>
+                <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">{profileData.departmentName}</p>
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiCalendar className="mr-2" /> Member Since
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">
+                <p className="px-3 py-2 text-blue-500 bg-gray-50 rounded-md">
                   {new Date(profileData.createdAt).toLocaleDateString()}
                 </p>
               </div>

@@ -15,38 +15,38 @@ export default function QuickActions() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Link 
           href="/dashboard/student/courses"
-          className="text-blue-600 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
+          className="text-blue-500 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
         >
           <FiBook className="w-6 h-6 text-emerald-600 mb-2" />
           <span className="text-sm text-center">View Courses</span>
         </Link>
         <Link 
           href="/dashboard/student/grades"
-          className="text-blue-600 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
+          className="text-blue-500 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
         >
           <FiPieChart className="w-6 h-6 text-emerald-600 mb-2" />
-          <span className="text-blue-600 text-sm text-center">Check Grades</span>
+          <span className="text-blue-500 text-sm text-center">Check Grades</span>
         </Link>
         <Link 
           href="/dashboard/student/timetable"
           className="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
         >
           <FiClock className="w-6 h-6 text-emerald-600 mb-2" />
-          <span className="text-blue-600 text-sm text-center">View Timetable</span>
+          <span className="text-blue-500 text-sm text-center">View Timetable</span>
         </Link>
         <Link 
           href="/dashboard/student/finance/payments"
-          className="text-blue-600 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
+          className="text-blue-500 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
         >
           <FiDollarSign className="w-6 h-6 text-emerald-600 mb-2" />
-          <span className="text-blue-600 text-sm text-center">Make Payment</span>
+          <span className="text-blue-500 text-sm text-center">Make Payment</span>
         </Link>
         <Link 
           href="/dashboard/student/transcript"
-          className="text-blue-600 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
+          className="text-blue-500 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
         >
           <FiFileText className="w-6 h-6 text-emerald-600 mb-2" />
-          <span className="text-blue-600 text-sm text-center">Download Transcript</span>
+          <span className="text-blue-500 text-sm text-center">Download Transcript</span>
         </Link>
       </div>
     </div>

@@ -348,7 +348,7 @@ export default function AdminCoursesClient() {
                           {selectedCourse.name} ({selectedCourse.code})
                           <button
                             onClick={() => setEditMode(true)}
-                            className="text-blue-600 hover:text-blue-800 p-1"
+                            className="text-blue-500 hover:text-blue-800 p-1"
                             title="Edit course"
                           >
                             <FiEdit2 size={18} />
@@ -414,7 +414,7 @@ export default function AdminCoursesClient() {
                           // For demo, we'll just assign a dummy lecturer
                           handleAssignLecturer(1);
                         }}
-                        className="text-blue-600 hover:text-blue-800 p-1 flex items-center gap-1 text-sm mx-auto"
+                        className="text-blue-500 hover:text-blue-800 p-1 flex items-center gap-1 text-sm mx-auto"
                       >
                         <FiUserPlus size={16} />
                         <span>Assign Lecturer</span>
