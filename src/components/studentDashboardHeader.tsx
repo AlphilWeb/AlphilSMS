@@ -129,12 +129,12 @@ export default function StudentDashboardHeader() {
             <Image
               src="/icon.jpg"
               alt="College Logo"
-              width={50}
-              height={50}
+              width={60}
+              height={60}
               className="h-10 w-auto"
               priority
             />
-            <h1 className="text-xl font-bold text-gray-800 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <h1 className="text-l font-bold text-gray-800 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           <div className="flex items-center space-x-6">
