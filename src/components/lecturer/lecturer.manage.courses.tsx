@@ -298,7 +298,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                   key={course.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-all ${
                     selectedCourse?.id === course.id 
-                      ? 'border-blue-500 bg-blue-50' 
+                      ? 'border-pink-500 bg-blue-50' 
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                   onClick={() => handleSelectCourse(course.id)}
