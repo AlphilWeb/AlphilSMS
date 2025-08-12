@@ -347,7 +347,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                   key={assignment.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-all ${
                     selectedAssignment?.assignment.id === assignment.id
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-pink-500 bg-blue-50'
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                   onClick={() => handleSelectAssignment(assignment.id)}
@@ -741,7 +741,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     min="0"
                     max="100"
                     step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
@@ -754,7 +754,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
