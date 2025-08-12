@@ -223,12 +223,12 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
           <input
             type="text"
             placeholder="Search students..."
-            className="px-4 py-2 bg-white/10 text-white placeholder-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-emerald-600 w-64"
+            className="px-4 py-2 bg-white/10 text-white placeholder-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600 w-64"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 <select
-  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border border-emerald-600"
+  className="px-4 py-2 bg-white/10 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 border border-emerald-600"
   value={filterBy}
   onChange={handleFilterChange}
 >
@@ -241,7 +241,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
           </select>
         </div>
         <button
-          className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"
+          className="bg-gradient-to-r from-blue-600 to-pink-500 hover:from-blue-700 hover:to-blue-600 px-4 py-2 rounded-lg text-white font-medium flex items-center gap-2 transition-all shadow-md"
           onClick={() => setShowAddStudent(true)}
         >
           <FiPlus /> Add Student
@@ -290,7 +290,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                         {/* <td className="p-4">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-pink-500"
                             checked={selectedStudentId === student.id}
                             onChange={() =>
                               setSelectedStudentId(selectedStudentId === student.id ? null : student.id)
@@ -301,7 +301,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                         <td className="p-4">
                           {editId === student.id ? (
                             <input
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.firstName || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, firstName: e.target.value })}
                             />
@@ -312,7 +312,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                         <td className="p-4">
                           {editId === student.id ? (
                             <input
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.lastName || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, lastName: e.target.value })}
                             />
@@ -324,7 +324,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                           {editId === student.id ? (
                             <input
                               type="email"
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.email || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, email: e.target.value })}
                             />
@@ -335,7 +335,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                         <td className="p-4">
                           {editId === student.id ? (
                             <input
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.registrationNumber || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, registrationNumber: e.target.value })}
                             />
@@ -346,7 +346,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                         <td className="p-4">
                           {editId === student.id ? (
                             <input
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.studentNumber || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, studentNumber: e.target.value })}
                             />
@@ -358,7 +358,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                           {editId === student.id ? (
                             <input
                               type="number"
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.programId || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, programId: Number(e.target.value) })}
                             />
@@ -370,7 +370,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                           {editId === student.id ? (
                             <input
                               type="number"
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.departmentId || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, departmentId: Number(e.target.value) })}
                             />
@@ -382,7 +382,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                           {editId === student.id ? (
                             <input
                               type="number"
-                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                              className="px-3 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                               value={editedStudent.currentSemesterId || ''}
                               onChange={(e) => setEditedStudent({ ...editedStudent, currentSemesterId: Number(e.target.value) })}
                             />
@@ -395,7 +395,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                           {editId === student.id ? (
                             <>
                               <button
-                                className="text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm transition-all shadow"
+                                className="text-white bg-gradient-to-r from-blue-600 to-pink-500 hover:from-blue-700 hover:to-blue-600 px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm transition-all shadow"
                                 onClick={() => {
                                   const formData = new FormData();
                                   if (editedStudent.userId !== undefined) formData.append('userId', String(editedStudent.userId));
@@ -479,7 +479,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="number"
                     id="userId"
                     name="userId"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.userId}
                     onChange={(e) => setNewStudent({ ...newStudent, userId: e.target.value })}
                     required
@@ -491,7 +491,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="firstName"
                     name="firstName"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.firstName}
                     onChange={(e) => setNewStudent({ ...newStudent, firstName: e.target.value })}
                     required
@@ -503,7 +503,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="lastName"
                     name="lastName"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.lastName}
                     onChange={(e) => setNewStudent({ ...newStudent, lastName: e.target.value })}
                     required
@@ -515,7 +515,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="email"
                     id="email"
                     name="email"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.email}
                     onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                     required
@@ -527,7 +527,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="registrationNumber"
                     name="registrationNumber"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.registrationNumber}
                     onChange={(e) => setNewStudent({ ...newStudent, registrationNumber: e.target.value })}
                     required
@@ -539,7 +539,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="studentNumber"
                     name="studentNumber"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.studentNumber}
                     onChange={(e) => setNewStudent({ ...newStudent, studentNumber: e.target.value })}
                     required
@@ -551,7 +551,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="number"
                     id="programId"
                     name="programId"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.programId}
                     onChange={(e) => setNewStudent({ ...newStudent, programId: e.target.value })}
                     required
@@ -563,7 +563,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="number"
                     id="departmentId"
                     name="departmentId"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.departmentId}
                     onChange={(e) => setNewStudent({ ...newStudent, departmentId: e.target.value })}
                     required
@@ -575,7 +575,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="number"
                     id="currentSemesterId"
                     name="currentSemesterId"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.currentSemesterId}
                     onChange={(e) => setNewStudent({ ...newStudent, currentSemesterId: e.target.value })}
                     required
@@ -587,7 +587,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="passportPhotoUrl"
                     name="passportPhotoUrl"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.passportPhotoUrl}
                     onChange={(e) => setNewStudent({ ...newStudent, passportPhotoUrl: e.target.value })}
                   />
@@ -598,7 +598,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="idPhotoUrl"
                     name="idPhotoUrl"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.idPhotoUrl}
                     onChange={(e) => setNewStudent({ ...newStudent, idPhotoUrl: e.target.value })}
                   />
@@ -609,7 +609,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                     type="text"
                     id="certificateUrl"
                     name="certificateUrl"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 bg-white"
                     value={newStudent.certificateUrl}
                     onChange={(e) => setNewStudent({ ...newStudent, certificateUrl: e.target.value })}
                   />
@@ -625,7 +625,7 @@ export default function StudentsClientComponent({ initialStudents }: StudentsCli
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all shadow-md"
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-pink-500 text-white rounded-lg hover:from-blue-700 hover:to-blue-600 transition-all shadow-md"
                 >
                   Create Student
                 </button>

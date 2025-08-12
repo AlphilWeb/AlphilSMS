@@ -64,7 +64,7 @@ export default function InvoicesList({ invoices }: {
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     isOverdue ? 'bg-red-100 text-red-800' :
                     invoice.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
-                    'bg-blue-100 text-blue-800'
+                    'bg-pink-100 text-pink-800'
                   }`}>
                     {invoice.status}
                   </span>

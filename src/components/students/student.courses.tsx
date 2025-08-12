@@ -390,7 +390,7 @@ export default function StudentCourseManager({
                   onClick={() => setActiveTab('materials')}
                   className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === 'materials'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-pink-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -763,7 +763,7 @@ export default function StudentCourseManager({
                     type="file"
                     id="assignmentFile"
                     onChange={handleFileChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
@@ -819,7 +819,7 @@ export default function StudentCourseManager({
                     type="file"
                     id="quizFile"
                     onChange={handleFileChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
