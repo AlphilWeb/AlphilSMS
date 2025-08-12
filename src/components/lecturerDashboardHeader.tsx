@@ -181,7 +181,7 @@ export default function LecturerDashboardHeader() {
                 <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                   <div className="px-4 py-3">
                     <p className="text-sm font-medium text-gray-900">{lecturerData.name}</p>
-                    <p className="text-sm text-gray-500 truncate">{lecturerData.role}</p>
+                    <p className="text-sm text-gray-500 truncate">{lecturerData.role.charAt(0).toUpperCase() + lecturerData.role.slice(1)}</p>
                     <p className="text-xs text-gray-500 truncate">{lecturerData.department}</p>
                   </div>
                   <div className="py-1">
