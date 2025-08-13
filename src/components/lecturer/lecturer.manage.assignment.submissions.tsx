@@ -18,11 +18,19 @@ import { FaChalkboardTeacher } from 'react-icons/fa';
 
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
 
-export default function LecturerSubmissionsManager() {
-  const [submissions, setSubmissions] = useState<SubmissionWithDetails[]>([]);
-  const [statistics, setStatistics] = useState<CourseSubmissionsOverview[]>([]);
+interface LecturerSubmissionsManagerProps {
+  initialSubmissions: SubmissionWithDetails[];
+  initialStatistics: CourseSubmissionsOverview[];
+}
+
+export default function LecturerSubmissionsManager({
+  initialSubmissions,
+  initialStatistics
+}: LecturerSubmissionsManagerProps) {
+  const [submissions, setSubmissions] = useState<SubmissionWithDetails[]>(initialSubmissions);
+  const [statistics, setStatistics] = useState<CourseSubmissionsOverview[]>(initialStatistics);
   const [selectedCourse, setSelectedCourse] = useState<number | 'all'>('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start as false since we have initial data
   const [error, setError] = useState<string | null>(null);
 
   // Modal states
@@ -165,7 +173,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
           <select
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="text-black px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="all">All Courses</option>
             {statistics.map((course) => (
@@ -176,7 +184,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
           </select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 ">
           {statistics.map((course) => (
             <div 
               key={course.courseId} 
@@ -321,7 +329,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
 
       {/* Grade Submission Modal */}
       {showGradeModal && currentSubmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
@@ -363,7 +371,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                     min="0"
                     max="100"
                     step="0.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="text-black w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
 
@@ -376,7 +384,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="text-black w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Add feedback for the student..."
                   />
                 </div>

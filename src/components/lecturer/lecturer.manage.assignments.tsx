@@ -715,7 +715,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 
       {/* Grade Submission Modal */}
       {showGradeModal && currentSubmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
@@ -741,7 +741,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     min="0"
                     max="100"
                     step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+                    className="text-black w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
@@ -754,7 +754,7 @@ const handleAssignmentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+                    className="text-black w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
