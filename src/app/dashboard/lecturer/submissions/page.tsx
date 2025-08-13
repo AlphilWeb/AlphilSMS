@@ -25,24 +25,24 @@ interface Assignment {
   course: Course;
 }
 
-interface Submission {
-  id: number;
-  submittedAt: Date;
-  grade: number | null;
-  remarks: string | null;
-  student: Student;
-  assignment: Assignment;
-}
+// interface Submission {
+//   id: number;
+//   submittedAt: Date;
+//   grade: number | null;
+//   remarks: string | null;
+//   student: Student;
+//   assignment: Assignment;
+// }
 
-interface CourseSubmissionsOverview {
-  courseId: number;
-  courseName: string;
-  courseCode: string;
-  totalAssignments: number;
-  submissionsGraded: number;
-  submissionsPending: number;
-  submissionsLate: number;
-}
+// interface CourseSubmissionsOverview {
+//   courseId: number;
+//   courseName: string;
+//   courseCode: string;
+//   totalAssignments: number;
+//   submissionsGraded: number;
+//   submissionsPending: number;
+//   submissionsLate: number;
+// }
 
 export default async function LecturerSubmissionsPage() {
   try {
