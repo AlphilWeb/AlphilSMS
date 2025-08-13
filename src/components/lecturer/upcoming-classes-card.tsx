@@ -1,7 +1,16 @@
 import { FiCalendar, FiClock } from 'react-icons/fi';
 
+type UpcomingClass = {
+  id: number;
+  courseName: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+};
+
 export default function UpcomingClassesCard({ classes, currentSemester }: {
-  classes: any[];
+  classes: UpcomingClass[];
   currentSemester: string;
 }) {
   return (

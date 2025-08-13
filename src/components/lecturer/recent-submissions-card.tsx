@@ -1,7 +1,17 @@
 import { FiFileText, FiBarChart2, FiCheckCircle, FiClock, FiAlertTriangle } from 'react-icons/fi';
 
+type RecentSubmission = {
+  id: number | string;
+  type: 'assignment' | 'quiz';
+  title: string;
+  studentName: string;
+  submittedAt: Date | string;
+  grade?: number;
+  status: 'submitted' | 'graded' | 'late';
+};
+
 export default function RecentSubmissionsCard({ submissions, totalCount }: {
-  submissions: any[];
+  submissions: RecentSubmission[];
   totalCount: number;
 }) {
   const getStatusIcon = (status: string) => {

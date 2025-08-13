@@ -1,7 +1,19 @@
 import { FiBook, FiUsers, FiAward, FiFileText } from 'react-icons/fi';
 
+export type CourseSummary = {
+  id: number;
+  name: string;
+  code: string;
+  programName: string;
+  semesterName: string;
+  studentCount: number;
+  materialsCount: number;
+  assignmentsCount: number;
+  quizzesCount: number;
+};
+
 export default function CourseSummaryCard({ courses, currentSemester }: {
-  courses: any[];
+  courses: CourseSummary[];
   currentSemester: string;
 }) {
   return (
