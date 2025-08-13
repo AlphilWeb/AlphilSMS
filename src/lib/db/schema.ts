@@ -1,7 +1,5 @@
 import { pgTable, serial, text, timestamp, unique, foreignKey, integer, numeric, date, time, varchar, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations, InferInsertModel, InferSelectModel } from 'drizzle-orm';
-// import { create } from 'domain';
-// import { file } from 'zod';
 
 // --- Core Tables ---
 
@@ -17,15 +15,15 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   roleId: integer('role_id').notNull(),
+  idNumber: varchar('id_number', { length: 50 }).unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => { // <--- Add a callback function here for constraints
+}, (table) => {
   return {
-    // Explicit Foreign Key Constraint: users.roleId -> roles.id
     roleFk: foreignKey({
       columns: [table.roleId],
       foreignColumns: [roles.id],
-    }).onDelete('restrict'), // Or 'cascade', 'set null', 'set default'
+    }).onDelete('restrict'),
   };
 });
 export type NewUser = InferInsertModel<typeof users>;
@@ -69,19 +67,20 @@ export const staff = pgTable('staff', {
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  idNumber: varchar('id_number', { length: 50 }).unique(), // Added idNumber field
   position: varchar('position', { length: 100 }).notNull(),
   employmentDocumentsUrl: text('employment_documents_url'),
   nationalIdPhotoUrl: text('national_id_photo_url'),
   academicCertificatesUrl: text('academic_certificates_url'),
   passportPhotoUrl: text('passport_photo_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
-    // Explicit Foreign Key Constraint: staff.userId -> users.id
     userFk: foreignKey({
       columns: [table.userId],
       foreignColumns: [users.id],
-    }).onDelete('cascade'), // If a user is deleted, their staff record is deleted
-    // Explicit Foreign Key Constraint: staff.departmentId -> departments.id
+    }).onDelete('cascade'),
     departmentFk: foreignKey({
       columns: [table.departmentId],
       foreignColumns: [departments.id],
@@ -274,29 +273,28 @@ export const students = pgTable('students', {
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  idNumber: varchar('id_number', { length: 50 }).unique(), // Added idNumber field
   registrationNumber: varchar('registration_number', { length: 100 }).notNull().unique(),
   studentNumber: varchar('student_number', { length: 100 }).notNull().unique(),
   passportPhotoUrl: text('passport_photo_url'),
   idPhotoUrl: text('id_photo_url'),
   certificateUrl: text('certificate_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
-    // Explicit Foreign Key Constraint: students.userId -> users.id
     userFk: foreignKey({
       columns: [table.userId],
       foreignColumns: [users.id],
-    }).onDelete('cascade'), // If a user is deleted, their student record is deleted
-    // Explicit Foreign Key Constraint: students.programId -> programs.id
+    }).onDelete('cascade'),
     programFk: foreignKey({
       columns: [table.programId],
       foreignColumns: [programs.id],
     }).onDelete('restrict'),
-    // Explicit Foreign Key Constraint: students.departmentId -> departments.id
     departmentFk: foreignKey({
       columns: [table.departmentId],
       foreignColumns: [departments.id],
     }).onDelete('restrict'),
-    // Explicit Foreign Key Constraint: students.currentSemesterId -> semesters.id
     currentSemesterFk: foreignKey({
       columns: [table.currentSemesterId],
       foreignColumns: [semesters.id],
@@ -305,6 +303,7 @@ export const students = pgTable('students', {
 });
 export type NewStudent = InferInsertModel<typeof students>;
 export type SelectStudent = InferSelectModel<typeof students>;
+
 
 
 // --- Academic Records Tables ---
@@ -424,6 +423,8 @@ export const feeStructures = pgTable('fee_structures', {
   semesterId: integer('semester_id').notNull(),
   totalAmount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
   description: text('description'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
     programSemesterFeeIdx: unique('program_semester_fee_idx').on(table.programId, table.semesterId),
@@ -648,7 +649,8 @@ export const courseMaterialsRelations = relations(courseMaterials, ({ one }) => 
   }),
 }));
 
-export const assignmentsRelations = relations(assignments, ({ one }) => ({
+// --- Assignments Relations ---
+export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
   course: one(courses, {
     fields: [assignments.courseId],
     references: [courses.id],
@@ -657,9 +659,12 @@ export const assignmentsRelations = relations(assignments, ({ one }) => ({
     fields: [assignments.assignedById],
     references: [staff.id],
   }),
+  // Add this many relation for submissions
+  submissions: many(assignmentSubmissions),
 }));
 
-export const quizzesRelations = relations(quizzes, ({ one }) => ({
+// --- Quizzes Relations ---
+export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
   course: one(courses, {
     fields: [quizzes.courseId],
     references: [courses.id],
@@ -668,7 +673,10 @@ export const quizzesRelations = relations(quizzes, ({ one }) => ({
     fields: [quizzes.createdById],
     references: [staff.id],
   }),
+  // Add this many relation for submissions
+  submissions: many(quizSubmissions),
 }));
+
 
 export const assignmentSubmissionsRelations = relations(assignmentSubmissions, ({ one }) => ({
   assignment: one(assignments, {
@@ -840,3 +848,4 @@ export const staffSalariesRelations = relations(staffSalaries, ({ one }) => ({
     references: [staff.id],
   }),
 }));
+
