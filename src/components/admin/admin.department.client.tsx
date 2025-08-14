@@ -404,7 +404,7 @@ export default function AdminDepartmentsClient() {
                           type="text"
                           value={newDepartmentName}
                           onChange={(e) => setNewDepartmentName(e.target.value)}
-                          className="text-2xl font-bold px-3 py-1 border border-blue-300 rounded"
+                          className="text-black text-2xl font-bold px-3 py-1 border border-blue-300 rounded"
                         />
                         <div className="flex gap-2">
                           <button

@@ -9,6 +9,8 @@ import {
   deleteProgram,
   getProgramCourses,
   getProgramStudents,
+  getAllDepartments,
+  type DepartmentOption,
   type ProgramWithStats,
   type ProgramDetails,
   type ProgramCourse,
@@ -36,6 +38,9 @@ export default function AdminProgramsClient() {
     create: false,
     update: false
   });
+
+const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
+console.log('departmentOptions', departmentOptions);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -47,61 +52,82 @@ export default function AdminProgramsClient() {
   // const [expandedDepartments, setExpandedDepartments] = useState<Record<number, boolean>>({});
 
   // Fetch all programs on component mount
-  useEffect(() => {
-    const loadPrograms = async () => {
-      try {
-        setLoading(prev => ({ ...prev, programs: true }));
-        const data = await getAllPrograms();
-        setPrograms(data);
-      } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load programs');
-      } finally {
-        setLoading(prev => ({ ...prev, programs: false }));
-      }
-    };
-
-    loadPrograms();
-  }, []);
-
-  // Load program details when selected
-  const handleSelectProgram = async (programId: number) => {
+useEffect(() => {
+  const loadInitialData = async () => {
     try {
-      setLoading(prev => ({ 
-        ...prev, 
-        details: true,
-        courses: true,
-        students: true
-      }));
-      setError(null);
-      
-      const [details, programCourses, programStudents] = await Promise.all([
-        getProgramDetails(programId),
-        getProgramCourses(programId),
-        getProgramStudents(programId)
+      setLoadingOptions(true);
+      const [programsData, departmentsData] = await Promise.all([
+        getAllPrograms(),
+        getAllDepartments(), // Load departments
       ]);
-
-      setSelectedProgram(details);
-      setCourses(programCourses);
-      setStudents(programStudents);
-      setActiveTab('courses');
-      setEditMode(false);
-      setFormData({
-        name: details.name,
-        code: details.code,
-        durationSemesters: details.durationSemesters,
-        departmentId: details.department.id
-      });
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to load program details');
-    } finally {
-      setLoading(prev => ({ 
-        ...prev, 
-        details: false,
-        courses: false,
-        students: false
+      setPrograms(programsData);
+      setDepartmentOptions(departmentsData);
+      
+      // Set initial form values after options load
+      setFormData(prev => ({
+        ...prev,
+        departmentId: departmentsData[0]?.id || 0
       }));
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to load initial data');
+    } finally {
+      setLoadingOptions(false);
+      setLoading(prev => ({ ...prev, programs: false }));
     }
   };
+
+  loadInitialData();
+}, []);
+
+  // Load program details when selected
+const handleSelectProgram = async (programId: number) => {
+  try {
+    setLoading(prev => ({ 
+      ...prev, 
+      details: true,
+      courses: true,
+      students: true
+    }));
+    setError(null);
+    
+    const [details, programCourses, programStudents] = await Promise.all([
+      getProgramDetails(programId),
+      getProgramCourses(programId),
+      getProgramStudents(programId)
+    ]);
+
+    setSelectedProgram(details);
+    setCourses(programCourses);
+    setStudents(programStudents);
+    setActiveTab('courses');
+    setEditMode(false);
+    setFormData({
+      name: details.name,
+      code: details.code,
+      durationSemesters: details.durationSemesters,
+      departmentId: details.department.id
+    });
+
+    // Move selected program to top of list
+    setPrograms(prev => {
+      const selected = prev.find(p => p.id === programId);
+      if (!selected) return prev;
+      return [
+        { ...selected, department: { id: details.department.id, name: details.department.name } },
+        ...prev.filter(p => p.id !== programId)
+      ];
+    });
+  } catch (err) {
+    setError(err instanceof ActionError ? err.message : 'Failed to load program details');
+  } finally {
+    setLoading(prev => ({ 
+      ...prev, 
+      details: false,
+      courses: false,
+      students: false
+    }));
+  }
+};
 
   // Create new program
   const handleCreateProgram = async () => {
@@ -262,35 +288,38 @@ export default function AdminProgramsClient() {
             </div>
           ) : (
             <div className="space-y-3">
-              {programs.map((program) => (
-                <div
-                  key={program.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedProgram?.id === program.id 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => handleSelectProgram(program.id)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{program.name}</h3>
-                      <p className="text-sm text-gray-600">{program.code}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                          <FiUsers size={12} /> {program.studentCount}
-                        </span>
-                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                          <FiBook size={12} /> {program.courseCount}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
-                      {program.durationSemesters} sems
-                    </span>
-                  </div>
-                </div>
-              ))}
+{programs.map((program) => (
+  <div
+    key={program.id}
+    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+      selectedProgram?.id === program.id 
+        ? 'border-blue-500 bg-blue-50' 
+        : 'border-gray-200 hover:border-blue-300'
+    }`}
+    onClick={() => handleSelectProgram(program.id)}
+  >
+    <div className="flex justify-between items-start">
+      <div>
+        <h3 className="font-semibold text-gray-800">{program.name}</h3>
+        <p className="text-sm text-gray-600">{program.code}</p>
+        <p className="text-xs text-gray-500 mt-1">
+          {program.department.name}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-gray-600 flex items-center gap-1">
+            <FiUsers size={12} /> {program.studentCount}
+          </span>
+          <span className="text-xs text-gray-600 flex items-center gap-1">
+            <FiBook size={12} /> {program.courseCount}
+          </span>
+        </div>
+      </div>
+      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
+        {program.durationSemesters} sems
+      </span>
+    </div>
+  </div>
+))}
             </div>
           )}
         </div>
@@ -319,7 +348,7 @@ export default function AdminProgramsClient() {
                               type="text"
                               value={formData.name}
                               onChange={(e) => setFormData({...formData, name: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
                           </div>
                           <div>
@@ -330,7 +359,7 @@ export default function AdminProgramsClient() {
                               type="text"
                               value={formData.code}
                               onChange={(e) => setFormData({...formData, code: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
                           </div>
                         </div>
@@ -343,7 +372,7 @@ export default function AdminProgramsClient() {
                               type="number"
                               value={formData.durationSemesters}
                               onChange={(e) => setFormData({...formData, durationSemesters: parseInt(e.target.value) || 8})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                               min="1"
                               max="12"
                             />
@@ -355,7 +384,7 @@ export default function AdminProgramsClient() {
                             <select
                               value={formData.departmentId}
                               onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                             >
                               {/* Departments would need to be loaded */}
                               <option value="1">Computer Science</option>
@@ -580,7 +609,7 @@ export default function AdminProgramsClient() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                       placeholder="Computer Science"
                     />
                   </div>
@@ -592,7 +621,7 @@ export default function AdminProgramsClient() {
                       type="text"
                       value={formData.code}
                       onChange={(e) => setFormData({...formData, code: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                       placeholder="CS"
                     />
                   </div>
@@ -606,7 +635,7 @@ export default function AdminProgramsClient() {
                       type="number"
                       value={formData.durationSemesters}
                       onChange={(e) => setFormData({...formData, durationSemesters: parseInt(e.target.value) || 8})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                       min="1"
                       max="12"
                     />
@@ -618,7 +647,7 @@ export default function AdminProgramsClient() {
                     <select
                       value={formData.departmentId}
                       onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
                     >
                       <option value="1">Computer Science</option>
                       <option value="2">Business</option>
@@ -660,4 +689,9 @@ export default function AdminProgramsClient() {
       )}
     </div>
   );
+}
+
+function setLoadingOptions(value: boolean) {
+  setLoadingOptions(value);
+  throw new Error('Function not implemented.');
 }
