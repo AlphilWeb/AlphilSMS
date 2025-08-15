@@ -29,8 +29,7 @@ export default function QuickActions() {
         </Link>
         <Link 
           href="/dashboard/student/timetable"
-          className="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors"
-        >
+          className="text-pink-500 flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-emerald-50 transition-colors">
           <FiClock className="w-6 h-6 text-emerald-600 mb-2" />
           <span className="text-pink-500 text-sm text-center">View Timetable</span>
         </Link>
