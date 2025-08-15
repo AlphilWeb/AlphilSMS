@@ -55,6 +55,25 @@ export type ProgramStudent = {
   };
 };
 
+// Add to your actions file (lib/actions/admin/programs.action.ts)
+export type DepartmentOption = {
+  id: number;
+  name: string;
+};
+
+export async function getAllDepartments(): Promise<DepartmentOption[]> {
+  const authUser = await getAuthUser();
+  if (!authUser) throw new Error('Unauthorized');
+
+  return db.query.departments.findMany({
+    columns: {
+      id: true,
+      name: true,
+    },
+    orderBy: (departments, { asc }) => [asc(departments.name)],
+  });
+}
+
 // Get all programs with statistics
 export async function getAllPrograms(): Promise<ProgramWithStats[]> {
   const authUser = await getAuthUser();
