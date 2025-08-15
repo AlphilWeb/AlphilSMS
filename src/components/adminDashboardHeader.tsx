@@ -91,7 +91,6 @@ export default function AdminDashboardHeader() {
       category: "System",
       items: [
         { href: "/dashboard/admin/logs", icon: <FiFileText className="w-5 h-5" />, label: "Activity Logs" },
-        { href: "/dashboard/admin/settings", icon: <FiSettings className="w-5 h-5" />, label: "Settings" }
       ]
     }
   ];
