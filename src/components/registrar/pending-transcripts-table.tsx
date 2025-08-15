@@ -4,22 +4,16 @@
 import Link from 'next/link';
 import { FiFileText, FiCheck, FiX } from 'react-icons/fi';
 
-// Define the shape of the student data
-interface Student {
-  id: number;
-  firstName: string;
-  lastName: string;
-  registrationNumber: string;
-}
-
-// Define the shape of a single transcript object
+// Updated interface to match the data from your action file
 interface PendingTranscript {
   id: number;
-  student: Student;
-  generatedDate: string | Date; // Or use whatever type matches your data
+  studentName: string;
+  regNumber: string;
+  semesterName: string; // Add semesterName as well
+  generatedDate: string | Date; 
 }
 
-// Define the component props with the new, specific type
+// The component props now correctly expect the new PendingTranscript type
 interface PendingTranscriptsTableProps {
   transcripts: PendingTranscript[];
 }
@@ -40,10 +34,10 @@ export default function PendingTranscriptsTable({ transcripts }: PendingTranscri
           {transcripts.map((transcript) => (
             <tr key={transcript.id} className="bg-white border-b hover:bg-gray-50">
               <td className="px-6 py-4 font-medium text-gray-900">
-                {transcript.student.firstName} {transcript.student.lastName}
+                {transcript.studentName}
               </td>
               <td className="px-6 py-4">
-                {transcript.student.registrationNumber}
+                {transcript.regNumber}
               </td>
               <td className="px-6 py-4">
                 {new Date(transcript.generatedDate).toLocaleDateString()}
