@@ -134,7 +134,7 @@ export default function StudentDashboardHeader() {
               className="h-10 w-auto"
               priority
             />
-            <h1 className="text-l font-bold text-gray-800 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <h1 className="text-l font-bold text-blue-500 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           <div className="flex items-center space-x-6">
