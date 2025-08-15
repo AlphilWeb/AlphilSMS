@@ -4,45 +4,6 @@ import LecturerDashboardHeader from '@/components/lecturerDashboardHeader';
 import ErrorMessage from '@/components/ui/error-message';
 import LecturerSubmissionsManager from '@/components/lecturer/lecturer.manage.assignment.submissions';
 
-// Define the types directly in this file
-interface Student {
-  id: number;
-  firstName: string;
-  lastName: string;
-  registrationNumber: string;
-}
-
-interface Course {
-  id: number;
-  name: string;
-  code: string;
-}
-
-interface Assignment {
-  id: number;
-  title: string;
-  dueDate: Date;
-  course: Course;
-}
-
-// interface Submission {
-//   id: number;
-//   submittedAt: Date;
-//   grade: number | null;
-//   remarks: string | null;
-//   student: Student;
-//   assignment: Assignment;
-// }
-
-// interface CourseSubmissionsOverview {
-//   courseId: number;
-//   courseName: string;
-//   courseCode: string;
-//   totalAssignments: number;
-//   submissionsGraded: number;
-//   submissionsPending: number;
-//   submissionsLate: number;
-// }
 
 export default async function LecturerSubmissionsPage() {
   try {
