@@ -3,16 +3,25 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { s3Client, bucketName } from './s3-client';
 
-
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Helper function to validate file type
+function isValidFileType(file: File, allowedTypes: string[]): boolean {
+  return allowedTypes.includes(file.type);
+}
 
 export async function uploadFileToR2(file: File, folder: string): Promise<string> {
-    // 1. File size validation
+  // 1. File size validation
   if (file.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(`File size exceeds the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`);
   }
 
-  // Use a try...catch block to handle potential errors during the upload process
+  // 2. File type validation for images
+  if (folder.includes('photos') && !isValidFileType(file, ALLOWED_IMAGE_TYPES)) {
+    throw new Error('Only JPEG, PNG, and WebP images are allowed.');
+  }
+
   try {
     const fileExtension = file.name.split('.').pop();
     const key = `${folder}/${uuidv4()}.${fileExtension}`;
@@ -28,14 +37,11 @@ export async function uploadFileToR2(file: File, folder: string): Promise<string
     return key;
   } catch (error) {
     console.error('Failed to upload file to R2:', error);
-    // Rethrow a more user-friendly error or a specific custom error
     if (error instanceof Error) {
       throw new Error(`Upload failed: ${error.message}`);
-    } else {
-      throw new Error('An unknown error occurred during the file upload.');
     }
+    throw new Error('An unknown error occurred during the file upload.');
   }
-
 }
 
 export async function getPresignedUrl(key: string): Promise<string> {
@@ -49,4 +55,16 @@ export async function getPresignedUrl(key: string): Promise<string> {
 
 export function getPublicUrl(key: string): string {
   return `https://pub-${process.env.R2_ACCOUNT_ID}.r2.dev/${key}`;
+}
+
+// New function specifically for user photo uploads
+export async function uploadUserPhoto(file: File, userType: 'staff' | 'student'): Promise<string> {
+  const folder = `users/${userType}/photos`;
+  return uploadFileToR2(file, folder);
+}
+
+// New function for document uploads
+export async function uploadUserDocument(file: File, userType: 'staff' | 'student', documentType: string): Promise<string> {
+  const folder = `users/${userType}/documents/${documentType}`;
+  return uploadFileToR2(file, folder);
 }
