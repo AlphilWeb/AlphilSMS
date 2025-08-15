@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { courses, staff, assignments, courseMaterials, userLogs } from '@/lib/db/schema';
+import { courses, staff, assignments, courseMaterials, userLogs, programs, semesters } from '@/lib/db/schema';
 import { and, eq, sql, ne } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
@@ -46,6 +46,65 @@ export type CourseFormValues = {
   semesterId: number;
   lecturerId?: number;
 };
+
+export type ProgramOption = {
+  id: number;
+  name: string;
+};
+
+export type SemesterOption = {
+  id: number;
+  name: string;
+};
+
+export async function getAllPrograms(): Promise<ProgramOption[]> {
+  const authUser = await getAuthUser();
+  if (!authUser) throw new Error('Unauthorized');
+
+  return db.query.programs.findMany({
+    columns: {
+      id: true,
+      name: true,
+    },
+    orderBy: (programs, { asc }) => [asc(programs.name)],
+  });
+}
+
+export type LecturerOption = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+
+// Add to your actions file (lib/actions/admin/courses.actions.ts)
+export async function getAllLecturers(): Promise<LecturerOption[]> {
+  const authUser = await getAuthUser();
+  if (!authUser) throw new Error('Unauthorized');
+
+  return db.query.staff.findMany({
+    columns: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
+    orderBy: (staff, { asc }) => [asc(staff.lastName), asc(staff.firstName)],
+  });
+}
+
+export async function getAllSemesters(): Promise<SemesterOption[]> {
+  const authUser = await getAuthUser();
+  if (!authUser) throw new Error('Unauthorized');
+
+  return db.query.semesters.findMany({
+    columns: {
+      id: true,
+      name: true,
+    },
+    orderBy: (semesters, { asc }) => [asc(semesters.name)],
+  });
+}
 
 // Get all courses with basic details
 export async function getAllCourses(): Promise<CourseWithDetails[]> {
@@ -96,6 +155,25 @@ export async function createCourse(data: CourseFormValues) {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
 
+    if (!data.name || !data.code || !data.programId || !data.semesterId) {
+    throw new ActionError('All required fields must be filled');
+  }
+
+  // Validate program exists
+  const programExists = await db.query.programs.findFirst({
+    where: eq(programs.id, data.programId),
+  });
+  if (!programExists) {
+    throw new ActionError('Selected program does not exist');
+  }
+
+  // Validate semester exists
+  const semesterExists = await db.query.semesters.findFirst({
+    where: eq(semesters.id, data.semesterId),
+  });
+  if (!semesterExists) {
+    throw new ActionError('Selected semester does not exist');
+  }
   // Validate course code uniqueness within program and semester
   const existingCourse = await db
     .select()
