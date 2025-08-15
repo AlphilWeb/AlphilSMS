@@ -73,7 +73,8 @@ export default function LecturerDashboardHeader() {
       category: "Assignments & Quizzes",
       items: [
         { href: "/dashboard/lecturer/assignments", icon: <FiFileText className="w-5 h-5" />, label: "Manage Assignments" },
-        { href: "/dashboard/lecturer/quizzes", icon: <HiOutlineAcademicCap className="w-5 h-5" />, label: "Manage Quizzes" }
+        { href: "/dashboard/lecturer/quizzes", icon: <HiOutlineAcademicCap className="w-5 h-5" />, label: "Manage Quizzes" },
+        { href: "/dashboard/lecturer/submissions", icon: <FiClock className="w-5 h-5" />, label: "Submissions" }
       ]
     },
     {
@@ -140,7 +141,7 @@ export default function LecturerDashboardHeader() {
               alt="College Logo"
               width={50}
               height={50}
-              className="h-10 w-auto"
+              className="h-14 w-auto"
               priority
             />
             <h1 className="text-xl font-bold text-blue-500 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
