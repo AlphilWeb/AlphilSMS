@@ -1,83 +1,44 @@
-// // app/dashboard/students/page.tsx
-// import AdminDashboardHeader from "@/components/adminDashboardHeader";
-// import Footer from "@/components/footer";
-// import { getStudents } from "@/lib/actions/student.action";
-// import { getPrograms } from "@/lib/actions/program.action";
-// import { getDepartments } from "@/lib/actions/department.action";
-// import { getSemesters } from "@/lib/actions/semester.action";
-// import { BsPeopleFill } from "react-icons/bs";
-// import StudentsNav from "@/components/studentsNav";
-// import StudentsClientComponent from "@/components/students/student-client-component";
+// app/dashboard/admin/students/page.tsx
+import AdminDashboardHeader from '@/components/adminDashboardHeader';
+import AdminStudentsClient from '@/components/admin/admin.students.client';
+import ErrorMessage from '@/components/ui/error-message';
 
-// export const dynamic = 'force-dynamic'; // Ensure fresh data on every request
+export default async function AdminStudentsPage() {
+  try {
+    return (
+      <>
+        <AdminDashboardHeader />
 
-// export default async function StudentsPage() {
-//   // Fetch all required data in parallel
-//   const [studentsFromDb, programs, departments, semesters] = await Promise.all([
-//     getStudents(),
-//     getPrograms(),
-//     getDepartments(),
-//     getSemesters()
-//   ]);
+        <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+          <div className="p-6 space-y-6 max-w-7xl mx-auto">
+            {/* Welcome Banner */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h1 className="text-2xl font-bold text-gray-800">Student Management</h1>
+              <p className="text-gray-600">Manage all student records and enrollments</p>
+            </div>
 
-//   // Prepare initial data for client component
-//   const initialStudents = studentsFromDb.map(student => ({
-//     ...student,
-//   }));
-
-//   // Prepare reference data for dropdowns
-//   const referenceData = {
-//     programs: programs.map(p => ({ id: p.id, name: p.name })),
-//     departments: departments.map(d => ({ id: d.id, name: d.name })),
-//     semesters: semesters.map(s => ({ id: s.id, name: s.name }))
-//   };
-
-//   return (
-//     <>
-//       <AdminDashboardHeader />
-
-//       <main className="pl-[220px] h-screen bg-gradient-to-b from-emerald-950 to-emerald-900 text-white">
-//         {/* Sticky header section with stats */}
-//         <div className="sticky top-[58px] z-30 bg-emerald-800 px-12 py-4 flex flex-wrap justify-between items-center shadow-md">
-//           <div className="flex items-center gap-4">
-//             <div className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-pink-500 px-4 py-3 rounded-lg shadow">
-//               <BsPeopleFill className="w-6 h-6" />
-//               <span className="font-bold">Total Students: {initialStudents.length}</span>
-//             </div>
-//             <div className="hidden md:flex items-center gap-4">
-//               <div className="bg-emerald-700/50 px-3 py-2 rounded-lg">
-//                 <span className="text-sm">Programs: {programs.length}</span>
-//               </div>
-//               <div className="bg-emerald-700/50 px-3 py-2 rounded-lg">
-//                 <span className="text-sm">Departments: {departments.length}</span>
-//               </div>
-//               <div className="bg-emerald-700/50 px-3 py-2 rounded-lg">
-//                 <span className="text-sm">Active Semesters: {semesters.length}</span>
-//               </div>
-//             </div>
-//           </div>
-          
-//           <div className="flex flex-wrap gap-4 items-center">
-//             <StudentsNav />
-//           </div>
-//         </div>
-
-//         {/* Pass initial data and reference data to the Client Component */}
-//         <StudentsClientComponent 
-//           initialStudents={initialStudents}
-//           referenceData={referenceData}
-//         />
-
-//         <Footer />
-//       </main>
-//     </>
-//   );
-// }
-
-export default function DashHome() {
-  return (
-    <>
-      <p>&apos;/&apos; path page</p>
-    </>  
-  );
+            {/* Main Students Content */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <AdminStudentsClient />
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  } catch (error) {
+    console.error('Error rendering AdminStudentsPage:', error);
+    return (
+      <>
+        <AdminDashboardHeader />
+        <main className="md:pl-64 pt-16 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+          <div className="p-6 max-w-7xl mx-auto">
+            <ErrorMessage
+              title="Failed to load students"
+              message="There was an error loading student data. Please try again later."
+            />
+          </div>
+        </main>
+      </>
+    );
+  }
 }
