@@ -10,7 +10,7 @@ import {
   departments,
   staff
 } from '@/lib/db/schema';
-import { and, eq, sql, asc, desc, like, or } from 'drizzle-orm';
+import { and, eq, sql, asc, desc, or, ilike } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -102,18 +102,18 @@ export async function fetchFilteredEnrollments(
       .leftJoin(programs, eq(students.programId, programs.id))
       .leftJoin(departments, eq(programs.departmentId, departments.id))
       .leftJoin(staff, eq(courses.lecturerId, staff.id))
-      .where(
-        query
-          ? or(
-              like(students.firstName, `%${query}%`),
-              like(students.lastName, `%${query}%`),
-              like(students.registrationNumber, `%${query}%`),
-              like(courses.name, `%${query}%`),
-              like(courses.code, `%${query}%`),
-              like(semesters.name, `%${query}%`)
-            )
-          : undefined
+.where(
+  query
+    ? or(
+        ilike(students.firstName, `%${query}%`),        // Changed from like to ilike
+        ilike(students.lastName, `%${query}%`),         // Changed from like to ilike
+        ilike(students.registrationNumber, `%${query}%`), // Changed from like to ilike
+        ilike(courses.name, `%${query}%`),              // Changed from like to ilike
+        ilike(courses.code, `%${query}%`),              // Changed from like to ilike
+        ilike(semesters.name, `%${query}%`)             // Changed from like to ilike
       )
+    : undefined
+)
       .orderBy(
         sortField === 'student'
           ? sortDirection === 'asc'
@@ -196,12 +196,12 @@ export async function fetchEnrollmentsTotalPages(
       .where(
         query
           ? or(
-              like(students.firstName, `%${query}%`),
-              like(students.lastName, `%${query}%`),
-              like(students.registrationNumber, `%${query}%`),
-              like(courses.name, `%${query}%`),
-              like(courses.code, `%${query}%`),
-              like(semesters.name, `%${query}%`)
+              ilike(students.firstName, `%${query}%`),
+              ilike(students.lastName, `%${query}%`),
+              ilike(students.registrationNumber, `%${query}%`),
+              ilike(courses.name, `%${query}%`),
+              ilike(courses.code, `%${query}%`),
+              ilike(semesters.name, `%${query}%`)
             )
           : undefined
       );
