@@ -19,6 +19,7 @@ export type SemesterWithStats = {
   courseCount: number;
   studentCount: number;
   eventCount: number;
+  timetableCount?: number;
 };
 
 export type SemesterDetails = SemesterWithStats & {
@@ -137,6 +138,7 @@ export async function getAllSemesters(): Promise<SemesterWithStats[]> {
         courseCount: courseCount[0].count,
         studentCount: studentCount[0].count,
         eventCount: eventCount[0].count,
+        // timetableCount: await db
       };
     })
   );
@@ -467,7 +469,7 @@ export async function deleteSemester(semesterId: number) {
   if (!authUser) throw new Error('Unauthorized');
 
   // Check if semester has any courses, enrollments, or events
-  const [courseCount, enrollmentCount, eventCount, timetableCount] = await Promise.all([
+  const [ ] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)` })
       .from(courses)
@@ -490,12 +492,22 @@ export async function deleteSemester(semesterId: number) {
       .then((res) => res[0].count),
   ]);
 
-  if (courseCount > 0 || enrollmentCount > 0 || eventCount > 0 || timetableCount > 0) {
-    throw new ActionError(
-      'Cannot delete semester with courses, enrollments, events, or timetables'
-    );
-  }
+    await db
+    .update(students)
+    .set({
+      currentSemesterId: null, // Set current semester to undefined
+    })
+    .where(eq(students.currentSemesterId, semesterId));
 
+  // Delete from the most dependent tables first
+  await db.delete(enrollments).where(eq(enrollments.semesterId, semesterId));
+  await db.delete(timetables).where(eq(timetables.semesterId, semesterId));
+  await db.delete(academicCalendarEvents).where(eq(academicCalendarEvents.semesterId, semesterId));
+  
+  // Now delete the courses
+  await db.delete(courses).where(eq(courses.semesterId, semesterId));
+
+  // Now delete the semester record itself
   const semester = await db
     .delete(semesters)
     .where(eq(semesters.id, semesterId))
