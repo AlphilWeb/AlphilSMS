@@ -62,12 +62,12 @@ export type SelectDepartment = InferSelectModel<typeof departments>;
 
 export const staff = pgTable('staff', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().unique(),
+  userId: integer('user_id'),
   departmentId: integer('department_id').notNull(),
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  idNumber: varchar('id_number', { length: 50 }).unique(), // Added idNumber field
+  idNumber: varchar('id_number', { length: 50 }).unique(),
   position: varchar('position', { length: 100 }).notNull(),
   employmentDocumentsUrl: text('employment_documents_url'),
   nationalIdPhotoUrl: text('national_id_photo_url'),
@@ -80,7 +80,7 @@ export const staff = pgTable('staff', {
     userFk: foreignKey({
       columns: [table.userId],
       foreignColumns: [users.id],
-    }).onDelete('cascade'),
+    }).onDelete('set null'),
     departmentFk: foreignKey({
       columns: [table.departmentId],
       foreignColumns: [departments.id],
@@ -266,10 +266,10 @@ export type SelectMaterialView = InferSelectModel<typeof materialViews>;
 
 export const students = pgTable('students', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().unique(),
+  userId: integer('user_id').unique(),
   programId: integer('program_id').notNull(),
   departmentId: integer('department_id').notNull(),
-  currentSemesterId: integer('current_semester_id').notNull(),
+  currentSemesterId: integer('current_semester_id'),
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
@@ -286,7 +286,7 @@ export const students = pgTable('students', {
     userFk: foreignKey({
       columns: [table.userId],
       foreignColumns: [users.id],
-    }).onDelete('cascade'),
+    }).onDelete('set null'), // If user is deleted, set student.userId to null
     programFk: foreignKey({
       columns: [table.programId],
       foreignColumns: [programs.id],
@@ -551,6 +551,26 @@ export const academicCalendarEvents = pgTable('academic_calendar_events', {
 
 export type NewAcademicCalendarEvent = InferInsertModel<typeof academicCalendarEvents>;
 export type SelectAcademicCalendarEvent = InferSelectModel<typeof academicCalendarEvents>;
+
+export const documentLogs = pgTable('document_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  documentType: varchar('document_type', { length: 50 }).notNull(),
+  targetId: integer('target_id').notNull(),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+}, (table) => {
+  return {
+    userFk: foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+    }).onDelete('cascade'),
+  };
+});
+
+export type NewDocumentLog = InferInsertModel<typeof documentLogs>;
+export type SelectDocumentLog = InferSelectModel<typeof documentLogs>;
 
 // Add to your relations
 export const academicCalendarEventsRelations = relations(academicCalendarEvents, ({ one }) => ({
@@ -849,3 +869,9 @@ export const staffSalariesRelations = relations(staffSalaries, ({ one }) => ({
   }),
 }));
 
+export const documentLogsRelations = relations(documentLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [documentLogs.userId],
+    references: [users.id],
+  }),
+}));
