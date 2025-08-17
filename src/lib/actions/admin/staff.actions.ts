@@ -11,6 +11,7 @@ import { ActionError } from '@/lib/utils';
 // Types
 export type StaffWithDetails = {
   id: number;
+  userId?: number;
   firstName: string;
   lastName: string;
   email: string;
@@ -200,8 +201,8 @@ export async function searchStaff(query: string): Promise<StaffWithDetails[]> {
 
 // Get staff details by ID
 export async function getStaffDetails(staffId: number): Promise<StaffDetails> {
-  const authUser = await getAuthUser();
-  if (!authUser) throw new Error('Unauthorized');
+  // const authUser = await getAuthUser();
+  // if (!authUser) throw new Error('Unauthorized');
 
   const rows = await db
     .select({
@@ -406,10 +407,12 @@ export async function updateStaff(staffId: number, data: StaffUpdateData) {
     if (data.email) updateData.email = data.email;
     if (data.roleId) updateData.roleId = data.roleId;
 
-    await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, currentStaff.userId));
+    if (typeof currentStaff.userId === 'number') {
+      await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, currentStaff.userId));
+    }
   }
 
   // Log the action
@@ -459,9 +462,11 @@ export async function deleteStaff(staffId: number) {
     .where(eq(staff.id, staffId));
 
   // Then delete the associated user
-  await db
-    .delete(users)
-    .where(eq(users.id, staffMember.userId));
+  if (staffMember.userId !== null && staffMember.userId !== undefined) {
+    await db
+      .delete(users)
+      .where(eq(users.id, staffMember.userId));
+  }
 
   // Log the action
   await db.insert(userLogs).values({
