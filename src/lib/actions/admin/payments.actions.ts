@@ -300,48 +300,48 @@ export async function getPaymentById(paymentId: number): Promise<PaymentWithDeta
  */
 export async function recordPayment(paymentData: PaymentData): Promise<SelectPayment> {
   try {
-    return await db.transaction(async (tx) => {
-      // Create the payment record
-      const paymentResult = await tx.insert(payments).values({
-        ...paymentData,
-        transactionDate: new Date(),
-      }).returning();
+    // 1. Create the payment record
+    const paymentResult = await db.insert(payments).values({
+      ...paymentData,
+      transactionDate: new Date(),
+    }).returning();
 
-      // Update the invoice's amountPaid and balance
-      const invoice = await tx
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, paymentData.invoiceId))
-        .limit(1);
+    // 2. Find and update the invoice
+    const invoice = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, paymentData.invoiceId))
+      .limit(1);
 
-      if (invoice[0]) {
-        const newAmountPaid = (parseFloat(invoice[0].amountPaid) + parseFloat(paymentData.amount)).toString();
-        const newBalance = (parseFloat(invoice[0].amountDue) - parseFloat(newAmountPaid)).toString();
-        
-        let newStatus = invoice[0].status;
-        if (parseFloat(newBalance) <= 0) {
-          newStatus = 'paid';
-        } else if (newStatus === 'unpaid' && parseFloat(newAmountPaid) > 0) {
-          newStatus = 'partial';
-        }
-
-        await tx
-          .update(invoices)
-          .set({
-            amountPaid: newAmountPaid,
-            balance: newBalance,
-            status: newStatus,
-          })
-          .where(eq(invoices.id, paymentData.invoiceId));
+    if (invoice[0]) {
+      const newAmountPaid = (parseFloat(invoice[0].amountPaid) + parseFloat(paymentData.amount)).toString();
+      const newBalance = (parseFloat(invoice[0].amountDue) - parseFloat(newAmountPaid)).toString();
+      
+      let newStatus = invoice[0].status;
+      if (parseFloat(newBalance) <= 0) {
+        newStatus = 'paid';
+      } else if (newStatus === 'unpaid' && parseFloat(newAmountPaid) > 0) {
+        newStatus = 'partial';
       }
 
-      revalidatePath('/admin/payments');
-      revalidatePath(`/admin/invoices/${paymentData.invoiceId}`);
-      return paymentResult[0];
-    });
+      await db
+        .update(invoices)
+        .set({
+          amountPaid: newAmountPaid,
+          balance: newBalance,
+          status: newStatus,
+        })
+        .where(eq(invoices.id, paymentData.invoiceId));
+    }
+
+    revalidatePath('/admin/payments');
+    revalidatePath(`/admin/invoices/${paymentData.invoiceId}`);
+    return paymentResult[0];
+
   } catch (error) {
     console.error('Failed to record payment:', error);
-    throw new Error('Failed to record payment');
+    // You can now be more specific about the error message
+    throw new Error('Failed to record payment due to a database operation error.');
   }
 }
 
@@ -422,67 +422,72 @@ export async function updatePayment(
  */
 export async function deletePayment(paymentId: number): Promise<{ success: boolean }> {
   try {
-    return await db.transaction(async (tx) => {
-      const payment = await tx
-        .select()
-        .from(payments)
-        .where(eq(payments.id, paymentId))
-        .limit(1);
+    // 1. Find the payment and its associated invoice ID
+    const payment = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.id, paymentId))
+      .limit(1);
 
-      if (!payment[0]) {
-        throw new Error('Payment not found');
+    if (!payment[0]) {
+      throw new Error('Payment not found');
+    }
+
+    const invoiceId = payment[0].invoiceId;
+
+    // 2. Delete the payment
+    await db.delete(payments).where(eq(payments.id, paymentId));
+
+    // 3. Recalculate and update the associated invoice
+    const paymentsSum = await db
+      .select({ total: sum(payments.amount) })
+      .from(payments)
+      .where(eq(payments.invoiceId, invoiceId));
+
+    const invoice = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, invoiceId))
+      .limit(1);
+
+    if (invoice[0]) {
+      const newAmountPaid = paymentsSum[0]?.total?.toString() || '0';
+      const newBalance = (parseFloat(invoice[0].amountDue) - parseFloat(newAmountPaid)).toString();
+      
+      let newStatus = invoice[0].status;
+      if (parseFloat(newBalance) <= 0) {
+        newStatus = 'paid';
+      } else if (newStatus === 'unpaid' && parseFloat(newAmountPaid) > 0) {
+        newStatus = 'partial';
+      } else if (parseFloat(newAmountPaid) === 0) {
+        newStatus = 'unpaid';
       }
 
-      const invoiceId = payment[0].invoiceId;
+      await db
+        .update(invoices)
+        .set({
+          amountPaid: newAmountPaid,
+          balance: newBalance,
+          status: newStatus,
+        })
+        .where(eq(invoices.id, invoiceId));
+    }
 
-      // Delete the payment
-      await tx.delete(payments).where(eq(payments.id, paymentId));
+    revalidatePath('/admin/payments');
+    revalidatePath(`/admin/invoices/${invoiceId}`);
 
-      // Update the associated invoice
-      const invoice = await tx
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, invoiceId))
-        .limit(1);
-
-      if (invoice[0]) {
-        // Recalculate all payments for this invoice
-        const paymentsSum = await tx
-          .select({ total: sum(payments.amount) })
-          .from(payments)
-          .where(eq(payments.invoiceId, invoiceId));
-
-        const newAmountPaid = paymentsSum[0]?.total?.toString() || '0';
-        const newBalance = (parseFloat(invoice[0].amountDue) - parseFloat(newAmountPaid)).toString();
-        
-        let newStatus = invoice[0].status;
-        if (parseFloat(newBalance) <= 0) {
-          newStatus = 'paid';
-        } else if (newStatus === 'unpaid' && parseFloat(newAmountPaid) > 0) {
-          newStatus = 'partial';
-        } else if (parseFloat(newAmountPaid) === 0) {
-          newStatus = 'unpaid';
-        }
-
-        await tx
-          .update(invoices)
-          .set({
-            amountPaid: newAmountPaid,
-            balance: newBalance,
-            status: newStatus,
-          })
-          .where(eq(invoices.id, invoiceId));
-      }
-
-      revalidatePath('/admin/payments');
-      revalidatePath(`/admin/invoices/${invoiceId}`);
-      return { success: true };
-    });
+    return { success: true };
   } catch (error) {
     console.error(`Failed to delete payment ${paymentId}:`, error);
     throw new Error('Failed to delete payment');
   }
 }
+
+
+
+
+
+
 
 /**
  * Gets payment summary statistics
