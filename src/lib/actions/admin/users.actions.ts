@@ -334,13 +334,17 @@ export async function deleteStaff(id: number) {
       throw new Error('Staff not found');
     }
 
+    const userId = staffToDelete[0].userId;
+
     // Delete staff record
     await db.delete(staff)
       .where(eq(staff.id, id));
 
-    // Delete associated user
-    await db.delete(users)
-      .where(eq(users.id, staffToDelete[0].userId));
+    // Only delete the associated user if userId is not null
+    if (userId !== null) {
+      await db.delete(users)
+        .where(eq(users.id, userId));
+    }
 
     revalidatePath('/admin/users/staff');
     return { success: true };
@@ -352,7 +356,7 @@ export async function deleteStaff(id: number) {
 
 export async function deleteStudent(id: number) {
   try {
-    // First get student to also delete associated user
+    // First get the student to also get the associated user
     const studentToDelete = await db.select()
       .from(students)
       .where(eq(students.id, id));
@@ -361,13 +365,17 @@ export async function deleteStudent(id: number) {
       throw new Error('Student not found');
     }
 
-    // Delete student record
+    const userId = studentToDelete[0].userId;
+
+    // Delete the student record
     await db.delete(students)
       .where(eq(students.id, id));
 
-    // Delete associated user
-    await db.delete(users)
-      .where(eq(users.id, studentToDelete[0].userId));
+    // Only delete the associated user if userId is not null
+    if (userId !== null) {
+      await db.delete(users)
+        .where(eq(users.id, userId));
+    }
 
     revalidatePath('/admin/users/students');
     return { success: true };
@@ -376,6 +384,7 @@ export async function deleteStudent(id: number) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
+
 
 export async function getStaffList() {
   return db.query.staff.findMany({
