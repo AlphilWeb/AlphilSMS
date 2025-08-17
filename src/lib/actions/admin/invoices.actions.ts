@@ -12,7 +12,7 @@ import {
 //   NewInvoice,
   SelectInvoice,
 //   NewPayment,
-  SelectPayment
+  // SelectPayment
 } from '@/lib/db/schema';
 import { and, eq, sql, sum, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -78,7 +78,7 @@ export type PaymentWithDetails = {
   amount: string;
   paymentMethod: string;
   transactionDate: string;
-  referenceNumber?: string | null;
+  referenceNumber: string | null;
   invoice: {
     id: number;
     amountDue: string;
@@ -666,43 +666,82 @@ export async function deleteInvoice(invoiceId: number): Promise<{ success: boole
 /**
  * Records a payment against an invoice
  */
-export async function recordPayment(paymentData: PaymentData): Promise<SelectPayment> {
+export async function recordPayment(paymentData: {
+  invoiceId: number;
+  studentId: number;
+  amount: string;
+  paymentMethod: string;
+  referenceNumber?: string;
+}): Promise<PaymentWithDetails> {
   try {
-    return await db.transaction(async (tx) => {
-      // Create the payment record
-      const paymentResult = await tx.insert(payments).values(paymentData).returning();
+    const [newPayment] = await db.insert(payments).values({
+      invoiceId: paymentData.invoiceId,
+      studentId: paymentData.studentId,
+      amount: paymentData.amount,
+      paymentMethod: paymentData.paymentMethod,
+      referenceNumber: paymentData.referenceNumber || null,
+      transactionDate: new Date(),
+    }).returning();
 
-      // Update the invoice's amountPaid and balance
-      const invoice = await tx
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, paymentData.invoiceId))
-        .limit(1);
+    // Update invoice balance
+    const invoice = await db.select().from(invoices).where(eq(invoices.id, paymentData.invoiceId));
+    if (invoice.length > 0) {
+      const currentInvoice = invoice[0];
+      const newBalance = parseFloat(currentInvoice.balance) - parseFloat(paymentData.amount);
+      const newAmountPaid = parseFloat(currentInvoice.amountPaid) + parseFloat(paymentData.amount);
+      const newStatus = newBalance <= 0 ? 'paid' : (newBalance < parseFloat(currentInvoice.amountDue) ? 'partial' : 'unpaid');
 
-      if (invoice[0]) {
-        const newAmountPaid = (parseFloat(invoice[0].amountPaid) + parseFloat(paymentData.amount)).toString();
-        const newBalance = (parseFloat(invoice[0].amountDue) - parseFloat(newAmountPaid)).toString();
-        
-        let newStatus = invoice[0].status;
-        if (parseFloat(newBalance) <= 0) {
-          newStatus = 'paid';
-        } else if (newStatus === 'unpaid' && parseFloat(newAmountPaid) > 0) {
-          newStatus = 'partial';
-        }
+      await db.update(invoices)
+        .set({
+          balance: String(newBalance),
+          amountPaid: String(newAmountPaid),
+          status: newStatus
+        })
+        .where(eq(invoices.id, paymentData.invoiceId));
+    }
 
-        await tx
-          .update(invoices)
-          .set({
-            amountPaid: newAmountPaid,
-            balance: newBalance,
-            status: newStatus,
-          })
-          .where(eq(invoices.id, paymentData.invoiceId));
-      }
+    // Fetch the complete payment details with joins
+    const paymentWithDetails = await db
+      .select({
+        id: payments.id,
+        amount: payments.amount,
+        paymentMethod: payments.paymentMethod,
+        transactionDate: payments.transactionDate,
+        referenceNumber: payments.referenceNumber,
+        invoiceId: invoices.id,
+        invoiceAmountDue: invoices.amountDue,
+        invoiceBalance: invoices.balance,
+        studentId: students.id,
+        studentFirstName: students.firstName,
+        studentLastName: students.lastName,
+      })
+      .from(payments)
+      .leftJoin(invoices, eq(payments.invoiceId, invoices.id))
+      .leftJoin(students, eq(invoices.studentId, students.id))
+      .where(eq(payments.id, newPayment.id));
 
-      revalidatePath('/admin/invoices');
-      return paymentResult[0];
-    });
+    if (paymentWithDetails.length === 0) {
+      throw new Error('Failed to fetch payment details');
+    }
+
+    const row = paymentWithDetails[0];
+    return {
+      id: row.id,
+      amount: String(row.amount),
+      paymentMethod: row.paymentMethod,
+      transactionDate: String(row.transactionDate),
+      referenceNumber: row.referenceNumber,
+      invoice: {
+        id: row.invoiceId!,
+        amountDue: String(row.invoiceAmountDue),
+        balance: String(row.invoiceBalance),
+      },
+      student: {
+        id: row.studentId!,
+        firstName: row.studentFirstName || '',
+        lastName: row.studentLastName || '',
+      },
+    };
   } catch (error) {
     console.error('Failed to record payment:', error);
     throw new Error('Failed to record payment');
