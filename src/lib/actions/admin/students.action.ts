@@ -9,6 +9,15 @@ import { revalidatePath } from 'next/cache';
 import { ActionError } from '@/lib/utils';
 
 // Types
+
+interface Role {
+  id: number;
+  name: string;
+}
+interface User {
+  id: number;
+  role: Role;
+}
 export type StudentWithDetails = {
   id: number;
   firstName: string;
@@ -28,6 +37,7 @@ export type StudentWithDetails = {
     id: number;
     name: string;
   };
+  user?: User;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -379,13 +389,15 @@ export async function updateStudent(studentId: number, data: StudentUpdateData) 
 
   // Update user email if it was changed
   if (data.email) {
-    await db
-      .update(users)
-      .set({
-        email: data.email,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, currentStudent.userId));
+    if (currentStudent.userId !== null && currentStudent.userId !== undefined) {
+      await db
+        .update(users)
+        .set({
+          email: data.email,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, currentStudent.userId));
+    }
   }
 
   // Log the action
@@ -435,9 +447,11 @@ export async function deleteStudent(studentId: number) {
     .where(eq(students.id, studentId));
 
   // Then delete the associated user
-  await db
-    .delete(users)
-    .where(eq(users.id, student.userId));
+  if (student.userId !== null && student.userId !== undefined) {
+    await db
+      .delete(users)
+      .where(eq(users.id, student.userId));
+  }
 
   // Log the action
   await db.insert(userLogs).values({
