@@ -64,7 +64,6 @@ export default function AdminDashboardHeader() {
     {
       category: "User Management",
       items: [
-        { href: "/dashboard/admin/users", icon: <FiUsers className="w-5 h-5" />, label: "System Users" },
         { href: "/dashboard/admin/students", icon: <HiOutlineUserGroup className="w-5 h-5" />, label: "Students" },
         { href: "/dashboard/admin/staff", icon: <FiUsers className="w-5 h-5" />, label: "Staff" }
       ]
@@ -87,6 +86,13 @@ export default function AdminDashboardHeader() {
         { href: "/dashboard/admin/finance/salaries", icon: <FiDollarSign className="w-5 h-5" />, label: "Staff Salaries" }
       ]
     },
+    {
+      category: "Reports",
+      items: [
+        { href: "/dashboard/admin/reports", icon: <FiUsers className="w-5 h-5" />, label: "Analytics" },
+      ]
+    },
+
     {
       category: "System",
       items: [
