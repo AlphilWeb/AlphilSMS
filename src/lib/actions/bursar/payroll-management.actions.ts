@@ -306,7 +306,7 @@ export async function getSalaryDetails(salaryId: number): Promise<SalaryDetails>
     status: row.status,
     staff: {
       id: row.staffId,
-      userId: row.staffUserId,
+      userId: row.staffUserId ?? 0,
       firstName: row.staffFirstName,
       lastName: row.staffLastName,
       email: row.staffEmail,
