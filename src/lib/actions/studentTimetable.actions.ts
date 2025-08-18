@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/db/index';
 import { timetables, courses, staff, enrollments, students } from '@/lib/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 
 export async function getStudentTimetable() {
@@ -27,46 +27,48 @@ export async function getStudentTimetable() {
     }
 
     // Then get the enrolled courses for this semester
-    const enrolledCourses = await db.query.enrollments.findMany({
-      where: and(
-        eq(enrollments.studentId, student.id),
-        eq(enrollments.semesterId, student.currentSemesterId)
-      ),
-      columns: {
-        courseId: true
-      }
-    });
+const enrolledCourses = await db.query.enrollments.findMany({
+  where: and(
+    eq(enrollments.studentId, student.id),
+    // Conditionally check for semester ID if it's not null
+    student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
+  ),
+  columns: {
+    courseId: true
+  }
+});
 
     if (enrolledCourses.length === 0) {
       return []; // No enrolled courses means no timetable
     }
 
     // Get timetable for enrolled courses in current semester
-    const timetableData = await db
-      .select({
-        id: timetables.id,
-        courseId: timetables.courseId,
-        courseName: courses.name,
-        courseCode: courses.code,
-        dayOfWeek: timetables.dayOfWeek,
-        startTime: timetables.startTime,
-        endTime: timetables.endTime,
-        room: timetables.room,
-        lecturer: {
-          firstName: staff.firstName,
-          lastName: staff.lastName
-        }
-      })
-      .from(timetables)
-      .innerJoin(courses, eq(timetables.courseId, courses.id))
-      .innerJoin(staff, eq(timetables.lecturerId, staff.id))
-      .where(
-        and(
-          eq(timetables.semesterId, student.currentSemesterId),
-          inArray(timetables.courseId, enrolledCourses.map(e => e.courseId))
-        )
-      )
-      .orderBy(timetables.dayOfWeek, timetables.startTime);
+const timetableData = await db
+  .select({
+    id: timetables.id,
+    courseId: timetables.courseId,
+    courseName: courses.name,
+    courseCode: courses.code,
+    dayOfWeek: timetables.dayOfWeek,
+    startTime: timetables.startTime,
+    endTime: timetables.endTime,
+    room: timetables.room,
+    lecturer: {
+      firstName: staff.firstName,
+      lastName: staff.lastName
+    }
+  })
+  .from(timetables)
+  .innerJoin(courses, eq(timetables.courseId, courses.id))
+  .innerJoin(staff, eq(timetables.lecturerId, staff.id))
+  .where(
+    and(
+      // Conditionally check for a non-null semester ID
+      student.currentSemesterId !== null ? eq(timetables.semesterId, student.currentSemesterId) : sql`false`,
+      inArray(timetables.courseId, enrolledCourses.map(e => e.courseId))
+    )
+  )
+  .orderBy(timetables.dayOfWeek, timetables.startTime);
 
     return timetableData;
   } catch (error) {
