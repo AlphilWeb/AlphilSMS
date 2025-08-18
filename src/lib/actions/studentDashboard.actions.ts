@@ -51,14 +51,15 @@ export async function getStudentDashboardData() {
     }
 
     // Get current semester enrollments
-    const enrollmentsData = await db.select()
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.studentId, student.id),
-          eq(enrollments.semesterId, student.currentSemesterId)
-        )
-      );
+const enrollmentsData = await db.select()
+  .from(enrollments)
+  .where(
+    and(
+      eq(enrollments.studentId, student.id),
+      // Conditionally check for semester ID if it's not null
+      student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
+    )
+  );
 
     if (enrollmentsData.length === 0) {
       return {
@@ -143,19 +144,20 @@ export async function getStudentDashboardData() {
       const currentTime = formatTime(now);
       
       upcomingClasses = await db.select()
-        .from(timetables)
-        .where(
-          and(
-            eq(timetables.semesterId, student.currentSemesterId),
-            sql`${timetables.courseId} IN (${sql.raw(
-              enrollmentsData.map(e => e.courseId).join(',')
-            )})`,
-            sql`${timetables.dayOfWeek} IN (${sql.raw(
-              daysBetween.map(d => `'${d}'`).join(',')
-            )})`,
-            sql`${timetables.endTime} > ${currentTime}`
-          )
-        )
+  .from(timetables)
+  .where(
+    and(
+      // Conditionally check for a non-null semester ID
+      student.currentSemesterId !== null ? eq(timetables.semesterId, student.currentSemesterId) : sql`false`,
+      sql`${timetables.courseId} IN (${sql.raw(
+        enrollmentsData.map(e => e.courseId).join(',')
+      )})`,
+      sql`${timetables.dayOfWeek} IN (${sql.raw(
+        daysBetween.map(d => `'${d}'`).join(',')
+      )})`,
+      sql`${timetables.endTime} > ${currentTime}`
+    )
+  )
         .leftJoin(courses, eq(timetables.courseId, courses.id))
         .leftJoin(staff, eq(timetables.lecturerId, staff.id))
         .orderBy(asc(timetables.dayOfWeek), asc(timetables.startTime))
