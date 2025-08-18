@@ -117,42 +117,54 @@ export async function getStudentEnrolledCourses(): Promise<EnrolledCourse[]> {
       throw new Error('Student record not found');
     }
 
-    const enrolledCourses = await db
-      .select({
-        id: courses.id,
-        name: courses.name,
-        code: courses.code,
-        credits: courses.credits,
-        description: courses.description,
-        programName: programs.name,
-        programCode: programs.code,
-        semesterName: semesters.name,
-        materialsCount: sql<number>`(
-          SELECT COUNT(*) 
-          FROM ${courseMaterials} 
-          WHERE ${courseMaterials.courseId} = ${courses.id}
-        )`.as('materials_count'),
-        assignmentsCount: sql<number>`(
-          SELECT COUNT(*) 
-          FROM ${assignmentsTable} 
-          WHERE ${assignmentsTable.courseId} = ${courses.id}
-        )`.as('assignments_count'),
-        quizzesCount: sql<number>`(
-          SELECT COUNT(*) 
-          FROM ${quizzesTable} 
-          WHERE ${quizzesTable.courseId} = ${courses.id}
-        )`.as('quizzes_count')
-      })
-      .from(enrollments)
-      .innerJoin(courses, eq(enrollments.courseId, courses.id))
-      .innerJoin(programs, eq(courses.programId, programs.id))
-      .innerJoin(semesters, eq(courses.semesterId, semesters.id))
-      .where(
-        and(
-          eq(enrollments.studentId, student.id),
-          eq(enrollments.semesterId, student.currentSemesterId)
-        )
-      );
+const enrolledCourses = await db
+  .select({
+    id: courses.id,
+    name: courses.name,
+    code: courses.code,
+    credits: courses.credits,
+    description: courses.description,
+    programName: programs.name,
+    programCode: programs.code,
+    semesterName: semesters.name,
+    materialsCount: sql<number>`(
+        SELECT COUNT(*) 
+        FROM ${courseMaterials} 
+        WHERE ${courseMaterials.courseId} = ${courses.id}
+      )`.as('materials_count'),
+    assignmentsCount: sql<number>`(
+        SELECT COUNT(*) 
+        FROM ${assignmentsTable} 
+        WHERE ${assignmentsTable.courseId} = ${courses.id}
+      )`.as('assignments_count'),
+    quizzesCount: sql<number>`(
+        SELECT COUNT(*) 
+        FROM ${quizzesTable} 
+        WHERE ${quizzesTable.courseId} = ${courses.id}
+      )`.as('quizzes_count')
+  })
+  .from(enrollments)
+  .innerJoin(courses, eq(enrollments.courseId, courses.id))
+  .innerJoin(programs, eq(courses.programId, programs.id))
+  .innerJoin(semesters, eq(courses.semesterId, semesters.id))
+  .where(
+    and(
+      eq(enrollments.studentId, student.id),
+      // Check for a non-null semester ID
+      student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
+    )
+  );
+
+return enrolledCourses.map(course => ({
+  ...course,
+  credits: Number(course.credits),
+  materialsCount: Number(course.materialsCount),
+  assignmentsCount: Number(course.assignmentsCount),
+  quizzesCount: Number(course.quizzesCount),
+  programName: course.programName ?? '',
+  programCode: course.programCode ?? '',
+  semesterName: course.semesterName ?? ''
+}));
 
     return enrolledCourses.map(course => ({
       ...course,
@@ -196,39 +208,39 @@ export async function getAvailableCoursesForEnrollment(): Promise<{
       throw new Error('Student record not found');
     }
 
-    const enrolledCourseIds = await db
-      .select({ courseId: enrollments.courseId })
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.studentId, student.id),
-          eq(enrollments.semesterId, student.currentSemesterId)
-        )
-      );
+const enrolledCourseIds = await db
+  .select({ courseId: enrollments.courseId })
+  .from(enrollments)
+  .where(
+    and(
+      eq(enrollments.studentId, student.id),
+      // Only check for semester ID if it exists, otherwise return no results
+      student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
+    )
+  );
 
-    const availableCourses = await db
-      .select({
-        id: courses.id,
-        name: courses.name,
-        code: courses.code,
-        credits: courses.credits,
-        description: courses.description,
-        lecturer: {
-          firstName: staff.firstName,
-          lastName: staff.lastName
-        }
-      })
-      .from(courses)
-      .leftJoin(staff, eq(courses.lecturerId, staff.id))
-      .where(
-        and(
-          eq(courses.programId, student.programId),
-          eq(courses.semesterId, student.currentSemesterId),
-          enrolledCourseIds.length > 0 
-            ? notInArray(courses.id, enrolledCourseIds.map(e => e.courseId))
-            : undefined
-        )
-      );
+const availableCourses = await db
+  .select({
+    id: courses.id,
+    name: courses.name,
+    code: courses.code,
+    credits: courses.credits,
+    description: courses.description,
+    lecturer: {
+      firstName: staff.firstName,
+      lastName: staff.lastName
+    }
+  })
+  .from(courses)
+  .leftJoin(staff, eq(courses.lecturerId, staff.id))
+  .where(
+    and(
+      eq(courses.programId, student.programId),
+      // Conditionally add the semester ID check
+      student.currentSemesterId !== null ? eq(courses.semesterId, student.currentSemesterId) : sql`false`,
+      enrolledCourseIds.length > 0 ? notInArray(courses.id, enrolledCourseIds.map(e => e.courseId)) : undefined
+    )
+  );
 
     return availableCourses.map(course => ({
       ...course,
