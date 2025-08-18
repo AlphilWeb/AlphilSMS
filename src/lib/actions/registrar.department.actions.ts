@@ -6,7 +6,7 @@ import { getAuthUser } from '@/lib/auth';
 
 export async function getAllDepartments() {
   const authUser = await getAuthUser();
-  if (!authUser || authUser.role.toLowerCase() !== 'registrar') {
+  if (!authUser) {
     throw new Error('Unauthorized');
   }
 
