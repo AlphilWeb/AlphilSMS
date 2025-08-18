@@ -97,49 +97,58 @@ export async function getGraduationList(filters: GraduationListFilters = {}) {
     });
 
     // Then fetch additional data for each candidate
-  const candidatesWithDetails = await Promise.all(
-    graduationCandidates.map(async (student) => {
-      const [studentEnrollments, studentTranscripts] = await Promise.all([
-        db.query.enrollments.findMany({
-          where: eq(enrollments.studentId, student.id),
-          with: {
-            course: {
-              columns: {
-                name: true,
-                credits: true,
-              },
-            },
-            grade: {
-              columns: {
-                totalScore: true,
-                letterGrade: true,
-                gpa: true,
-              },
-            },
-          },
-        }),
-        db.query.transcripts.findMany({
-          where: and(
-            eq(transcripts.studentId, student.id),
-            eq(transcripts.semesterId, student.currentSemesterId)
-          ),
-          columns: {
-            id: true,
-            gpa: true,
-            cgpa: true,
-            generatedDate: true,
-            fileUrl: true,
-          },
-        }),
-      ]);
-
+const candidatesWithDetails = await Promise.all(
+  graduationCandidates.map(async (student) => {
+    // Check if the semester ID is null before performing the query
+    if (student.currentSemesterId === null) {
       return {
         ...student,
-        enrollments: studentEnrollments,
-        transcripts: studentTranscripts,
+        enrollments: [], // or whatever default is appropriate
+        transcripts: [],
       };
-    })
-  );
+    }
+
+    const [studentEnrollments, studentTranscripts] = await Promise.all([
+      db.query.enrollments.findMany({
+        where: eq(enrollments.studentId, student.id),
+        with: {
+          course: {
+            columns: {
+              name: true,
+              credits: true,
+            },
+          },
+          grade: {
+            columns: {
+              totalScore: true,
+              letterGrade: true,
+              gpa: true,
+            },
+          },
+        },
+      }),
+      db.query.transcripts.findMany({
+        where: and(
+          eq(transcripts.studentId, student.id),
+          eq(transcripts.semesterId, student.currentSemesterId)
+        ),
+        columns: {
+          id: true,
+          gpa: true,
+          cgpa: true,
+          generatedDate: true,
+          fileUrl: true,
+        },
+      }),
+    ]);
+
+    return {
+      ...student,
+      enrollments: studentEnrollments,
+      transcripts: studentTranscripts,
+    };
+  })
+);
 
     const processedCandidates = candidatesWithDetails.map((student) => {
       const totalCredits = student.enrollments.reduce(
@@ -178,7 +187,7 @@ export async function getGraduationList(filters: GraduationListFilters = {}) {
         program: student.program.name,
         programCode: student.program.code,
         department: student.program.department.name,
-        currentSemester: student.currentSemester.name,
+        currentSemester: student.currentSemester?.name,
         creditsCompleted: passedCredits,
         totalCredits: totalCredits,
         completionPercentage: completionPercentage.toFixed(2),
@@ -294,38 +303,43 @@ export async function generateGraduationTranscript(studentId: number) {
     const cgpa = totalCredits > 0 ? weightedGPA / totalCredits : 0;
 
     // Generate a mock file URL (in a real app, this would generate an actual PDF)
-    const fileUrl = `/transcripts/${student.registrationNumber}_${student.currentSemester.name.replace(/\s+/g, '_')}.pdf`;
+    const fileUrl = `/transcripts/${student.registrationNumber}_${student.currentSemester?.name.replace(/\s+/g, '_')}.pdf`;
 
     // Create or update transcript record
-    const existingTranscript = await db.query.transcripts.findFirst({
-      where: and(
-        eq(transcripts.studentId, studentId),
-        eq(transcripts.semesterId, student.currentSemester.id)
-      ),
-    });
+const semesterId = student.currentSemester?.id;
+let existingTranscript = null;
 
-    let transcript;
-    if (existingTranscript) {
-      transcript = await db.update(transcripts)
-        .set({
-          gpa: cgpa.toFixed(2),
-          cgpa: cgpa.toFixed(2),
-          fileUrl,
-          generatedDate: new Date(),
-        })
-        .where(eq(transcripts.id, existingTranscript.id))
-        .returning();
-    } else {
-      transcript = await db.insert(transcripts)
-        .values({
-          studentId,
-          semesterId: student.currentSemester.id,
-          gpa: cgpa.toFixed(2),
-          cgpa: cgpa.toFixed(2),
-          fileUrl,
-        })
-        .returning();
-    }
+if (semesterId) {
+  existingTranscript = await db.query.transcripts.findFirst({
+    where: and(
+      eq(transcripts.studentId, studentId),
+      eq(transcripts.semesterId, semesterId)
+    ),
+  });
+}
+
+let transcript;
+if (existingTranscript) {
+  transcript = await db.update(transcripts)
+    .set({
+      gpa: cgpa.toFixed(2),
+      cgpa: cgpa.toFixed(2),
+      fileUrl,
+      generatedDate: new Date(),
+    })
+    .where(eq(transcripts.id, existingTranscript.id))
+    .returning();
+} else {
+  transcript = await db.insert(transcripts)
+    .values({
+      studentId,
+      semesterId: student.currentSemester?.id ?? 0,
+      gpa: cgpa.toFixed(2),
+      cgpa: cgpa.toFixed(2),
+      fileUrl,
+    })
+    .returning();
+}
 
     return {
       success: true,
@@ -334,7 +348,7 @@ export async function generateGraduationTranscript(studentId: number) {
         studentName: `${student.firstName} ${student.lastName}`,
         registrationNumber: student.registrationNumber,
         program: student.program.name,
-        semester: student.currentSemester.name,
+        semester: student.currentSemester?.name,
       },
     };
   } catch (error) {
