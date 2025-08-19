@@ -6,31 +6,29 @@ import { s3Client, bucketName } from './s3-client';
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-// Helper function to validate file type
 function isValidFileType(file: File, allowedTypes: string[]): boolean {
   return allowedTypes.includes(file.type);
 }
 
 export async function uploadFileToR2(file: File, folder: string): Promise<string> {
-  // 1. File size validation
   if (file.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(`File size exceeds the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`);
   }
 
-  // 2. File type validation for images
-  if (folder.includes('photos') && !isValidFileType(file, ALLOWED_IMAGE_TYPES)) {
-    throw new Error('Only JPEG, PNG, and WebP images are allowed.');
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  
+  if (fileExtension !== 'pdf' && folder.includes('photos') && !isValidFileType(file, ALLOWED_IMAGE_TYPES)) {
+      throw new Error('Only JPEG, PNG, and WebP images are allowed.');
   }
 
   try {
-    const fileExtension = file.name.split('.').pop();
     const key = `${folder}/${uuidv4()}.${fileExtension}`;
     
     const params = {
       Bucket: bucketName,
       Key: key,
       Body: Buffer.from(await file.arrayBuffer()),
-      ContentType: file.type,
+      ContentType: fileExtension === 'pdf' ? 'application/pdf' : file.type,
     };
 
     await s3Client.send(new PutObjectCommand(params));
@@ -57,13 +55,11 @@ export function getPublicUrl(key: string): string {
   return `https://pub-${process.env.R2_ACCOUNT_ID}.r2.dev/${key}`;
 }
 
-// New function specifically for user photo uploads
 export async function uploadUserPhoto(file: File, userType: 'staff' | 'student'): Promise<string> {
   const folder = `users/${userType}/photos`;
   return uploadFileToR2(file, folder);
 }
 
-// New function for document uploads
 export async function uploadUserDocument(file: File, userType: 'staff' | 'student', documentType: string): Promise<string> {
   const folder = `users/${userType}/documents/${documentType}`;
   return uploadFileToR2(file, folder);
