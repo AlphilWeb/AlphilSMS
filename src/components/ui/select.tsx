@@ -19,6 +19,7 @@ export type SelectProps = {
 export function Select({ placeholder, onValueChange, value, children, className, disabled }: SelectProps) {
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
+      {/* ... (SelectPrimitive.Trigger is correct) */}
       <SelectPrimitive.Trigger
         className={cn(
           'inline-flex h-10 w-full items-center justify-between rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm',
@@ -26,7 +27,6 @@ export function Select({ placeholder, onValueChange, value, children, className,
           'transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
           className
         )}
-        // Pass the disabled prop down to the primitive trigger
         disabled={disabled}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
@@ -35,7 +35,13 @@ export function Select({ placeholder, onValueChange, value, children, className,
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
-        <SelectPrimitive.Content className="z-50 min-w-[8rem] rounded-lg border border-emerald-200 bg-white p-1 shadow-lg animate-in fade-in-80">
+        <SelectPrimitive.Content 
+          className={cn(
+            'z-50 min-w-[8rem] rounded-lg border border-emerald-200 bg-white p-1 shadow-lg',
+            'animate-in fade-in-80 ',
+          )}
+          // Remove the position="popper" prop
+        >
           <SelectPrimitive.Viewport className="p-1">
             {children}
           </SelectPrimitive.Viewport>
