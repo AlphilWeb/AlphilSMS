@@ -3,10 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Input } from '@/components/ui/input';
 import { GraduationListFilters, getGraduationList } from '@/lib/actions/registrar.graduation.action';
-import { Select, SelectItem } from '@/components/ui/select';
 import { GraduationCandidateCard } from './graduation-candidate-card';
-import { SelectTrigger, SelectValue } from '@radix-ui/react-select';
- // Assuming this component exists
 
 type GraduationListProps = {
   data: Awaited<ReturnType<typeof getGraduationList>>;
@@ -17,13 +14,9 @@ export default function GraduationList({ data }: GraduationListProps) {
   const [filteredData, setFilteredData] = useState(data);
   const [isPending, startTransition] = useTransition();
 
-  // Helper type to allow only keys of GraduationListFilters for filtering
   type FilterKey = keyof GraduationListFilters;
-
-  // Helper type to map keys to their expected value types
   type FilterValue<K extends FilterKey> = GraduationListFilters[K];
 
-  // Strongly typed handler for all filter changes
   const handleFilterChange = <K extends FilterKey>(key: K, value: FilterValue<K>) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     startTransition(async () => {
@@ -34,66 +27,111 @@ export default function GraduationList({ data }: GraduationListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* The 'disabled' prop is applied to the SelectTrigger, not the Select wrapper */}
-        <Select
-          onValueChange={(val: string) => handleFilterChange('semesterId', Number(val))}
-          value={filters.semesterId?.toString() || ''}
-        >
-          <SelectTrigger disabled={isPending}>
-            <SelectValue placeholder="Filter by Semester" />
-          </SelectTrigger>
-          {data.filters.semesters.map((sem) => (
-            <SelectItem key={sem.id} value={sem.id.toString()}>
-              {sem.name}
-            </SelectItem>
-          ))}
-        </Select>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-black">
+        {/* Semester Filter */}
+        <div className="relative">
+          <select
+            onChange={(e) => handleFilterChange('semesterId', Number(e.target.value))}
+            value={filters.semesterId?.toString() || ''}
+            disabled={isPending}
+            className={`
+              w-full h-10 pl-3 pr-8 rounded-lg border border-emerald-300 bg-white
+              text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500
+              appearance-none ${isPending ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <option value="">Filter by Semester</option>
+            {data.filters.semesters.map((sem) => (
+              <option key={sem.id} value={sem.id.toString()}>
+                {sem.name}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-emerald-600">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
 
-        <Select
-          onValueChange={(val: string) => handleFilterChange('programId', Number(val))}
-          value={filters.programId?.toString() || ''}
-        >
-          <SelectTrigger disabled={isPending}>
-            <SelectValue placeholder="Filter by Program" />
-          </SelectTrigger>
-          {data.filters.programs.map((p) => (
-            <SelectItem key={p.id} value={p.id.toString()}>
-              {p.name}
-            </SelectItem>
-          ))}
-        </Select>
+        {/* Program Filter */}
+        <div className="relative">
+          <select
+            onChange={(e) => handleFilterChange('programId', Number(e.target.value))}
+            value={filters.programId?.toString() || ''}
+            disabled={isPending}
+            className={`
+              w-full h-10 pl-3 pr-8 rounded-lg border border-emerald-300 bg-white
+              text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500
+              appearance-none ${isPending ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <option value="">Filter by Program</option>
+            {data.filters.programs.map((p) => (
+              <option key={p.id} value={p.id.toString()}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-emerald-600">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
 
-        <Select
-          onValueChange={(val: string) => handleFilterChange('departmentId', Number(val))}
-          value={filters.departmentId?.toString() || ''}
-        >
-          <SelectTrigger disabled={isPending}>
-            <SelectValue placeholder="Filter by Department" />
-          </SelectTrigger>
-          {data.filters.departments.map((d) => (
-            <SelectItem key={d.id} value={d.id.toString()}>
-              {d.name}
-            </SelectItem>
-          ))}
-        </Select>
+        {/* Department Filter */}
+        <div className="relative">
+          <select
+            onChange={(e) => handleFilterChange('departmentId', Number(e.target.value))}
+            value={filters.departmentId?.toString() || ''}
+            disabled={isPending}
+            className={`
+              w-full h-10 pl-3 pr-8 rounded-lg border border-emerald-300 bg-white
+              text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500
+              appearance-none ${isPending ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <option value="">Filter by Department</option>
+            {data.filters.departments.map((d) => (
+              <option key={d.id} value={d.id.toString()}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-emerald-600">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
 
-        <Select
-          onValueChange={(val) =>
-            handleFilterChange(
+        {/* Graduation Status Filter */}
+        <div className="relative">
+          <select
+            onChange={(e) => handleFilterChange(
               'graduationStatus',
-              val as 'pending' | 'approved' | 'completed'
-            )
-          }
-          value={filters.graduationStatus || ''}
-        >
-          <SelectTrigger disabled={isPending}>
-            <SelectValue placeholder="Graduation Status" />
-          </SelectTrigger>
-          <SelectItem value="pending">Pending</SelectItem>
-          <SelectItem value="approved">Approved</SelectItem>
-          <SelectItem value="completed">Completed</SelectItem>
-        </Select>
+              e.target.value as 'pending' | 'approved' | 'completed'
+            )}
+            value={filters.graduationStatus || ''}
+            disabled={isPending}
+            className={`
+              w-full h-10 pl-3 pr-8 rounded-lg border border-emerald-300 bg-white
+              text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500
+              appearance-none ${isPending ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <option value="">Graduation Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="completed">Completed</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-emerald-600">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       <Input
@@ -116,9 +154,23 @@ export default function GraduationList({ data }: GraduationListProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {filteredData.candidates.map((candidate) => (
-            <GraduationCandidateCard key={candidate.id} candidate={candidate} />
-          ))}
+{filteredData.candidates.map((candidate) => {
+  // Create a new object with the correct type for semestersCompleted
+  const candidateWithNumberSemesters = {
+    ...candidate,
+    semestersCompleted: candidate.semestersCompleted ?? 0,
+  };
+
+return (
+  <GraduationCandidateCard
+    key={candidate.id}
+    candidate={{
+      ...candidateWithNumberSemesters,
+      currentSemester: candidateWithNumberSemesters.currentSemester ?? '',
+    }}
+  />
+);
+})}
         </div>
       )}
     </div>
