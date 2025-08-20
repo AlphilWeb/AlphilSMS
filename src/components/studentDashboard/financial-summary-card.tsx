@@ -24,7 +24,7 @@ export default function FinancialSummaryCard({
           <h3 className="text-lg font-semibold text-black">Financial Summary</h3>
         </div>
         <Link 
-          href="/dashboard/student/finance"
+          href="/dashboard/student/payments"
           className="text-sm text-emerald-600 hover:underline"
         >
           View All
@@ -48,7 +48,7 @@ export default function FinancialSummaryCard({
             </p>
           )}
           <Link 
-            href="/dashboard/student/finance/payments"
+            href="/dashboard/student/payments"
             className="mt-2 inline-block text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
           >
             Make a Payment
