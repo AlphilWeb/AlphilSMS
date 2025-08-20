@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { updateLecturerProfile, updateLecturerDocuments } from '@/lib/actions/lecturer.profile.actions';
 import { useFormState, useFormStatus } from 'react-dom';
 import Image from 'next/image';
-// import { object } from 'zod';
 
 type ProfileState = {
   success?: string;
@@ -88,7 +87,7 @@ export default function LecturerProfileSection({ profileData }: {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 ) : (
-                  <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.firstName}</p>
+                  <p className="px-3 py-2 text-pink-600 bg-gray-50 rounded-md">{profileData.firstName}</p>
                 )}
                 {profileState?.fieldErrors?.firstName?.map((error, i) => (
                   <p key={`firstName-error-${i}`} className="text-sm text-red-600">{error}</p>
@@ -104,7 +103,7 @@ export default function LecturerProfileSection({ profileData }: {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 ) : (
-                  <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.lastName}</p>
+                  <p className="px-3 py-2 text-pink-600 bg-gray-50 rounded-md">{profileData.lastName}</p>
                 )}
                 {profileState?.fieldErrors?.lastName?.map((error, i) => (
                   <p key={`lastName-error-${i}`} className="text-sm text-red-600">{error}</p>
@@ -115,7 +114,7 @@ export default function LecturerProfileSection({ profileData }: {
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiMail className="mr-2" /> Email
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.email}</p>
+                <p className="px-3 py-2 text-pink-600 bg-gray-50 rounded-md">{profileData.email}</p>
               </div>
 
               <div className="space-y-2">
@@ -134,7 +133,7 @@ export default function LecturerProfileSection({ profileData }: {
                     ))}
                   </>
                 ) : (
-                  <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.position}</p>
+                  <p className="px-3 py-2 text-pink-600 bg-gray-50 rounded-md">{profileData.position}</p>
                 )}
               </div>
 
@@ -142,14 +141,14 @@ export default function LecturerProfileSection({ profileData }: {
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiUser className="mr-2" /> Department
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">{profileData.departmentName}</p>
+                <p className="px-3 py-2 text-pink-600 bg-gray-50 rounded-md">{profileData.departmentName}</p>
               </div>
 
               <div className="space-y-2">
                 <label className="flex items-center text-sm font-medium text-gray-700">
                   <FiCalendar className="mr-2" /> Member Since
                 </label>
-                <p className="px-3 py-2 text-blue-600 bg-gray-50 rounded-md">
+                <p className="px-3 py-2 text-pink-600 bg-gray-50 rounded-md">
                   {new Date(profileData.createdAt).toLocaleDateString()}
                 </p>
               </div>
@@ -168,7 +167,7 @@ export default function LecturerProfileSection({ profileData }: {
                   <button
                     type="submit"
                     disabled={isProfilePending}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-blue-400"
+                    className="px-4 py-2 bg-pink-600 text-white rounded-md disabled:bg-pink-400"
                   >
                     {isProfilePending ? 'Saving...' : (
                       <>
@@ -181,7 +180,7 @@ export default function LecturerProfileSection({ profileData }: {
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-md"
                 >
                   <FiEdit className="inline mr-1" /> Edit Profile
                 </button>
@@ -254,7 +253,7 @@ export default function LecturerProfileSection({ profileData }: {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                className="px-4 py-2 bg-pink-600 text-white rounded-md"
               >
                 <FiSave className="inline mr-1" /> Save Documents
               </button>
