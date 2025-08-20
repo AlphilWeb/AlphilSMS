@@ -123,7 +123,7 @@ export default function LecturerDashboardHeader() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-6 py-3 flex items-center justify-between">
+        <div className="px-6 py-1 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Hamburger menu button for mobile screens */}
             <button
@@ -141,10 +141,10 @@ export default function LecturerDashboardHeader() {
               alt="College Logo"
               width={50}
               height={50}
-              className="h-14 w-auto"
+              className="h-16 w-auto"
               priority
             />
-            <h1 className="text-xl font-bold text-blue-500 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <h1 className="text-[1rem] font-bold text-pink-500 mt-8 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           <div className="flex items-center space-x-6">
