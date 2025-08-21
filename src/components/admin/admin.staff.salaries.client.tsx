@@ -1,7 +1,7 @@
 // components/admin/admin.staff-salaries.client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   getAllStaffSalaries,
   getSalaryById,
@@ -14,6 +14,7 @@ import {
   type StaffSalaryData,
   type SalarySummary
 } from '@/lib/actions/admin/staff.salaries.actions';
+import { getAllStaff } from '@/lib/actions/admin/staff.actions'; // Add this import
 
 import {
   FiDollarSign, FiUser, FiPlus, FiEdit2, 
@@ -22,6 +23,17 @@ import {
   FiCreditCard, FiPieChart
 } from 'react-icons/fi';
 import { format } from 'date-fns';
+
+interface StaffMember {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  department?: {
+    id: number;
+    name: string;
+  };
+}
 
 export default function AdminStaffSalariesClient() {
   const [salaries, setSalaries] = useState<StaffSalaryWithDetails[]>([]);
@@ -41,12 +53,21 @@ export default function AdminStaffSalariesClient() {
     summary: true,
     details: false,
     create: false,
-    update: false
+    update: false,
+    staff: false // Add staff loading state
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'recent'>('all');
+
+  // Add state for staff data and combobox
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([]);
+  const [staffSearch, setStaffSearch] = useState('');
+  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
+  const [selectedStaffName, setSelectedStaffName] = useState('');
+  const staffDropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState<Partial<StaffSalaryData>>({
     staffId: 0,
@@ -56,22 +77,25 @@ export default function AdminStaffSalariesClient() {
     status: 'pending'
   });
 
-  // Fetch initial data
+  // Fetch initial data including staff
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(prev => ({ ...prev, salaries: true, recent: true, summary: true }));
+        setLoading(prev => ({ ...prev, salaries: true, recent: true, summary: true, staff: true }));
         setError(null);
         
-        const [salariesData, recentData, summaryData] = await Promise.all([
+        const [salariesData, recentData, summaryData, staffData] = await Promise.all([
           getAllStaffSalaries(),
           getRecentSalaries(),
-          getSalarySummary()
+          getSalarySummary(),
+          getAllStaff() // Fetch staff data
         ]);
         
         setSalaries(salariesData);
         setRecentSalaries(recentData);
         setSummary(summaryData);
+        setStaff(staffData);
+        setFilteredStaff(staffData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
@@ -79,13 +103,57 @@ export default function AdminStaffSalariesClient() {
           ...prev, 
           salaries: false, 
           recent: false,
-          summary: false 
+          summary: false,
+          staff: false
         }));
       }
     };
 
     loadData();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (staffDropdownRef.current && !staffDropdownRef.current.contains(event.target as Node)) {
+        setShowStaffDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen) {
+      setStaffSearch('');
+      setSelectedStaffName('');
+      setFormData({
+        staffId: 0,
+        amount: '',
+        paymentDate: '',
+        description: '',
+        status: 'pending'
+      });
+    }
+  }, [isCreateModalOpen]);
+
+  // Filter staff based on search
+  useEffect(() => {
+    if (!staffSearch.trim()) {
+      setFilteredStaff(staff);
+      return;
+    }
+
+    const filtered = staff.filter(staffMember => 
+      staffMember.firstName.toLowerCase().includes(staffSearch.toLowerCase()) ||
+      staffMember.lastName.toLowerCase().includes(staffSearch.toLowerCase()) ||
+      staffMember.email.toLowerCase().includes(staffSearch.toLowerCase()) ||
+      staffMember.department?.name.toLowerCase().includes(staffSearch.toLowerCase())
+    );
+    setFilteredStaff(filtered);
+  }, [staffSearch, staff]);
 
   // Handle search
   useEffect(() => {
@@ -165,12 +233,12 @@ export default function AdminStaffSalariesClient() {
         status: formData.status!,
         staff: {
           id: formData.staffId!,
-          firstName: '', // Will be updated when selected
-          lastName: '',
-          email: '',
+          firstName: staff.find(s => s.id === formData.staffId)?.firstName || '',
+          lastName: staff.find(s => s.id === formData.staffId)?.lastName || '',
+          email: staff.find(s => s.id === formData.staffId)?.email || '',
           department: {
-            id: 0,
-            name: ''
+            id: staff.find(s => s.id === formData.staffId)?.department?.id || 0,
+            name: staff.find(s => s.id === formData.staffId)?.department?.name || ''
           }
         }
       }]);
@@ -191,6 +259,8 @@ export default function AdminStaffSalariesClient() {
         description: '',
         status: 'pending'
       });
+      setStaffSearch('');
+      setSelectedStaffName('');
       setSuccess('Salary record created successfully!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create salary record');
@@ -547,7 +617,7 @@ export default function AdminStaffSalariesClient() {
         )}
       </div>
 
-      {/* Create Salary Modal */}
+      {/* Create Salary Modal - Updated with Staff Combobox */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
@@ -564,18 +634,70 @@ export default function AdminStaffSalariesClient() {
             </div>
             
             <div className="p-6 space-y-4">
-              <div>
+              {/* Staff Search and Select Combobox */}
+              <div className="relative" ref={staffDropdownRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Staff ID
+                  Staff Member *
                 </label>
-                <input
-                  type="number"
-                  value={formData.staffId || ''}
-                  onChange={(e) => setFormData({...formData, staffId: parseInt(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="123"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={selectedStaffName || "Search staff members..."}
+                    value={staffSearch}
+                    onChange={(e) => {
+                      setStaffSearch(e.target.value);
+                      setShowStaffDropdown(true);
+                    }}
+                    onFocus={() => setShowStaffDropdown(true)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                  />
+                  {selectedStaffName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStaffSearch('');
+                        setSelectedStaffName('');
+                        setFormData(prev => ({ ...prev, staffId: 0 }));
+                      }}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  )}
+                </div>
+                
+                {/* Staff Dropdown */}
+                {showStaffDropdown && filteredStaff.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                    {filteredStaff.map(staffMember => (
+                      <div
+                        key={staffMember.id}
+                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, staffId: staffMember.id }));
+                          setSelectedStaffName(`${staffMember.firstName} ${staffMember.lastName}`);
+                          setStaffSearch('');
+                          setShowStaffDropdown(false);
+                        }}
+                      >
+                        <div className="font-medium">{staffMember.firstName} {staffMember.lastName}</div>
+                        <div className="text-gray-500 text-xs">
+                          {staffMember.email} • {staffMember.department?.name || 'No Department'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Show selected staff */}
+                {selectedStaffName && (
+                  <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-md">
+                    <div className="text-sm font-medium text-emerald-800">Selected:</div>
+                    <div className="text-sm text-emerald-600">{selectedStaffName}</div>
+                  </div>
+                )}
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Amount
@@ -658,6 +780,7 @@ export default function AdminStaffSalariesClient() {
           </div>
         </div>
       )}
+
 
       {/* View Salary Details Modal */}
       {isViewModalOpen && selectedSalary && (
