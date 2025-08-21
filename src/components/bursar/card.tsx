@@ -3,7 +3,6 @@ interface CardProps {
   title: string;
   value: string;
   icon: React.ReactNode;
-//   trend?: 'up' | 'down' | 'neutral';
   link: string;
   linkText: string;
 }
