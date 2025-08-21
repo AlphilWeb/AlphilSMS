@@ -17,7 +17,8 @@ import {
 
 import {
   FiBook, FiUsers, FiFileText, FiClock, FiUpload, 
-  FiTrash2, FiDownload, FiChevronDown, FiChevronUp
+  FiTrash2, FiDownload, FiChevronDown, FiChevronUp,
+  FiX
 } from 'react-icons/fi';
 
 import TipTapEditor from '@/components/TipTapEditor';
@@ -37,7 +38,8 @@ interface MaterialContent {
 
 export default function LecturerCoursesClient() {
   const [courses, setCourses] = useState<CourseWithProgram[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<CourseDetails | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseWithProgram | null>(null);
+  const [courseDetails, setCourseDetails] = useState<CourseDetails | null>(null);
   const [materials, setMaterials] = useState<CourseMaterial[]>([]);
   const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([]);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
@@ -52,6 +54,7 @@ export default function LecturerCoursesClient() {
   });
   const [error, setError] = useState<string | null>(null);
   const [expandedMaterialIds, setExpandedMaterialIds] = useState<Set<number>>(new Set());
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [newMaterial, setNewMaterial] = useState<{
     title: string;
     type: 'notes' | 'pdf';
@@ -94,8 +97,9 @@ export default function LecturerCoursesClient() {
   }, []);
 
   // Load course details when selected
-  const handleSelectCourse = async (courseId: number) => {
+  const handleSelectCourse = async (course: CourseWithProgram) => {
     try {
+      setSelectedCourse(course);
       setLoading(prev => ({ 
         ...prev, 
         details: true,
@@ -106,17 +110,18 @@ export default function LecturerCoursesClient() {
       setError(null);
       
       const [details, mats, enrolls, timetable] = await Promise.all([
-        getCourseDetails(courseId),
-        getCourseMaterials(courseId),
-        getCourseEnrollments(courseId),
-        getCourseTimetable(courseId)
+        getCourseDetails(course.id),
+        getCourseMaterials(course.id),
+        getCourseEnrollments(course.id),
+        getCourseTimetable(course.id)
       ]);
 
-      setSelectedCourse(details);
+      setCourseDetails(details);
       setMaterials(mats);
       setEnrollments(enrolls);
       setTimetable(timetable);
       setActiveTab('materials');
+      setIsModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load course details');
     } finally {
@@ -128,6 +133,17 @@ export default function LecturerCoursesClient() {
         timetable: false
       }));
     }
+  };
+
+  // Close modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedCourse(null);
+    setCourseDetails(null);
+    setMaterials([]);
+    setEnrollments([]);
+    setTimetable([]);
+    setError(null);
   };
 
   // Handle file upload
@@ -142,7 +158,7 @@ export default function LecturerCoursesClient() {
 
   // Submit new material
   const handleUploadMaterial = async () => {
-    if (!selectedCourse) {
+    if (!courseDetails) {
       setError('Please select a course.');
       return;
     }
@@ -170,7 +186,7 @@ export default function LecturerCoursesClient() {
         formData.append('file', newMaterial.file);
       }
 
-      const uploadedMaterial = await uploadCourseMaterial(selectedCourse.id, formData);
+      const uploadedMaterial = await uploadCourseMaterial(courseDetails.id, formData);
 
       setMaterials(prev => [{
         ...uploadedMaterial,
@@ -195,7 +211,7 @@ export default function LecturerCoursesClient() {
 
   // Delete material
   const handleDeleteMaterial = async (materialId: number) => {
-    if (!selectedCourse) return;
+    if (!courseDetails) return;
     
     try {
       setError(null);
@@ -211,25 +227,24 @@ export default function LecturerCoursesClient() {
     }
   };
 
-const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
-  try {
-    const result = await getDownloadUrl(itemId, itemType);
-    
-    if (result.success && result.url) {
-      const a = document.createElement('a');
-      a.href = result.url;
-      a.download = 'document.pdf'; // Add a proper filename
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      throw new Error(result.error || 'Failed to get download URL');
+  const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
+    try {
+      const result = await getDownloadUrl(itemId, itemType);
+      
+      if (result.success && result.url) {
+        const a = document.createElement('a');
+        a.href = result.url;
+        a.download = 'document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        throw new Error(result.error || 'Failed to get download URL');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Download failed');
     }
-  } catch (error) {
-    setError(error instanceof Error ? error.message : 'Download failed');
-  }
-};
-
+  };
 
   // Format time
   const formatTime = (time: string) => {
@@ -275,134 +290,188 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Courses List */}
-        <div className="lg:col-span-1">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">Your Courses</h2>
-          
-          {loading.courses ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"></div>
-              ))}
-            </div>
-          ) : courses.length === 0 ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No courses found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {courses.map((course) => (
-                <div
-                  key={course.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedCourse?.id === course.id 
-                      ? 'border-pink-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => handleSelectCourse(course.id)}
-                >
-                  <div>
-                    <h3 className="font-semibold text-gray-800">{course.name}</h3>
-                    <p className="text-sm text-gray-600">{course.code} • {course.program.code}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {course.semester.name} • {course.credits} credits
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Courses Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-700">Your Courses</h2>
         </div>
-
-        {/* Course Details */}
-        <div className="lg:col-span-3">
-          {!selectedCourse ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">Select a course to view details</p>
+        
+        {loading.courses ? (
+          <div className="p-4">
+            <div className="animate-pulse">
+              <div className="h-10 bg-gray-200 rounded mb-2"></div>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-14 bg-gray-100 rounded mb-2"></div>
+              ))}
             </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Course Header */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800">
-                      {selectedCourse.name} ({selectedCourse.code})
-                    </h2>
-                    <p className="text-gray-600">
-                      {selectedCourse.program.name} • {selectedCourse.semester.name}
-                    </p>
-                    {selectedCourse.description && (
-                      <p className="mt-2 text-gray-700">{selectedCourse.description}</p>
-                    )}
-                  </div>
-                </div>
+          </div>
+        ) : courses.length === 0 ? (
+          <div className="p-6 text-center">
+            <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+            <p className="text-gray-500">No courses found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Course Code
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Course Name
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Program
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Semester
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Credits
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {courses.map((course) => (
+                  <tr 
+                    key={course.id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleSelectCourse(course)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {course.code}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {course.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {course.program.code}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {course.semester.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {course.credits}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleSelectCourse(course)}
+                        className="text-pink-600 hover:text-pink-900"
+                      >
+                        Manage
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  <div className="bg-blue-50 p-3 rounded-lg">
+      {/* Course Management Modal */}
+      {isModalOpen && selectedCourse && (
+        <div className="fixed inset-0 backdrop-blur-sm border border-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {selectedCourse.name} ({selectedCourse.code})
+                </h2>
+                <p className="text-gray-600">
+                  {selectedCourse.program.name} • {selectedCourse.semester.name}
+                </p>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* Course Stats */}
+            {courseDetails && (
+              <div className="p-6 bg-gray-50 border-b border-gray-200">
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
                     <p className="text-xs text-gray-500">Students</p>
-                    <p className="font-medium text-blue-600">
-                      {selectedCourse.studentCount}
+                    <p className="font-medium text-pink-600 text-xl">
+                      {courseDetails.studentCount}
                     </p>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
                     <p className="text-xs text-gray-500">Materials</p>
-                    <p className="font-medium text-green-600">
-                      {selectedCourse.materialsCount}
+                    <p className="font-medium text-green-600 text-xl">
+                      {courseDetails.materialsCount}
                     </p>
                   </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
                     <p className="text-xs text-gray-500">Credits</p>
-                    <p className="font-medium text-purple-600">
-                      {selectedCourse.credits}
+                    <p className="font-medium text-purple-600 text-xl">
+                      {courseDetails.credits}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <p className="text-xs text-gray-500">Status</p>
+                    <p className="font-medium text-gray-600 text-xl">
+                      Active
                     </p>
                   </div>
                 </div>
+                {courseDetails.description && (
+                  <p className="mt-4 text-gray-700">{courseDetails.description}</p>
+                )}
               </div>
+            )}
 
-              {/* Tabs */}
-              <div className="flex border-b border-gray-200">
-                <button
-                  className={`px-4 py-2 font-medium flex items-center gap-2 ${
-                    activeTab === 'materials'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('materials')}
-                >
-                  <FiFileText /> Materials
-                </button>
-                <button
-                  className={`px-4 py-2 font-medium flex items-center gap-2 ${
-                    activeTab === 'students'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('students')}
-                >
-                  <FiUsers /> Students
-                </button>
-                <button
-                  className={`px-4 py-2 font-medium flex items-center gap-2 ${
-                    activeTab === 'timetable'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('timetable')}
-                >
-                  <FiClock /> Timetable
-                </button>
-              </div>
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                className={`px-6 py-3 font-medium flex items-center gap-2 ${
+                  activeTab === 'materials'
+                    ? 'text-pink-600 border-b-2 border-pink-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('materials')}
+              >
+                <FiFileText /> Materials
+              </button>
+              <button
+                className={`px-6 py-3 font-medium flex items-center gap-2 ${
+                  activeTab === 'students'
+                    ? 'text-pink-600 border-b-2 border-pink-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('students')}
+              >
+                <FiUsers /> Students
+              </button>
+              <button
+                className={`px-6 py-3 font-medium flex items-center gap-2 ${
+                  activeTab === 'timetable'
+                    ? 'text-pink-600 border-b-2 border-pink-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('timetable')}
+              >
+                <FiClock /> Timetable
+              </button>
+            </div>
 
+            {/* Modal Content */}
+            <div className="p-6">
               {/* Materials Tab */}
               {activeTab === 'materials' && (
                 <div className="space-y-6">
                   {/* Upload Form */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-medium mb-4 flex items-center gap-2 text-blue-600">
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <h3 className="text-lg font-medium mb-4 flex items-center gap-2 text-pink-600">
                       <FiUpload /> Upload New Material
                     </h3>
                     <div className="space-y-4">
@@ -456,8 +525,8 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                           </label>
                           <div className="relative">
                             <label className={`flex flex-col items-center justify-center w-full px-4 py-6 border-2 border-dashed ${
-                              newMaterial.file ? 'border-blue-300' : 'border-gray-300'
-                            } rounded-md cursor-pointer hover:border-blue-400 transition-colors`}>
+                              newMaterial.file ? 'border-pink-300' : 'border-gray-300'
+                            } rounded-md cursor-pointer hover:border-pink-400 transition-colors`}>
                               <input
                                 type="file"
                                 onChange={handleFileChange}
@@ -495,8 +564,8 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                           loading.upload
                         }
                         className={`w-full px-4 py-2 rounded-md text-white flex items-center justify-center gap-2 ${
-                          loading.upload ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-                        } transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed`}
+                          loading.upload ? 'bg-pink-400' : 'bg-pink-600 hover:bg-pink-700'
+                        } transition-colors disabled:bg-pink-300 disabled:cursor-not-allowed`}
                       >
                         {loading.upload ? (
                           <>
@@ -543,7 +612,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                                 <div>
                                   <h4 className="font-medium text-gray-800">{material.title}</h4>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full capitalize">
+                                    <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
                                       {material.type}
                                     </span>
                                     <span className="text-xs text-gray-500">
@@ -553,26 +622,16 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                                 </div>
                                 <div className="flex items-center gap-3">
                                   {material.type === 'pdf' && material.fileUrl && (
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDownload(material.id, 'course-material');
-  }}
-  className="text-blue-600 hover:text-blue-800 p-1"
-  title="Download"
->
-  <FiDownload size={16} />
-</button>
-                                        // <button
-                                        //   onClick={(e) => {
-                                        //     e.stopPropagation();
-                                        //     handleDownload(material.id, 'course-material');
-                                        //   }}
-                                        //   className="text-emerald-600 hover:text-emerald-800 p-1"
-                                        //   title="Download"
-                                        // >
-                                        //   <FiDownload size={16} />
-                                        // </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownload(material.id, 'course-material');
+                                      }}
+                                      className="text-pink-600 hover:text-pink-800 p-1"
+                                      title="Download"
+                                    >
+                                      <FiDownload size={16} />
+                                    </button>
                                   )}
                                   <button
                                     onClick={(e) => {
@@ -699,9 +758,9 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
