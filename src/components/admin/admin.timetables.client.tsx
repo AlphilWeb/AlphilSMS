@@ -46,57 +46,15 @@ export default function AdminTimetablesClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  // const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
-  // const [selectedLecturer, setSelectedLecturer] = useState<number | null>(null);
   const [availableRooms, setAvailableRooms] = useState<string[]>([]);
+  console.log(availableRooms);
   const [conflictError, setConflictError] = useState<string | null>(null);
-const [semestersList, setSemestersList] = useState<SelectSemester[]>([]);
-const [selectedSemester, setSelectedSemester] = useState<number | null>(null);
-
-useEffect(() => {
-  async function loadSemesters() {
-    try {
-      const data = await fetchSemesters();
-      setSemestersList(data);
-    } catch (error) {
-      // You should handle this error gracefully in your UI
-      console.error("Failed to load semesters:", error);
-    }
-  }
-
-  loadSemesters();
-}, []); // The empty array ensures this runs only once
-
-const [coursesList, setCoursesList] = useState<SelectCourse[]>([]);
-const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
-
-useEffect(() => {
-  async function loadCourses() {
-    try {
-      const data = await fetchCourses();
-      setCoursesList(data);
-    } catch (error) {
-      console.error("Failed to load courses:", error);
-    }
-  }
-  loadCourses();
-}, []); // The empty array ensures this runs only once on mount
-
-const [lecturersList, setLecturersList] = useState<SelectStaff[]>([]);
-const [selectedLecturer, setSelectedLecturer] = useState<number | null>(null);
-
-useEffect(() => {
-  async function loadLecturers() {
-    try {
-      const data = await fetchLecturers();
-      setLecturersList(data);
-    } catch (error) {
-      console.error("Failed to load lecturers:", error);
-    }
-  }
-  loadLecturers();
-}, []); // The empty array ensures this runs only once
-
+  const [semestersList, setSemestersList] = useState<SelectSemester[]>([]);
+  const [selectedSemester, setSelectedSemester] = useState<number | null>(null);
+  const [coursesList, setCoursesList] = useState<SelectCourse[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
+  const [lecturersList, setLecturersList] = useState<SelectStaff[]>([]);
+  const [selectedLecturer, setSelectedLecturer] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<TimetableData>({
     semesterId: 0,
@@ -107,6 +65,45 @@ useEffect(() => {
     endTime: '09:00',
     room: null
   });
+
+  // Load semesters
+  useEffect(() => {
+    async function loadSemesters() {
+      try {
+        const data = await fetchSemesters();
+        setSemestersList(data);
+      } catch (error) {
+        console.error("Failed to load semesters:", error);
+      }
+    }
+    loadSemesters();
+  }, []);
+
+  // Load courses
+  useEffect(() => {
+    async function loadCourses() {
+      try {
+        const data = await fetchCourses();
+        setCoursesList(data);
+      } catch (error) {
+        console.error("Failed to load courses:", error);
+      }
+    }
+    loadCourses();
+  }, []);
+
+  // Load lecturers
+  useEffect(() => {
+    async function loadLecturers() {
+      try {
+        const data = await fetchLecturers();
+        setLecturersList(data);
+      } catch (error) {
+        console.error("Failed to load lecturers:", error);
+      }
+    }
+    loadLecturers();
+  }, []);
 
   // Fetch timetables based on current view mode
   useEffect(() => {
@@ -400,56 +397,54 @@ useEffect(() => {
       {viewMode === 'semester' && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <label className="block text-sm font-medium text-gray-700 mb-2">Select Semester</label>
-<select
-  value={selectedSemester || ''}
-  onChange={(e) => setSelectedSemester(Number(e.target.value))}
-  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
->
-  <option value="">Select a semester</option>
-  {semestersList.map(semester => (
-    <option key={semester.id} value={semester.id}>
-      {semester.name}
-    </option>
-  ))}
-</select>
+          <select
+            value={selectedSemester || ''}
+            onChange={(e) => setSelectedSemester(Number(e.target.value))}
+            className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+          >
+            <option value="">Select a semester</option>
+            {semestersList.map(semester => (
+              <option key={semester.id} value={semester.id}>
+                {semester.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
       {viewMode === 'course' && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
-<select
-  value={selectedCourse || ''}
-  onChange={(e) => setSelectedCourse(Number(e.target.value))}
-  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
->
-  <option value="">Select a course</option>
-  {/* This is the new, dynamic part */}
-  {coursesList.map(course => (
-    <option key={course.id} value={course.id}>
-      {course.name}
-    </option>
-  ))}
-</select>
+          <select
+            value={selectedCourse || ''}
+            onChange={(e) => setSelectedCourse(Number(e.target.value))}
+            className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+          >
+            <option value="">Select a course</option>
+            {coursesList.map(course => (
+              <option key={course.id} value={course.id}>
+                {course.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
       {viewMode === 'lecturer' && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <label className="block text-sm font-medium text-gray-700 mb-2">Select Lecturer</label>
-<select
-  value={selectedLecturer || ''}
-  onChange={(e) => setSelectedLecturer(Number(e.target.value))}
-  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
->
-  <option value="">Select a lecturer</option>
-  {lecturersList.map(lecturer => (
-    <option key={lecturer.id} value={lecturer.id}>
-      {/* You can display the full name for a user-friendly experience */}
-      {`${lecturer.firstName} ${lecturer.lastName}`}
-    </option>
-  ))}
-</select>
+          <select
+            value={selectedLecturer || ''}
+            onChange={(e) => setSelectedLecturer(Number(e.target.value))}
+            className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+          >
+            <option value="">Select a lecturer</option>
+            {lecturersList.map(lecturer => (
+              <option key={lecturer.id} value={lecturer.id}>
+                {`${lecturer.firstName} ${lecturer.lastName}`}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
@@ -617,56 +612,54 @@ useEffect(() => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Semester
                 </label>
-<select
-  value={selectedSemester || ''}
-  onChange={(e) => setSelectedSemester(Number(e.target.value))}
-  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
->
-  <option value="">Select a semester</option>
-  {semestersList.map(semester => (
-    <option key={semester.id} value={semester.id}>
-      {semester.name}
-    </option>
-  ))}
-</select>
+                <select
+                  value={formData.semesterId || ''}
+                  onChange={(e) => setFormData({...formData, semesterId: Number(e.target.value)})}
+                  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+                >
+                  <option value="">Select a semester</option>
+                  {semestersList.map(semester => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Course
                 </label>
-<select
-  value={selectedCourse || ''}
-  onChange={(e) => setSelectedCourse(Number(e.target.value))}
-  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
->
-  <option value="">Select a course</option>
-  {/* This is the new, dynamic part */}
-  {coursesList.map(course => (
-    <option key={course.id} value={course.id}>
-      {course.name}
-    </option>
-  ))}
-</select>
+                <select
+                  value={formData.courseId || ''}
+                  onChange={(e) => setFormData({...formData, courseId: Number(e.target.value)})}
+                  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+                >
+                  <option value="">Select a course</option>
+                  {coursesList.map(course => (
+                    <option key={course.id} value={course.id}>
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Lecturer
                 </label>
-<select
-  value={selectedLecturer || ''}
-  onChange={(e) => setSelectedLecturer(Number(e.target.value))}
-  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
->
-  <option value="">Select a lecturer</option>
-  {lecturersList.map(lecturer => (
-    <option key={lecturer.id} value={lecturer.id}>
-      {/* You can display the full name for a user-friendly experience */}
-      {`${lecturer.firstName} ${lecturer.lastName}`}
-    </option>
-  ))}
-</select>
+                <select
+                  value={formData.lecturerId || ''}
+                  onChange={(e) => setFormData({...formData, lecturerId: Number(e.target.value)})}
+                  className="text-black mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm rounded-md"
+                >
+                  <option value="">Select a lecturer</option>
+                  {lecturersList.map(lecturer => (
+                    <option key={lecturer.id} value={lecturer.id}>
+                      {`${lecturer.firstName} ${lecturer.lastName}`}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -688,16 +681,13 @@ useEffect(() => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Room
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.room || ''}
                     onChange={(e) => setFormData({...formData, room: e.target.value || null})}
+                    placeholder="Enter room number or name"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  >
-                    <option value="">Select room</option>
-                    {availableRooms.map(room => (
-                      <option key={room} value={room}>{room}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
               
@@ -815,16 +805,13 @@ useEffect(() => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Room
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.room || ''}
                     onChange={(e) => setFormData({...formData, room: e.target.value || null})}
+                    placeholder="Enter room number or name"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  >
-                    <option value="">Select room</option>
-                    {availableRooms.map(room => (
-                      <option key={room} value={room}>{room}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
               
