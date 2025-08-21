@@ -21,22 +21,33 @@ export default function BursarDashboard() {
   const [reportData, setReportData] = useState<FinancialReportData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const result = await getBursarDashboardData();
-        setData(result);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
-        toast.error('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const result = await getBursarDashboardData();
 
-    fetchData();
-  }, []);
+      // Create a new object to transform the 'email' property
+      const transformedResult = {
+        ...result,
+        bursar: {
+          ...result.bursar,
+          email: result.bursar.email ?? null,
+        },
+      };
+
+      setData(transformedResult);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data');
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
 
   const generateReport = async () => {
     if (!dateRange?.from || !dateRange?.to) return;
