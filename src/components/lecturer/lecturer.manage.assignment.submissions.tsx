@@ -30,7 +30,7 @@ export default function LecturerSubmissionsManager({
   const [submissions, setSubmissions] = useState<SubmissionWithDetails[]>(initialSubmissions);
   const [statistics, setStatistics] = useState<CourseSubmissionsOverview[]>(initialStatistics);
   const [selectedCourse, setSelectedCourse] = useState<number | 'all'>('all');
-  const [isLoading, setIsLoading] = useState(false); // Start as false since we have initial data
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Modal states
@@ -102,25 +102,24 @@ export default function LecturerSubmissionsManager({
     });
   };
 
-  
-const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
-  try {
-    const result = await getDownloadUrl(itemId, itemType);
-    
-    if (result.success && result.url) {
-      const a = document.createElement('a');
-      a.href = result.url;
-      a.download = 'document.pdf'; // Add a proper filename
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      throw new Error(result.error || 'Failed to get download URL');
+  const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
+    try {
+      const result = await getDownloadUrl(itemId, itemType);
+      
+      if (result.success && result.url) {
+        const a = document.createElement('a');
+        a.href = result.url;
+        a.download = 'document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        throw new Error(result.error || 'Failed to get download URL');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Download failed');
     }
-  } catch (error) {
-    setError(error instanceof Error ? error.message : 'Download failed');
-  }
-};
+  };
 
   // Status badge component
   const StatusBadge = ({ submission }: { submission: SubmissionWithDetails }) => {
@@ -184,7 +183,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
           </select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 ">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {statistics.map((course) => (
             <div 
               key={course.courseId} 
@@ -221,7 +220,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
       </div>
 
       {/* Submissions Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -281,26 +280,16 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex gap-3">
-                      {/* <a
-                        href={submission.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Download submission"
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(submission.id, 'assignment');
+                        }}
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                        title="Download"
                       >
                         <FiDownload size={16} />
-                      </a> */}
-
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDownload(submission.id, 'assignment');
-  }}
-  className="text-blue-600 hover:text-blue-800 p-1"
-  title="Download"
->
-  <FiDownload size={16} />
-</button>
+                      </button>
 
                       <button
                         onClick={() => {
@@ -330,7 +319,7 @@ const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 
       {/* Grade Submission Modal */}
       {showGradeModal && currentSubmission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
                 {currentSubmission.grade !== null ? 'Update Grade' : 'Grade Submission'}
