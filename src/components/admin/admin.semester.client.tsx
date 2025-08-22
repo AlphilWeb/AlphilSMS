@@ -21,7 +21,8 @@ import {
 
 import {
   FiCalendar, FiBook, FiUsers, FiClock, FiPlus, 
-  FiEdit2, FiTrash2, FiLoader, FiX
+  FiEdit2, FiTrash2, FiLoader, FiX, FiChevronUp,
+  FiChevronDown, FiSearch
 } from 'react-icons/fi';
 import { ActionError } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ export default function AdminSemestersClient() {
   const [timetables, setTimetables] = useState<SemesterTimetable[]>([]);
   const [activeTab, setActiveTab] = useState<'courses' | 'students' | 'events' | 'timetables'>('courses');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [loading, setLoading] = useState({
     semesters: true,
     details: false,
@@ -52,6 +54,11 @@ export default function AdminSemestersClient() {
     endDate: ''
   });
   const [editMode, setEditMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'name',
+    direction: 'asc'
+  });
 
   // Fetch all semesters on component mount
   useEffect(() => {
@@ -70,6 +77,45 @@ export default function AdminSemestersClient() {
 
     loadSemesters();
   }, []);
+
+  // Sort semesters
+  const sortedSemesters = [...semesters].sort((a, b) => {
+    if (sortConfig.key === 'name') {
+      return sortConfig.direction === 'asc' 
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    }
+    if (sortConfig.key === 'startDate') {
+      return sortConfig.direction === 'asc'
+        ? new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+        : new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    }
+    if (sortConfig.key === 'endDate') {
+      return sortConfig.direction === 'asc'
+        ? new Date(a.endDate).getTime() - new Date(b.endDate).getTime()
+        : new Date(b.endDate).getTime() - new Date(a.endDate).getTime();
+    }
+    return 0;
+  });
+
+  // Filter semesters based on search term
+  const filteredSemesters = sortedSemesters.filter(semester =>
+    semester.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    semester.startDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    semester.endDate.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Move selected semester to top
+  const displayedSemesters = selectedSemester
+    ? [selectedSemester, ...filteredSemesters.filter(s => s.id !== selectedSemester.id)]
+    : filteredSemesters;
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   // Load semester details when selected
   const handleSelectSemester = async (semesterId: number) => {
@@ -98,21 +144,12 @@ export default function AdminSemestersClient() {
       setEvents(semesterEvents);
       setTimetables(semesterTimetables);
       setActiveTab('courses');
+      setIsDetailsModalOpen(true);
       setEditMode(false);
       setFormData({
         name: details.name,
         startDate: details.startDate,
         endDate: details.endDate
-      });
-
-      // Move selected semester to top of list
-      setSemesters(prev => {
-        const selected = prev.find(s => s.id === semesterId);
-        if (!selected) return prev;
-        return [
-          { ...selected, name: details.name, startDate: details.startDate, endDate: details.endDate },
-          ...prev.filter(s => s.id !== semesterId)
-        ];
       });
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to load semester details');
@@ -152,11 +189,10 @@ export default function AdminSemestersClient() {
         endDate: newSemester.endDate,
         courseCount: 0,
         studentCount: 0,
-        eventCount: 0
+        eventCount: 0,
+        timetableCount: 0
       }]);
       
-      // Select the new semester
-      await handleSelectSemester(newSemester.id);
       setIsCreateModalOpen(false);
       setFormData({
         name: '',
@@ -223,6 +259,7 @@ export default function AdminSemestersClient() {
       
       setSemesters(prev => prev.filter(sem => sem.id !== selectedSemester.id));
       setSelectedSemester(null);
+      setIsDetailsModalOpen(false);
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to delete semester');
     }
@@ -235,6 +272,11 @@ export default function AdminSemestersClient() {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortConfig.key !== columnKey) return <FiChevronUp className="opacity-30" />;
+    return sortConfig.direction === 'asc' ? <FiChevronUp /> : <FiChevronDown />;
   };
 
   return (
@@ -257,70 +299,162 @@ export default function AdminSemestersClient() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Semesters List */}
-        <div className="lg:col-span-1">
-          {loading.semesters ? (
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-md">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search semesters..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {/* Semesters Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {loading.semesters ? (
+          <div className="p-6">
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
+                <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
               ))}
             </div>
-          ) : semesters.length === 0 ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiCalendar className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No semesters found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {semesters.map((semester) => (
-                <div
-                  key={semester.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedSemester?.id === semester.id 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => handleSelectSemester(semester.id)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{semester.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                          <FiUsers size={12} /> {semester.studentCount}
-                        </span>
-                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                          <FiBook size={12} /> {semester.courseCount}
-                        </span>
-                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                          <FiCalendar size={12} /> {semester.eventCount}
-                        </span>
-                      </div>
+          </div>
+        ) : semesters.length === 0 ? (
+          <div className="p-6 text-center">
+            <FiCalendar className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+            <p className="text-gray-500">No semesters found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Semester Name
+                      <SortIcon columnKey="name" />
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('startDate')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Start Date
+                      <SortIcon columnKey="startDate" />
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('endDate')}
+                  >
+                    <div className="flex items-center gap-1">
+                      End Date
+                      <SortIcon columnKey="endDate" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Students
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Courses
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Events
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Timetables
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {displayedSemesters.map((semester) => (
+                  <tr
+                    key={semester.id}
+                    className={`cursor-pointer transition-colors ${
+                      selectedSemester?.id === semester.id
+                        ? 'bg-blue-50 hover:bg-blue-100'
+                        : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleSelectSemester(semester.id)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {selectedSemester?.id === semester.id && (
+                          <FiChevronUp className="text-blue-600 mr-2" />
+                        )}
+                        <div className="text-sm font-medium text-gray-900">
+                          {semester.name}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(semester.startDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(semester.endDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <FiUsers className="mr-1" size={12} />
+                        {semester.studentCount}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <FiBook className="mr-1" size={12} />
+                        {semester.courseCount}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <FiCalendar className="mr-1" size={12} />
+                        {semester.eventCount}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <FiClock className="mr-1" size={12} />
+                        {semester.timetableCount}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-        {/* Semester Details */}
-        <div className="lg:col-span-3">
-          {!selectedSemester ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiCalendar className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">Select a semester to view details</p>
+      {/* Semester Details Modal */}
+      {isDetailsModalOpen && selectedSemester && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-800">Semester Details</h2>
+              <button
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  setSelectedSemester(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX size={24} />
+              </button>
             </div>
-          ) : (
-            <div className="space-y-6">
+
+            <div className="p-6 space-y-6">
               {/* Semester Header */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="space-y-4">
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="flex-1">
                     {editMode ? (
                       <div className="space-y-4">
                         <div>
@@ -362,15 +496,15 @@ export default function AdminSemestersClient() {
                           <button
                             onClick={handleUpdateSemester}
                             disabled={!formData.name.trim() || !formData.startDate || !formData.endDate || loading.update}
-                            className={`px-3 py-2 text-sm rounded-md text-white ${
+                            className={`px-4 py-2 text-sm rounded-md text-white ${
                               loading.update ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
                             } transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed`}
                           >
-                            {loading.update ? 'Saving...' : 'Save'}
+                            {loading.update ? 'Saving...' : 'Save Changes'}
                           </button>
                           <button
                             onClick={() => setEditMode(false)}
-                            className="px-3 py-2 text-sm rounded-md bg-gray-200 hover:bg-gray-300"
+                            className="px-4 py-2 text-sm rounded-md bg-gray-200 hover:bg-gray-300"
                           >
                             Cancel
                           </button>
@@ -378,33 +512,37 @@ export default function AdminSemestersClient() {
                       </div>
                     ) : (
                       <>
-                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">
                           {selectedSemester.name}
-                          <button
-                            onClick={() => setEditMode(true)}
-                            className="text-blue-500 hover:text-blue-800 p-1"
-                            title="Edit semester"
-                          >
-                            <FiEdit2 size={18} />
-                          </button>
-                        </h2>
-                        <p className="text-gray-600 mt-2">
+                        </h3>
+                        <p className="text-gray-600 mb-2">
                           {formatDate(selectedSemester.startDate)} - {formatDate(selectedSemester.endDate)}
                         </p>
                       </>
                     )}
                   </div>
                   
-                  <button
-                    onClick={handleDeleteSemester}
-                    className="text-red-600 hover:text-red-800 p-1"
-                    title="Delete semester"
-                  >
-                    <FiTrash2 size={18} />
-                  </button>
+                  {!editMode && (
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => setEditMode(true)}
+                        className="text-blue-500 hover:text-blue-800 p-2"
+                        title="Edit semester"
+                      >
+                        <FiEdit2 size={18} />
+                      </button>
+                      <button
+                        onClick={handleDeleteSemester}
+                        className="text-red-600 hover:text-red-800 p-2"
+                        title="Delete semester"
+                      >
+                        <FiTrash2 size={18} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="mt-6 grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <p className="text-xs text-gray-500">Students</p>
                     <p className="font-medium text-blue-500">
@@ -442,7 +580,7 @@ export default function AdminSemestersClient() {
                   }`}
                   onClick={() => setActiveTab('courses')}
                 >
-                  <FiBook /> Courses
+                  <FiBook /> Courses ({courses.length})
                 </button>
                 <button
                   className={`px-4 py-2 font-medium flex items-center gap-2 ${
@@ -452,7 +590,7 @@ export default function AdminSemestersClient() {
                   }`}
                   onClick={() => setActiveTab('students')}
                 >
-                  <FiUsers /> Students
+                  <FiUsers /> Students ({students.length})
                 </button>
                 <button
                   className={`px-4 py-2 font-medium flex items-center gap-2 ${
@@ -462,7 +600,7 @@ export default function AdminSemestersClient() {
                   }`}
                   onClick={() => setActiveTab('events')}
                 >
-                  <FiCalendar /> Events
+                  <FiCalendar /> Events ({events.length})
                 </button>
                 <button
                   className={`px-4 py-2 font-medium flex items-center gap-2 ${
@@ -472,18 +610,13 @@ export default function AdminSemestersClient() {
                   }`}
                   onClick={() => setActiveTab('timetables')}
                 >
-                  <FiClock /> Timetables
+                  <FiClock /> Timetables ({timetables.length})
                 </button>
               </div>
 
               {/* Courses Tab */}
               {activeTab === 'courses' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-4 border-b flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                      <FiBook /> Courses ({courses.length})
-                    </h3>
-                  </div>
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <div className="divide-y">
                     {loading.courses ? (
                       <div className="p-4">
@@ -521,59 +654,50 @@ export default function AdminSemestersClient() {
               )}
 
               {/* Students Tab */}
-{activeTab === 'students' && (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-    <div className="p-4 border-b">
-      <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-        <FiUsers /> Students ({selectedSemester.studentCount})
-      </h3>
-    </div>
-    <div className="divide-y">
-      {loading.students ? (
-        <div className="p-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded mb-2 animate-pulse"></div>
-          ))}
-        </div>
-      ) : students.length === 0 ? (
-        <div className="p-4 text-center text-gray-500">
-          No students in this semester
-        </div>
-      ) : (
-        students.map((student) => (
-          <div key={`${student.id}-${student.registrationNumber}`} className="p-4 hover:bg-gray-50">
-            <div className="flex justify-between items-center">
-              <div>
-                <h4 className="font-medium text-gray-800">
-                  {student.firstName} {student.lastName}
-                </h4>
-                <p className="text-sm text-gray-600">
-                  {student.email}
-                </p>
-                <div className="flex gap-4 mt-1">
-                  <p className="text-xs text-gray-500">
-                    Reg: {student.registrationNumber}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Program: {student.program.name}
-                  </p>
+              {activeTab === 'students' && (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="divide-y">
+                    {loading.students ? (
+                      <div className="p-4">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="h-16 bg-gray-100 rounded mb-2 animate-pulse"></div>
+                        ))}
+                      </div>
+                    ) : students.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        No students in this semester
+                      </div>
+                    ) : (
+                      students.map((student) => (
+                        <div key={`${student.id}-${student.registrationNumber}`} className="p-4 hover:bg-gray-50">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="font-medium text-gray-800">
+                                {student.firstName} {student.lastName}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {student.email}
+                              </p>
+                              <div className="flex gap-4 mt-1">
+                                <p className="text-xs text-gray-500">
+                                  Reg: {student.registrationNumber}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Program: {student.program.name}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-)}
+              )}
+
               {/* Events Tab */}
               {activeTab === 'events' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-4 border-b">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                      <FiCalendar /> Events ({events.length})
-                    </h3>
-                  </div>
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <div className="divide-y">
                     {loading.events ? (
                       <div className="p-4">
@@ -617,12 +741,7 @@ export default function AdminSemestersClient() {
 
               {/* Timetables Tab */}
               {activeTab === 'timetables' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-4 border-b">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                      <FiClock /> Timetables ({timetables.length})
-                    </h3>
-                  </div>
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <div className="divide-y">
                     {loading.timetables ? (
                       <div className="p-4">
@@ -664,13 +783,13 @@ export default function AdminSemestersClient() {
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Create Semester Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
