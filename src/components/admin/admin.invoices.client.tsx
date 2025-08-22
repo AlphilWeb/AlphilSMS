@@ -1,21 +1,27 @@
+
 // components/admin/admin.invoices.client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   getAllInvoices,
   getInvoiceById,
   createInvoice,
   updateInvoice,
-
   getAllPayments,
   getFinancialSummary,
   getOverdueInvoices,
   type InvoiceWithDetails,
   type PaymentWithDetails,
   type InvoiceData,
-  type PaymentData
+  type PaymentData,
+  recordPayment
 } from '@/lib/actions/admin/invoices.actions';
+
+// Add these imports for fetching students, semesters, and fee structures
+import { getAllStudents } from '@/lib/actions/admin/students.action';
+import { getAllSemesters } from '@/lib/actions/admin/semesters.action';
+import { getAllFeeStructures } from '@/lib/actions/admin/fee-structures.actions';
 
 import {
   FiDollarSign, FiUser, FiPlus, 
@@ -24,6 +30,33 @@ import {
   FiAlertTriangle, FiTrendingUp, FiTrendingDown
 } from 'react-icons/fi';
 import { format } from 'date-fns';
+
+interface StudentType {
+  id: number;
+  firstName: string;
+  lastName: string;
+  registrationNumber: string;
+  email: string;
+}
+
+interface SemesterType {
+  id: number;
+  name: string;
+}
+
+interface FeeStructureType {
+  id: number;
+  totalAmount?: number;
+  description?: string | null;
+  program?: {
+    id: number;
+    name: string;
+  };
+  semester?: {
+    id: number;
+    name: string;
+  };
+}
 
 export default function AdminInvoicesClient() {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
@@ -48,20 +81,62 @@ export default function AdminInvoicesClient() {
     details: false,
     create: false,
     update: false,
-    payment: false
+    payment: false,
+    students: false,
+    semesters: false,
+    feeStructures: false
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'invoices' | 'payments' | 'overdue'>('invoices');
 
-  const [invoiceFormData, setInvoiceFormData] = useState<Partial<InvoiceData>>({
-    studentId: 0,
-    semesterId: 0,
-    amountDue: '',
-    dueDate: '',
-    status: 'unpaid'
-  });
+  // New state for dropdown data
+  const [students, setStudents] = useState<StudentType[]>([]);
+  const [semesters, setSemesters] = useState<SemesterType[]>([]);
+  const [feeStructures, setFeeStructures] = useState<FeeStructureType[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<StudentType[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+  const [selectedStudentName, setSelectedStudentName] = useState('');
+  const studentDropdownRef = useRef<HTMLDivElement>(null);
+// Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
+        setShowStudentDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen) {
+      setStudentSearch('');
+      setSelectedStudentName('');
+      setInvoiceFormData({
+        studentId: 0,
+        semesterId: 0,
+        feeStructureId: 0,
+        amountDue: '',
+        dueDate: '',
+        status: 'unpaid'
+      });
+    }
+  }, [isCreateModalOpen]);
+
+const [invoiceFormData, setInvoiceFormData] = useState<Partial<InvoiceData>>({
+  studentId: 0,
+  semesterId: 0,
+  feeStructureId: 0,
+  amountDue: '',
+  dueDate: '',
+  status: 'unpaid'
+});
+
 
   const [paymentFormData, setPaymentFormData] = useState<Partial<PaymentData>>({
     invoiceId: 0,
@@ -71,22 +146,44 @@ export default function AdminInvoicesClient() {
     referenceNumber: ''
   });
 
-  // Fetch initial data
+  // Fetch initial data including dropdown options
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(prev => ({ ...prev, invoices: true, summary: true, overdue: true }));
+        setLoading(prev => ({ 
+          ...prev, 
+          invoices: true, 
+          summary: true, 
+          overdue: true,
+          students: true,
+          semesters: true,
+          feeStructures: true
+        }));
         setError(null);
         
-        const [invoicesData, summaryData, overdueData] = await Promise.all([
+        const [
+          invoicesData, 
+          summaryData, 
+          overdueData,
+          studentsData,
+          semestersData,
+          feeStructuresData
+        ] = await Promise.all([
           getAllInvoices(),
           getFinancialSummary(),
-          getOverdueInvoices()
+          getOverdueInvoices(),
+          getAllStudents(),
+          getAllSemesters(),
+          getAllFeeStructures()
         ]);
         
         setInvoices(invoicesData);
         setFinancialSummary(summaryData);
         setOverdueInvoices(overdueData);
+        setStudents(studentsData);
+        setFilteredStudents(studentsData);
+        setSemesters(semestersData);
+        setFeeStructures(feeStructuresData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
@@ -94,13 +191,32 @@ export default function AdminInvoicesClient() {
           ...prev, 
           invoices: false, 
           summary: false,
-          overdue: false 
+          overdue: false,
+          students: false,
+          semesters: false,
+          feeStructures: false
         }));
       }
     };
 
     loadData();
   }, []);
+
+  // Filter students based on search
+  useEffect(() => {
+    if (!studentSearch.trim()) {
+      setFilteredStudents(students);
+      return;
+    }
+
+    const filtered = students.filter(student => 
+      student.firstName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.lastName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.registrationNumber.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.email.toLowerCase().includes(studentSearch.toLowerCase())
+    );
+    setFilteredStudents(filtered);
+  }, [studentSearch, students]);
 
   // Load payments when tab changes
   useEffect(() => {
@@ -146,6 +262,21 @@ export default function AdminInvoicesClient() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Handle fee structure selection to auto-fill amount
+  useEffect(() => {
+    if (invoiceFormData.feeStructureId && feeStructures.length > 0) {
+      const selectedFeeStructure = feeStructures.find(
+        fs => fs.id === invoiceFormData.feeStructureId
+      );
+      if (selectedFeeStructure) {
+        setInvoiceFormData(prev => ({
+          ...prev,
+          amountDue: selectedFeeStructure.totalAmount!.toString()
+        }));
+      }
+    }
+  }, [invoiceFormData.feeStructureId, feeStructures]);
+
   // Load invoice details when selected
   const handleSelectInvoice = async (invoiceId: number) => {
     try {
@@ -163,7 +294,7 @@ export default function AdminInvoicesClient() {
           balance: details.balance,
           dueDate: format(new Date(details.dueDate), 'yyyy-MM-dd'),
           status: details.status,
-          feeStructureId: details.feeStructure?.id
+          feeStructureId: details.feeStructure?.id || 0
         });
         setIsViewModalOpen(true);
       }
@@ -191,45 +322,69 @@ export default function AdminInvoicesClient() {
         amountDue: invoiceFormData.amountDue,
         dueDate: invoiceFormData.dueDate,
         status: invoiceFormData.status || 'unpaid',
-        feeStructureId: invoiceFormData.feeStructureId
+        feeStructureId: invoiceFormData.feeStructureId || null
       });
       
-      setInvoices(prev => [...prev, {
-        ...newInvoice,
-        student: {
-          id: invoiceFormData.studentId!,
-          firstName: '', // Will be updated when selected
-          lastName: '',
-          registrationNumber: ''
-        },
-        semester: {
-          id: invoiceFormData.semesterId!,
-          name: ''
-        },
-        feeStructure: invoiceFormData.feeStructureId ? {
-          id: invoiceFormData.feeStructureId,
-          totalAmount: invoiceFormData.amountDue!,
-          description: null,
-          program: {
-            id: 0,
-            name: ''
+setInvoices(prev => [
+  ...prev,
+  {
+    ...newInvoice,
+    student:
+      students.find(s => s.id === invoiceFormData.studentId) || {
+        id: invoiceFormData.studentId!,
+        firstName: '',
+        lastName: '',
+        registrationNumber: ''
+      },
+    semester:
+      semesters.find(s => s.id === invoiceFormData.semesterId) || {
+        id: invoiceFormData.semesterId!,
+        name: ''
+      },
+    feeStructure: invoiceFormData.feeStructureId
+      ? (() => {
+          const found = feeStructures.find(
+            fs => fs.id === invoiceFormData.feeStructureId
+          );
+          if (found) {
+            return {
+              ...found,
+              totalAmount: String(found.totalAmount ?? '0'),
+              // Force program to be an object even if it's undefined in `found`
+              program: found.program || { id: 0, name: '' }
+            };
           }
-        } : null,
-        payments: [],
-        amountPaid: '0',
-        balance: invoiceFormData.amountDue!,
-        issuedDate: new Date(),
-        dueDate: new Date(invoiceFormData.dueDate!)
-      }]);
+          return {
+            id: invoiceFormData.feeStructureId,
+            totalAmount: String(invoiceFormData.amountDue ?? '0'),
+            description: null,
+            program: {
+              id: 0,
+              name: ''
+            }
+          };
+        })()
+      : null,
+    payments: [],
+    amountDue: String(invoiceFormData.amountDue ?? '0'),
+    amountPaid: '0',
+    balance: String(invoiceFormData.amountDue ?? '0'),
+    issuedDate: new Date(),
+    dueDate: new Date(invoiceFormData.dueDate!)
+  }
+]);
+
       
       setIsCreateModalOpen(false);
       setInvoiceFormData({
         studentId: 0,
         semesterId: 0,
+        feeStructureId: 0,
         amountDue: '',
         dueDate: '',
         status: 'unpaid'
       });
+      setStudentSearch('');
       setSuccess('Invoice created successfully!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create invoice');
@@ -286,85 +441,68 @@ export default function AdminInvoicesClient() {
     }
   };
 
-  // Delete invoice
-  // const handleDeleteInvoice = async () => {
-  //   if (!selectedInvoice) return;
-
-  //   if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) return;
-
-  //   try {
-  //     setError(null);
-  //     await deleteInvoice(selectedInvoice.id);
-      
-  //     setInvoices(prev => prev.filter(i => i.id !== selectedInvoice.id));
-  //     setSelectedInvoice(null);
-  //     setIsViewModalOpen(false);
-  //     setSuccess('Invoice deleted successfully!');
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'Failed to delete invoice');
-  //   }
-  // };
-
   // Record payment
-  const handleRecordPayment = async () => {
-    if (!paymentFormData.invoiceId || !paymentFormData.amount || !paymentFormData.paymentMethod) {
-      setError('Amount and payment method are required');
-      return;
+// Record payment
+const handleRecordPayment = async () => {
+  if (!paymentFormData.invoiceId || !paymentFormData.amount || !paymentFormData.paymentMethod) {
+    setError('Amount and payment method are required');
+    return;
+  }
+
+  try {
+    setLoading(prev => ({ ...prev, payment: true }));
+    setError(null);
+
+    // UNCOMMENT AND IMPLEMENT THIS - you need to create a recordPayment function
+    const newPayment = await recordPayment({
+      invoiceId: paymentFormData.invoiceId!,
+      studentId: paymentFormData.studentId!,
+      amount: paymentFormData.amount,
+      paymentMethod: paymentFormData.paymentMethod,
+      referenceNumber: paymentFormData.referenceNumber ?? '',
+    });
+    
+    // Update payments list immediately
+    if (newPayment) {
+      setPayments(prev => [...prev, newPayment]);
     }
 
-    try {
-      setLoading(prev => ({ ...prev, payment: true }));
-      setError(null);
+    // Update invoices list
+    const updatedInvoices = await getAllInvoices();
+    setInvoices(updatedInvoices);
 
-      // const newPayment = await recordPayment({
-      //   invoiceId: paymentFormData.invoiceId!,
-      //   studentId: paymentFormData.studentId!,
-      //   amount: paymentFormData.amount,
-      //   paymentMethod: paymentFormData.paymentMethod,
-      //   referenceNumber: paymentFormData.referenceNumber
-      // });
-      
-      // Update invoices list
-      const updatedInvoices = await getAllInvoices();
-      setInvoices(updatedInvoices);
+    // Update overdue invoices
+    const updatedOverdue = await getOverdueInvoices();
+    setOverdueInvoices(updatedOverdue);
 
-      // Update payments list if on payments tab
-      if (activeTab === 'payments') {
-        const updatedPayments = await getAllPayments();
-        setPayments(updatedPayments);
-      }
+    // Update financial summary
+    const updatedSummary = await getFinancialSummary();
+    setFinancialSummary(updatedSummary);
 
-      // Update overdue invoices
-      const updatedOverdue = await getOverdueInvoices();
-      setOverdueInvoices(updatedOverdue);
-
-      // Update financial summary
-      const updatedSummary = await getFinancialSummary();
-      setFinancialSummary(updatedSummary);
-
-      setIsPaymentModalOpen(false);
-      setPaymentFormData({
-        invoiceId: 0,
-        studentId: 0,
-        amount: '',
-        paymentMethod: 'credit_card',
-        referenceNumber: ''
-      });
-      setSuccess('Payment recorded successfully!');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record payment');
-    } finally {
-      setLoading(prev => ({ ...prev, payment: false }));
-    }
-  };
+    setIsPaymentModalOpen(false);
+    setPaymentFormData({
+      invoiceId: 0,
+      studentId: 0,
+      amount: '',
+      paymentMethod: 'credit_card',
+      referenceNumber: ''
+    });
+    setSuccess('Payment recorded successfully!');
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to record payment');
+  } finally {
+    setLoading(prev => ({ ...prev, payment: false }));
+  }
+};
 
   // Format currency
-  const formatCurrency = (amount: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(parseFloat(amount));
-  };
+const formatCurrency = (amount: string | number) => {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES'
+  }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
+};
+
 
   // Format date
   const formatDate = (date: Date) => {
@@ -664,57 +802,57 @@ export default function AdminInvoicesClient() {
                     </td>
                   </tr>
                 ))}
-                {activeTab === 'payments' && payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                          <FiUser className="text-emerald-600" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {payment.student.firstName} {payment.student.lastName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Invoice #{payment.invoice.id}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {formatCurrency(payment.amount)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 capitalize">
-                        {payment.paymentMethod.replace('_', ' ')}
-                      </div>
-                      {payment.referenceNumber && (
-                        <div className="text-sm text-gray-500">
-                          Ref: {payment.referenceNumber}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {formatDate(new Date(payment.transactionDate))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => {
-                          setSelectedPayment(payment);
-                          setIsViewModalOpen(true);
-                        }}
-                        className="text-emerald-600 hover:text-emerald-900 mr-4"
-                        title="View Details"
-                      >
-                        <FiInfo />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+{activeTab === 'payments' && payments.map((payment) => (
+  <tr key={payment.id} className="hover:bg-gray-50">
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="flex items-center">
+        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+          <FiUser className="text-emerald-600" />
+        </div>
+        <div className="ml-4">
+          <div className="text-sm font-medium text-gray-900">
+            {payment.student.firstName} {payment.student.lastName}
+          </div>
+          <div className="text-sm text-gray-500">
+            Invoice #{payment.invoice.id}
+          </div>
+        </div>
+      </div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="text-sm text-gray-900">
+        {formatCurrency(payment.amount)}
+      </div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="text-sm text-gray-900 capitalize">
+        {payment.paymentMethod.replace('_', ' ')}
+      </div>
+      {payment.referenceNumber && (
+        <div className="text-sm text-gray-500">
+          Ref: {payment.referenceNumber}
+        </div>
+      )}
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div className="text-sm text-gray-900">
+        {formatDate(new Date(payment.transactionDate))}
+      </div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+      <button
+        onClick={() => {
+          setSelectedPayment(payment);
+          setIsViewModalOpen(true);
+        }}
+        className="text-emerald-600 hover:text-emerald-900 mr-4"
+        title="View Details"
+      >
+        <FiInfo />
+      </button>
+    </td>
+  </tr>
+))}
                 {activeTab === 'overdue' && overdueInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -787,8 +925,8 @@ export default function AdminInvoicesClient() {
       {/* Create Invoice Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex justify-between items-center border-b p-6">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-6 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <FiPlus size={18} /> Create New Invoice
               </h2>
@@ -801,30 +939,106 @@ export default function AdminInvoicesClient() {
             </div>
             
             <div className="p-6 space-y-4">
+              {/* Student Search and Select */}
+  <div className="relative" ref={studentDropdownRef}>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Student *
+    </label>
+    <div className="relative">
+      <input
+        type="text"
+        placeholder={selectedStudentName || "Search students..."}
+        value={studentSearch}
+        onChange={(e) => {
+          setStudentSearch(e.target.value);
+          setShowStudentDropdown(true);
+        }}
+        onFocus={() => setShowStudentDropdown(true)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+      />
+      {selectedStudentName && (
+        <button
+          type="button"
+          onClick={() => {
+            setStudentSearch('');
+            setSelectedStudentName('');
+            setInvoiceFormData(prev => ({ ...prev, studentId: 0 }));
+          }}
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+        >
+          <FiX size={16} />
+        </button>
+      )}
+    </div>
+    
+    {/* Student Dropdown */}
+    {showStudentDropdown && filteredStudents.length > 0 && (
+      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+        {filteredStudents.map(student => (
+          <div
+            key={student.id}
+            className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0"
+            onClick={() => {
+              setInvoiceFormData(prev => ({ ...prev, studentId: student.id }));
+              setSelectedStudentName(`${student.firstName} ${student.lastName} (${student.registrationNumber})`);
+              setStudentSearch('');
+              setShowStudentDropdown(false);
+            }}
+          >
+            <div className="font-medium">{student.firstName} {student.lastName}</div>
+            <div className="text-gray-500 text-xs">{student.registrationNumber} • {student.email}</div>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Show selected student */}
+    {selectedStudentName && (
+      <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-md">
+        <div className="text-sm font-medium text-emerald-800">Selected:</div>
+        <div className="text-sm text-emerald-600">{selectedStudentName}</div>
+      </div>
+    )}
+  </div>
+
+              {/* Semester Select */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Student ID
+                  Semester
                 </label>
-                <input
-                  type="number"
-                  value={invoiceFormData.studentId || ''}
-                  onChange={(e) => setInvoiceFormData({...invoiceFormData, studentId: parseInt(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="123"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Semester ID
-                </label>
-                <input
-                  type="number"
+                <select
                   value={invoiceFormData.semesterId || ''}
                   onChange={(e) => setInvoiceFormData({...invoiceFormData, semesterId: parseInt(e.target.value)})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="1"
-                />
+                >
+                  <option value="">Select a semester</option>
+                  {semesters.map(semester => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* Fee Structure Select */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fee Structure (Optional)
+                </label>
+                <select
+                  value={invoiceFormData.feeStructureId || ''}
+                  onChange={(e) => setInvoiceFormData({...invoiceFormData, feeStructureId: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                >
+                  <option value="">Select a fee structure</option>
+                  {feeStructures.map(feeStructure => (
+                    <option key={feeStructure.id} value={feeStructure.id}>
+                      {feeStructure.program?.name} - {feeStructure.semester?.name} - {formatCurrency(feeStructure.totalAmount ?? 0)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Amount Due
@@ -862,21 +1076,9 @@ export default function AdminInvoicesClient() {
                   <option value="paid">Paid</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fee Structure ID (optional)
-                </label>
-                <input
-                  type="number"
-                  value={invoiceFormData.feeStructureId || ''}
-                  onChange={(e) => setInvoiceFormData({...invoiceFormData, feeStructureId: parseInt(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="1"
-                />
-              </div>
             </div>
             
-            <div className="flex justify-end gap-3 p-6 border-t">
+            <div className="flex justify-end gap-3 p-6 border-t sticky bottom-0 bg-white z-10">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
