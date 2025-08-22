@@ -19,17 +19,19 @@ import {
 
 import {
   FiUsers, FiBook, FiPlus, FiEdit2, FiTrash2, 
-  FiLoader, FiX
+  FiLoader, FiX, FiChevronUp, FiSearch, FiArrowUp, FiArrowDown
 } from 'react-icons/fi';
 import { ActionError } from '@/lib/utils';
 
 export default function AdminProgramsClient() {
   const [programs, setPrograms] = useState<ProgramWithStats[]>([]);
+  const [filteredPrograms, setFilteredPrograms] = useState<ProgramWithStats[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<ProgramDetails | null>(null);
   const [courses, setCourses] = useState<ProgramCourse[]>([]);
   const [students, setStudents] = useState<ProgramStudent[]>([]);
   const [activeTab, setActiveTab] = useState<'courses' | 'students'>('courses');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [loading, setLoading] = useState({
     programs: true,
     details: false,
@@ -38,96 +40,170 @@ export default function AdminProgramsClient() {
     create: false,
     update: false
   });
-
-const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
-console.log('departmentOptions', departmentOptions);
+  const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     durationSemesters: 8,
-    departmentId: 1 // Default to first department
+    departmentId: 0
   });
   const [editMode, setEditMode] = useState(false);
-  // const [expandedDepartments, setExpandedDepartments] = useState<Record<number, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({
+    key: 'name',
+    direction: 'asc'
+  });
 
-  // Fetch all programs on component mount
+  // Fetch all programs and departments on component mount
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setLoading(prev => ({ ...prev, programs: true }));
+        const [programsData, departmentsData] = await Promise.all([
+          getAllPrograms(),
+          getAllDepartments(),
+        ]);
+        setPrograms(programsData);
+        setFilteredPrograms(programsData);
+        setDepartmentOptions(departmentsData);
+        
+        // Set initial form values after options load
+        if (departmentsData.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            departmentId: departmentsData[0].id
+          }));
+        }
+      } catch (err) {
+        setError(err instanceof ActionError ? err.message : 'Failed to load initial data');
+      } finally {
+        setLoading(prev => ({ ...prev, programs: false }));
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Filter programs based on search term
+// Filter programs based on search term
 useEffect(() => {
-  const loadInitialData = async () => {
-    try {
-      setLoadingOptions(true);
-      const [programsData, departmentsData] = await Promise.all([
-        getAllPrograms(),
-        getAllDepartments(), // Load departments
-      ]);
-      setPrograms(programsData);
-      setDepartmentOptions(departmentsData);
-      
-      // Set initial form values after options load
-      setFormData(prev => ({
-        ...prev,
-        departmentId: departmentsData[0]?.id || 0
-      }));
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to load initial data');
-    } finally {
-      setLoadingOptions(false);
-      setLoading(prev => ({ ...prev, programs: false }));
+  const filtered = programs.filter(program => 
+    program.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    program.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    program.department.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  // Sort the filtered programs
+  const sorted = [...filtered].sort((a, b) => {
+    // If one of them is selected, it should come first
+    if (selectedProgram) {
+      if (a.id === selectedProgram.id) return -1;
+      if (b.id === selectedProgram.id) return 1;
     }
+    
+    // Apply the current sorting
+    const getNestedValue = (obj: ProgramWithStats, key: string): string | number | undefined => {
+      const keys = key.split('.');
+      let value: ProgramWithStats | string | number | undefined = obj;
+      
+      for (const k of keys) {
+        if (value && typeof value === 'object' && k in value) {
+          value = (value as Record<string, unknown>)[k] as string | number | undefined;
+        } else {
+          return undefined;
+        }
+      }
+      
+      // Return only string or number values for comparison
+      if (typeof value === 'string' || typeof value === 'number') {
+        return value;
+      }
+      return undefined;
+    };
+    
+    if (sortConfig.key) {
+      const aValue = getNestedValue(a, sortConfig.key);
+      const bValue = getNestedValue(b, sortConfig.key);
+      
+      // Handle cases where values might be undefined
+      if (aValue === undefined && bValue === undefined) return 0;
+      if (aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+      if (bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aValue.localeCompare(bValue) 
+          : bValue.localeCompare(aValue);
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'asc' 
+          ? aValue - bValue 
+          : bValue - aValue;
+      }
+      
+      // Fallback for mixed types or other cases
+      const aString = String(aValue);
+      const bString = String(bValue);
+      return sortConfig.direction === 'asc' 
+        ? aString.localeCompare(bString) 
+        : bString.localeCompare(aString);
+    }
+    
+    return 0;
+  });
+  
+  setFilteredPrograms(sorted);
+}, [programs, searchTerm, sortConfig, selectedProgram]);
+  // Handle sorting
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
-  loadInitialData();
-}, []);
-
   // Load program details when selected
-const handleSelectProgram = async (programId: number) => {
-  try {
-    setLoading(prev => ({ 
-      ...prev, 
-      details: true,
-      courses: true,
-      students: true
-    }));
-    setError(null);
-    
-    const [details, programCourses, programStudents] = await Promise.all([
-      getProgramDetails(programId),
-      getProgramCourses(programId),
-      getProgramStudents(programId)
-    ]);
+  const handleSelectProgram = async (programId: number) => {
+    try {
+      setLoading(prev => ({ 
+        ...prev, 
+        details: true,
+        courses: true,
+        students: true
+      }));
+      setError(null);
+      
+      const [details, programCourses, programStudents] = await Promise.all([
+        getProgramDetails(programId),
+        getProgramCourses(programId),
+        getProgramStudents(programId)
+      ]);
 
-    setSelectedProgram(details);
-    setCourses(programCourses);
-    setStudents(programStudents);
-    setActiveTab('courses');
-    setEditMode(false);
-    setFormData({
-      name: details.name,
-      code: details.code,
-      durationSemesters: details.durationSemesters,
-      departmentId: details.department.id
-    });
+      setSelectedProgram(details);
+      setCourses(programCourses);
+      setStudents(programStudents);
+      setActiveTab('courses');
+      setEditMode(false);
+      setFormData({
+        name: details.name,
+        code: details.code,
+        durationSemesters: details.durationSemesters,
+        departmentId: details.department.id
+      });
 
-    // Move selected program to top of list
-    setPrograms(prev => {
-      const selected = prev.find(p => p.id === programId);
-      if (!selected) return prev;
-      return [
-        { ...selected, department: { id: details.department.id, name: details.department.name } },
-        ...prev.filter(p => p.id !== programId)
-      ];
-    });
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to load program details');
-  } finally {
-    setLoading(prev => ({ 
-      ...prev, 
-      details: false,
-      courses: false,
-      students: false
-    }));
-  }
-};
+      setIsDetailsModalOpen(true);
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to load program details');
+    } finally {
+      setLoading(prev => ({ 
+        ...prev, 
+        details: false,
+        courses: false,
+        students: false
+      }));
+    }
+  };
 
   // Create new program
   const handleCreateProgram = async () => {
@@ -147,6 +223,8 @@ const handleSelectProgram = async (programId: number) => {
         formData.departmentId
       );
       
+      const department = departmentOptions.find(d => d.id === formData.departmentId);
+      
       setPrograms(prev => [...prev, {
         id: newProgram.id,
         name: newProgram.name,
@@ -154,7 +232,7 @@ const handleSelectProgram = async (programId: number) => {
         durationSemesters: newProgram.durationSemesters,
         department: {
           id: formData.departmentId,
-          name: '' // Will be updated when selected
+          name: department?.name || ''
         },
         studentCount: 0,
         courseCount: 0
@@ -167,7 +245,7 @@ const handleSelectProgram = async (programId: number) => {
         name: '',
         code: '',
         durationSemesters: 8,
-        departmentId: 1
+        departmentId: departmentOptions[0]?.id || 0
       });
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to create program');
@@ -194,6 +272,8 @@ const handleSelectProgram = async (programId: number) => {
         departmentId: formData.departmentId
       });
       
+      const department = departmentOptions.find(d => d.id === formData.departmentId);
+      
       setPrograms(prev => prev.map(prog => 
         prog.id === selectedProgram.id 
           ? { 
@@ -203,7 +283,7 @@ const handleSelectProgram = async (programId: number) => {
               durationSemesters: updatedProgram.durationSemesters,
               department: {
                 id: formData.departmentId,
-                name: '' // Will be updated when selected
+                name: department?.name || ''
               }
             } 
           : prog
@@ -216,7 +296,7 @@ const handleSelectProgram = async (programId: number) => {
         durationSemesters: updatedProgram.durationSemesters,
         department: {
           id: formData.departmentId,
-          name: '' // Will be updated when selected
+          name: department?.name || ''
         }
       } : null);
       
@@ -238,19 +318,19 @@ const handleSelectProgram = async (programId: number) => {
       
       setPrograms(prev => prev.filter(prog => prog.id !== selectedProgram.id));
       setSelectedProgram(null);
+      setIsDetailsModalOpen(false);
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to delete program');
     }
   };
 
-  // Toggle department expansion
-  // const toggleDepartmentExpansion = (departmentId: number) => {
-  //   expandedDepartments[departmentId] = !expandedDepartments[departmentId];
-  //   setExpandedDepartments(prev => ({
-  //     ...prev,
-  //     [departmentId]: !prev[departmentId]
-  //   }));
-  // };
+  const SortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortConfig.key !== columnKey) return <FiChevronUp className="opacity-30" />;
+    
+    return sortConfig.direction === 'asc' 
+      ? <FiArrowUp className="text-blue-500" /> 
+      : <FiArrowDown className="text-blue-500" />;
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -259,7 +339,7 @@ const handleSelectProgram = async (programId: number) => {
         <h1 className="text-3xl font-bold text-gray-800">Program Management</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
         >
           <FiPlus size={16} /> New Program
         </button>
@@ -272,69 +352,275 @@ const handleSelectProgram = async (programId: number) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Programs List */}
-        <div className="lg:col-span-1">
-          {loading.programs ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
-              ))}
-            </div>
-          ) : programs.length === 0 ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No programs found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-{programs.map((program) => (
-  <div
-    key={program.id}
-    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-      selectedProgram?.id === program.id 
-        ? 'border-blue-500 bg-blue-50' 
-        : 'border-gray-200 hover:border-blue-300'
-    }`}
-    onClick={() => handleSelectProgram(program.id)}
-  >
-    <div className="flex justify-between items-start">
-      <div>
-        <h3 className="font-semibold text-gray-800">{program.name}</h3>
-        <p className="text-sm text-gray-600">{program.code}</p>
-        <p className="text-xs text-gray-500 mt-1">
-          {program.department.name}
-        </p>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-gray-600 flex items-center gap-1">
-            <FiUsers size={12} /> {program.studentCount}
-          </span>
-          <span className="text-xs text-gray-600 flex items-center gap-1">
-            <FiBook size={12} /> {program.courseCount}
-          </span>
+      {/* Search and Filter */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="relative w-64">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search programs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
       </div>
-      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
-        {program.durationSemesters} sems
-      </span>
-    </div>
-  </div>
-))}
-            </div>
-          )}
-        </div>
 
-        {/* Program Details */}
-        <div className="lg:col-span-3">
-          {!selectedProgram ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">Select a program to view details</p>
+      {/* Programs Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {loading.programs ? (
+          <div className="p-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-12 bg-gray-100 rounded mb-2 animate-pulse"></div>
+            ))}
+          </div>
+        ) : filteredPrograms.length === 0 ? (
+          <div className="p-6 text-center">
+            <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+            <p className="text-gray-500">No programs found</p>
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center gap-1">
+                    Program Name
+                    <SortIcon columnKey="name" />
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('code')}
+                >
+                  <div className="flex items-center gap-1">
+                    Code
+                    <SortIcon columnKey="code" />
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('department.name')}
+                >
+                  <div className="flex items-center gap-1">
+                    Department
+                    <SortIcon columnKey="department.name" />
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('durationSemesters')}
+                >
+                  <div className="flex items-center gap-1">
+                    Duration
+                    <SortIcon columnKey="durationSemesters" />
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('studentCount')}
+                >
+                  <div className="flex items-center gap-1">
+                    <FiUsers className="inline" /> Students
+                    <SortIcon columnKey="studentCount" />
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('courseCount')}
+                >
+                  <div className="flex items-center gap-1">
+                    <FiBook className="inline" /> Courses
+                    <SortIcon columnKey="courseCount" />
+                  </div>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredPrograms.map((program) => (
+                <tr 
+                  key={program.id} 
+                  className={`hover:bg-gray-50 cursor-pointer ${
+                    selectedProgram?.id === program.id ? 'bg-blue-50' : ''
+                  }`}
+                  onClick={() => handleSelectProgram(program.id)}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{program.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {program.code}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {program.department.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {program.durationSemesters} semesters
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {program.studentCount}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {program.courseCount}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectProgram(program.id);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Create Program Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <FiPlus size={18} /> Create New Program
+              </h3>
+              <button 
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX size={20} />
+              </button>
             </div>
-          ) : (
-            <div className="space-y-6">
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Program Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Computer Science"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Program Code
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => setFormData({...formData, code: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="CS"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Duration (Semesters)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.durationSemesters}
+                      onChange={(e) => setFormData({...formData, durationSemesters: parseInt(e.target.value) || 8})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="1"
+                      max="12"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department
+                    </label>
+                    <select
+                      value={formData.departmentId}
+                      onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {departmentOptions.map(dept => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 p-4 border-t">
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateProgram}
+                disabled={!formData.name.trim() || !formData.code.trim() || loading.create}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
+                  loading.create ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                } transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed`}
+              >
+                {loading.create ? (
+                  <>
+                    <FiLoader className="animate-spin" size={16} />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <FiPlus size={16} />
+                    Create Program
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Program Details Modal */}
+      {isDetailsModalOpen && selectedProgram && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Program Details: {selectedProgram.name} ({selectedProgram.code})
+              </h3>
+              <button 
+                onClick={() => setIsDetailsModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
               {/* Program Header */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-start justify-between">
                   <div>
                     {editMode ? (
@@ -348,7 +634,7 @@ const handleSelectProgram = async (programId: number) => {
                               type="text"
                               value={formData.name}
                               onChange={(e) => setFormData({...formData, name: e.target.value})}
-                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                           <div>
@@ -359,7 +645,7 @@ const handleSelectProgram = async (programId: number) => {
                               type="text"
                               value={formData.code}
                               onChange={(e) => setFormData({...formData, code: e.target.value})}
-                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                         </div>
@@ -372,7 +658,7 @@ const handleSelectProgram = async (programId: number) => {
                               type="number"
                               value={formData.durationSemesters}
                               onChange={(e) => setFormData({...formData, durationSemesters: parseInt(e.target.value) || 8})}
-                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               min="1"
                               max="12"
                             />
@@ -384,11 +670,13 @@ const handleSelectProgram = async (programId: number) => {
                             <select
                               value={formData.departmentId}
                               onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
-                              className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                              {/* Departments would need to be loaded */}
-                              <option value="1">Computer Science</option>
-                              <option value="2">Business</option>
+                              {departmentOptions.map(dept => (
+                                <option key={dept.id} value={dept.id}>
+                                  {dept.name}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>
@@ -489,7 +777,7 @@ const handleSelectProgram = async (programId: number) => {
 
               {/* Courses Tab */}
               {activeTab === 'courses' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <div className="p-4 border-b flex justify-between items-center">
                     <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                       <FiBook /> Courses ({courses.length})
@@ -533,7 +821,7 @@ const handleSelectProgram = async (programId: number) => {
 
               {/* Students Tab */}
               {activeTab === 'students' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <div className="p-4 border-b">
                     <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                       <FiUsers /> Students ({students.length})
@@ -578,120 +866,9 @@ const handleSelectProgram = async (programId: number) => {
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Create Program Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <FiPlus size={18} /> Create New Program
-              </h3>
-              <button 
-                onClick={() => setIsCreateModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FiX size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Program Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="Computer Science"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Program Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.code}
-                      onChange={(e) => setFormData({...formData, code: e.target.value})}
-                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="CS"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Duration (Semesters)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.durationSemesters}
-                      onChange={(e) => setFormData({...formData, durationSemesters: parseInt(e.target.value) || 8})}
-                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
-                      min="1"
-                      max="12"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Department
-                    </label>
-                    <select
-                      value={formData.departmentId}
-                      onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
-                      className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="1">Computer Science</option>
-                      <option value="2">Business</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3 p-4 border-t">
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateProgram}
-                disabled={!formData.name.trim() || !formData.code.trim() || loading.create}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
-                  loading.create ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-                } transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed`}
-              >
-                {loading.create ? (
-                  <>
-                    <FiLoader className="animate-spin" size={16} />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <FiPlus size={16} />
-                    Create Program
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       )}
     </div>
   );
-}
-
-function setLoadingOptions(value: boolean) {
-  setLoadingOptions(value);
-  throw new Error('Function not implemented.');
 }
