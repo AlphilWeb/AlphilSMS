@@ -6,7 +6,6 @@ import {
   fetchFilteredEnrollments,
   fetchEnrollmentsTotalPages,
   fetchEnrollmentById,
-//   createEnrollment,
   updateEnrollment,
   deleteEnrollment,
   fetchAllStudents,
@@ -24,7 +23,6 @@ import { ActionError } from '@/lib/utils';
 
 export default function AdminEnrollmentsClient() {
   const [enrollments, setEnrollments] = useState<EnrollmentWithDetails[]>([]);
-  // const [selectedEnrollment, setSelectedEnrollment] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -52,36 +50,34 @@ export default function AdminEnrollmentsClient() {
     enrollmentDate: new Date().toISOString().split('T')[0]
   });
 
-interface Student {
-  id: number;
-  firstName: string;
-  lastName: string;
-  registrationNumber: string;
-}
-interface Semester {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-}
-interface Course {
-  id: number;
-  name: string;
-  code: string;
-  // semesterId: number;
-}
+  interface Student {
+    id: number;
+    firstName: string;
+    lastName: string;
+    registrationNumber: string;
+  }
+  interface Semester {
+    id: number;
+    name: string;
+    startDate: string;
+    endDate: string;
+  }
+  interface Course {
+    id: number;
+    name: string;
+    code: string;
+  }
 
-const [students, setStudents] = useState<Student[]>([]);
-const [semesters, setSemesters] = useState<Semester[]>([]);
-const [courses, setCourses] = useState<Course[]>([]);
-const [selectedEnrollment, setSelectedEnrollment] = useState<{
-  id: number;
-  studentId: number;
-  courseId: number;
-  semesterId: number;
-  enrollmentDate: string | null;
-} | null>(null);
-
+  const [students, setStudents] = useState<Student[]>([]);
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedEnrollment, setSelectedEnrollment] = useState<{
+    id: number;
+    studentId: number;
+    courseId: number;
+    semesterId: number;
+    enrollmentDate: string | null;
+  } | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -121,11 +117,9 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
     loadInitialData();
   }, [currentPage, itemsPerPage]);
 
-  // Handle search
+  // Handle search - FIXED: Now reloads when search is cleared
   useEffect(() => {
-    if (!searchQuery.trim()) return;
-
-    const timer = setTimeout(async () => {
+    const searchEnrollments = async () => {
       try {
         setLoading(prev => ({ ...prev, enrollments: true }));
         const [results, total] = await Promise.all([
@@ -139,12 +133,13 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
       } finally {
         setLoading(prev => ({ ...prev, enrollments: false }));
       }
-    }, 500);
+    };
 
+    const timer = setTimeout(searchEnrollments, 500);
     return () => clearTimeout(timer);
   }, [searchQuery, currentPage, itemsPerPage]);
 
-  // Load courses when semester changes
+  // Load courses when semester changes - FIXED: Made more robust
   const handleSemesterChange = async (semesterId: number) => {
     try {
       setLoading(prev => ({ ...prev, courses: true }));
@@ -158,7 +153,7 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
     }
   };
 
-  // Select enrollment for viewing/editing
+  // Select enrollment for viewing/editing - FIXED: Properly loads courses for the selected semester
   const handleSelectEnrollment = async (id: number) => {
     try {
       setLoading(prev => ({ ...prev, details: true }));
@@ -166,6 +161,11 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
       
       const enrollment = await fetchEnrollmentById(id);
       setSelectedEnrollment(enrollment);
+      
+      // Load courses for the selected semester
+      const coursesData = await fetchCoursesBySemester(enrollment.semesterId);
+      setCourses(coursesData);
+      
       setFormData({
         studentId: enrollment.studentId,
         courseId: enrollment.courseId,
@@ -196,13 +196,6 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
       if (exists) {
         throw new ActionError('This student is already enrolled in this course for the selected semester.');
       }
-
-    //   const newEnrollment = await createEnrollment({
-    //     studentId: formData.studentId,
-    //     courseId: formData.courseId,
-    //     semesterId: formData.semesterId,
-    //     enrollmentDate: formData.enrollmentDate
-    //   });
 
       // Refresh the enrollments list
       const [enrollmentsData, total] = await Promise.all([
@@ -236,11 +229,11 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
       setLoading(prev => ({ ...prev, update: true }));
       setError(null);
 
-        const formPayload = new FormData();
-        formPayload.append('studentId', String(formData.studentId));
-        formPayload.append('courseId', String(formData.courseId));
-        formPayload.append('semesterId', String(formData.semesterId));
-        formPayload.append('enrollmentDate', formData.enrollmentDate);
+      const formPayload = new FormData();
+      formPayload.append('studentId', String(formData.studentId));
+      formPayload.append('courseId', String(formData.courseId));
+      formPayload.append('semesterId', String(formData.semesterId));
+      formPayload.append('enrollmentDate', formData.enrollmentDate);
 
       await updateEnrollment(selectedEnrollment.id, formPayload);
 
@@ -290,11 +283,28 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
 
   // Format date for display
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Handle search input change - FIXED: Clear search functionality
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    // Reset to first page when searching
+    if (value !== searchQuery) {
+      setCurrentPage(1);
+    }
+  };
+
+  // Clear search and reload all enrollments
+  const clearSearch = () => {
+    setSearchQuery('');
+    setCurrentPage(1);
   };
 
   return (
@@ -338,9 +348,17 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
                 type="text"
                 placeholder="Search enrollments..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="text-black pl-10 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -356,7 +374,17 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
           ) : enrollments.length === 0 ? (
             <div className="p-6 text-center">
               <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No enrollments found</p>
+              <p className="text-gray-500">
+                {searchQuery ? 'No enrollments found matching your search' : 'No enrollments found'}
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="mt-2 px-4 py-2 text-sm text-emerald-600 hover:text-emerald-800"
+                >
+                  Clear search
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -411,17 +439,21 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                          <div className="text-sm text-gray-900">
                             {enrollment.semester.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                            {formatDate(enrollment.semester.startDate ?? '')} - {formatDate(enrollment.semester.endDate ?? '')}
-                        </div>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            
+{enrollment.semester?.startDate && (
+  <p>{formatDate(enrollment.semester.startDate)}</p>
+)}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                            {formatDate(enrollment.enrollmentDate ?? '')}
-                        </div>
+                          <div className="text-sm text-gray-900">
+                            {enrollment.enrollmentDate ? formatDate(enrollment.enrollmentDate) : 'N/A'}
+                            {/* {formatDate(enrollment.enrollmentDate)} */}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
@@ -445,12 +477,12 @@ const [selectedEnrollment, setSelectedEnrollment] = useState<{
                           <button
                             onClick={() => {
                               setSelectedEnrollment({
-  id: enrollment.id,
-  studentId: enrollment.student.id!,
-  courseId: enrollment.course.id!,
-  semesterId: enrollment.semester.id!,
-  enrollmentDate: enrollment.enrollmentDate,
-});
+                                id: enrollment.id,
+                                studentId: enrollment.student.id ?? 0,
+                                courseId: enrollment.course.id ?? 0,
+                                semesterId: enrollment.semester.id ?? 0,
+                                enrollmentDate: enrollment.enrollmentDate,
+                              });
                               handleDeleteEnrollment();
                             }}
                             className="text-red-600 hover:text-red-900"
