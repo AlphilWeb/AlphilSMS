@@ -14,6 +14,10 @@ import {
   type FeeStructureCreateData,
 } from '@/lib/actions/admin/fee-structures.actions';
 
+// Add these imports for your new server actions
+import { getAllPrograms } from '@/lib/actions/admin/programs.action';
+import { getAllSemesters } from '@/lib/actions/admin/semesters.action';
+
 import {
   FiDollarSign, FiPlus, FiEdit2, FiTrash2, 
   FiLoader, FiX, FiSearch, FiInfo, FiCheck
@@ -34,21 +38,23 @@ export default function AdminFeeStructuresClient() {
     feeStructures: true,
     details: false,
     create: false,
-    update: false
+    update: false,
+    programs: false,
+    semesters: false
   });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-const [programs, setPrograms] = useState<ProgramType[]>([]);
-const [semesters, setSemesters] = useState<SemesterType[]>([]);
+  const [programs, setPrograms] = useState<ProgramType[]>([]);
+  const [semesters, setSemesters] = useState<SemesterType[]>([]);
 
-const [pagination, setPagination] = useState({
-  page: 1,
-  pageSize: 10,
-  totalItems: 0
-});
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    totalItems: 0
+  });
 
   const [formData, setFormData] = useState<FeeStructureCreateData>({
     programId: 0,
@@ -57,43 +63,59 @@ const [pagination, setPagination] = useState({
     description: ''
   });
 
-  // --- Fetch Programs ---
+  // --- Fetch Programs using server action ---
   const fetchPrograms = async () => {
     try {
-      const response = await fetch('/api/programs');
-      const data = await response.json();
-      setPrograms(data);
+      setLoading(prev => ({ ...prev, programs: true }));
+      const programsData = await getAllPrograms();
+      setPrograms(programsData);
 
       // Set default programId if not set
-      setFormData(prev => ({ ...prev, programId: data[0]?.id ?? 0 }));
-    } catch {
+      if (programsData.length > 0) {
+        setFormData(prev => ({ 
+          ...prev, 
+          programId: prev.programId === 0 ? programsData[0].id : prev.programId 
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to load programs:', err);
       setError('Failed to load programs');
+    } finally {
+      setLoading(prev => ({ ...prev, programs: false }));
     }
   };
 
-  // --- Fetch Semesters ---
+  // --- Fetch Semesters using server action ---
   const fetchSemesters = async () => {
     try {
-      const response = await fetch('/api/semesters');
-      const data = await response.json();
-      setSemesters(data);
+      setLoading(prev => ({ ...prev, semesters: true }));
+      const semestersData = await getAllSemesters();
+      setSemesters(semestersData);
 
       // Set default semesterId if not set
-      setFormData(prev => ({ ...prev, semesterId: data[0]?.id ?? 0 }));
-    } catch {
+      if (semestersData.length > 0) {
+        setFormData(prev => ({ 
+          ...prev, 
+          semesterId: prev.semesterId === 0 ? semestersData[0].id : prev.semesterId 
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to load semesters:', err);
       setError('Failed to load semesters');
+    } finally {
+      setLoading(prev => ({ ...prev, semesters: false }));
     }
   };
 
   // Fetch all fee structures on component mount and when search changes
-  // --- Load all fee structures ---
   const loadFeeStructures = useCallback(async () => {
     try {
       setLoading(prev => ({ ...prev, feeStructures: true }));
       setError(null);
 
-      const data = await getAllFeeStructures(); // no pagination for now
+      const data = await getAllFeeStructures();
       setFeeStructures(data);
+      setPagination(prev => ({ ...prev, totalItems: data.length }));
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to load fee structures');
     } finally {
@@ -125,8 +147,9 @@ const [pagination, setPagination] = useState({
         setLoading(prev => ({ ...prev, feeStructures: true }));
         setError(null);
 
-        const results = await searchFeeStructures(searchQuery); // pass only string
+        const results = await searchFeeStructures(searchQuery);
         setFeeStructures(results);
+        setPagination(prev => ({ ...prev, totalItems: results.length }));
       } catch (err) {
         setError(err instanceof ActionError ? err.message : 'Search failed');
       } finally {
@@ -136,7 +159,6 @@ const [pagination, setPagination] = useState({
 
     return () => clearTimeout(timer);
   }, [searchQuery, loadFeeStructures]);
-
 
   // --- Select fee structure ---
   const handleSelectFeeStructure = async (feeStructureId: number) => {
@@ -162,133 +184,129 @@ const [pagination, setPagination] = useState({
     }
   };
 
-// --- Create new fee structure ---
-const handleCreateFeeStructure = async () => {
-  try {
-    setLoading(prev => ({ ...prev, create: true }));
-    setError(null);
+  // --- Create new fee structure ---
+  const handleCreateFeeStructure = async () => {
+    try {
+      setLoading(prev => ({ ...prev, create: true }));
+      setError(null);
 
-    // Create fee structure via action
-    const newFeeStructure = await createFeeStructure(formData);
+      // Create fee structure via action
+      const newFeeStructure = await createFeeStructure(formData);
 
-    // Fetch program and semester names for display
-    const program = programs.find(p => p.id === formData.programId);
-    const semester = semesters.find(s => s.id === formData.semesterId);
+      // Fetch program and semester names for display
+      const program = programs.find(p => p.id === formData.programId);
+      const semester = semesters.find(s => s.id === formData.semesterId);
 
-    // Optimistically update UI
-    setFeeStructures(prev => [
-      ...prev,
-      {
-        id: newFeeStructure.id,
-        totalAmount:   Number(newFeeStructure.totalAmount),
-        description: newFeeStructure.description,
-        program: {
-          id: formData.programId,
-          name: program?.name || '',
-          code: program?.code || ''
-        },
-        semester: {
-          id: formData.semesterId,
-          name: semester?.name || ''
-        },
-        createdAt: new Date(newFeeStructure.createdAt),
-        updatedAt: new Date(newFeeStructure.updatedAt)
-      }
-    ]);
-
-    // Reset form & close modal
-    setFormData({
-      programId: programs[0]?.id ?? 0,
-      semesterId: semesters[0]?.id ?? 0,
-      totalAmount: 0,
-      description: ''
-    });
-    setIsCreateModalOpen(false);
-    setSuccess('Fee structure created successfully!');
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to create fee structure');
-  } finally {
-    setLoading(prev => ({ ...prev, create: false }));
-  }
-};
-
-// --- Update existing fee structure ---
-const handleUpdateFeeStructure = async () => {
-  if (!selectedFeeStructure) return;
-
-  try {
-    setLoading(prev => ({ ...prev, update: true }));
-    setError(null);
-
-    // Update via action
-    const updatedFeeStructure = await updateFeeStructure(selectedFeeStructure.id, {
-      programId: formData.programId,
-      semesterId: formData.semesterId,
-      totalAmount: formData.totalAmount,
-      description: formData.description
-    });
-
-    // Fetch program and semester names for display
-    // const program = programs.find(p => p.id === formData.programId);
-    // const semester = semesters.find(s => s.id === formData.semesterId);
-
-const updatedProgram = programs.find(p => p.id === updatedFeeStructure.programId);
-const updatedSemester = semesters.find(s => s.id === updatedFeeStructure.semesterId);
-
-    // Update UI
-setFeeStructures(prev =>
-  prev.map(fs =>
-    fs.id === selectedFeeStructure.id
-      ? {
-          ...fs,
-          totalAmount: Number(updatedFeeStructure.totalAmount),
-          description: updatedFeeStructure.description,
+      // Optimistically update UI
+      setFeeStructures(prev => [
+        ...prev,
+        {
+          id: newFeeStructure.id,
+          totalAmount: Number(newFeeStructure.totalAmount),
+          description: newFeeStructure.description,
           program: {
-            id: updatedProgram?.id || fs.program.id,
-            name: updatedProgram?.name || fs.program.name,
-            code: updatedProgram?.code || fs.program.code
+            id: formData.programId,
+            name: program?.name || '',
+            code: program?.code || ''
           },
           semester: {
-            id: updatedSemester?.id || fs.semester.id,
-            name: updatedSemester?.name || fs.semester.name
+            id: formData.semesterId,
+            name: semester?.name || ''
           },
-          updatedAt: new Date(updatedFeeStructure.updatedAt)
+          createdAt: new Date(newFeeStructure.createdAt),
+          updatedAt: new Date(newFeeStructure.updatedAt)
         }
-      : fs
-  )
-);
+      ]);
 
-    // Update selectedFeeStructure state
-setSelectedFeeStructure(prev =>
-  prev
-    ? {
-        ...prev,
-        totalAmount: Number(updatedFeeStructure.totalAmount),
-        description: updatedFeeStructure.description,
-        program: {
-          id: updatedProgram?.id || prev.program.id,
-          name: updatedProgram?.name || prev.program.name,
-          code: updatedProgram?.code || prev.program.code
-        },
-        semester: {
-          id: updatedSemester?.id || prev.semester.id,
-          name: updatedSemester?.name || prev.semester.name,
-          startDate: prev.semester.startDate,
-          endDate: prev.semester.endDate
-        },
-        updatedAt: new Date(updatedFeeStructure.updatedAt)
-      }
-    : null
-);
+      // Reset form & close modal
+      setFormData({
+        programId: programs[0]?.id ?? 0,
+        semesterId: semesters[0]?.id ?? 0,
+        totalAmount: 0,
+        description: ''
+      });
+      setIsCreateModalOpen(false);
+      setSuccess('Fee structure created successfully!');
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to create fee structure');
+    } finally {
+      setLoading(prev => ({ ...prev, create: false }));
+    }
+  };
 
-    setIsEditModalOpen(false);
-    setSuccess('Fee structure updated successfully!');
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to update fee structure');
-  } finally {
-    setLoading(prev => ({ ...prev, update: false }));
-  }
-};
+  // --- Update existing fee structure ---
+  const handleUpdateFeeStructure = async () => {
+    if (!selectedFeeStructure) return;
+
+    try {
+      setLoading(prev => ({ ...prev, update: true }));
+      setError(null);
+
+      // Update via action
+      const updatedFeeStructure = await updateFeeStructure(selectedFeeStructure.id, {
+        programId: formData.programId,
+        semesterId: formData.semesterId,
+        totalAmount: formData.totalAmount,
+        description: formData.description
+      });
+
+      const updatedProgram = programs.find(p => p.id === updatedFeeStructure.programId);
+      const updatedSemester = semesters.find(s => s.id === updatedFeeStructure.semesterId);
+
+      // Update UI
+      setFeeStructures(prev =>
+        prev.map(fs =>
+          fs.id === selectedFeeStructure.id
+            ? {
+                ...fs,
+                totalAmount: Number(updatedFeeStructure.totalAmount),
+                description: updatedFeeStructure.description,
+                program: {
+                  id: updatedProgram?.id || fs.program.id,
+                  name: updatedProgram?.name || fs.program.name,
+                  code: updatedProgram?.code || fs.program.code
+                },
+                semester: {
+                  id: updatedSemester?.id || fs.semester.id,
+                  name: updatedSemester?.name || fs.semester.name
+                },
+                updatedAt: new Date(updatedFeeStructure.updatedAt)
+              }
+            : fs
+        )
+      );
+
+      // Update selectedFeeStructure state
+      setSelectedFeeStructure(prev =>
+        prev
+          ? {
+              ...prev,
+              totalAmount: Number(updatedFeeStructure.totalAmount),
+              description: updatedFeeStructure.description,
+              program: {
+                id: updatedProgram?.id || prev.program.id,
+                name: updatedProgram?.name || prev.program.name,
+                code: updatedProgram?.code || prev.program.code
+              },
+              semester: {
+                id: updatedSemester?.id || prev.semester.id,
+                name: updatedSemester?.name || prev.semester.name,
+                startDate: prev.semester.startDate,
+                endDate: prev.semester.endDate
+              },
+              updatedAt: new Date(updatedFeeStructure.updatedAt)
+            }
+          : null
+      );
+
+      setIsEditModalOpen(false);
+      setSuccess('Fee structure updated successfully!');
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to update fee structure');
+    } finally {
+      setLoading(prev => ({ ...prev, update: false }));
+    }
+  };
 
   // Delete a fee structure
   const handleDeleteFeeStructure = async () => {
@@ -319,12 +337,18 @@ setSelectedFeeStructure(prev =>
   };
 
   // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES'
+  }).format(amount);
+};
+
+  // Get paginated data
+  const paginatedFeeStructures = feeStructures.slice(
+    (pagination.page - 1) * pagination.pageSize,
+    pagination.page * pagination.pageSize
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -410,7 +434,7 @@ setSelectedFeeStructure(prev =>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {feeStructures.map((feeStructure) => (
+                  {paginatedFeeStructures.map((feeStructure) => (
                     <tr 
                       key={feeStructure.id} 
                       className="hover:bg-gray-50"
@@ -478,31 +502,31 @@ setSelectedFeeStructure(prev =>
                 </tbody>
               </table>
 
-{feeStructures.length > 0 && (
-  <div className="px-6 py-4 border-t flex items-center justify-between">
-    <div className="text-sm text-gray-500">
-      Showing {(pagination.page - 1) * pagination.pageSize + 1} to{' '}
-      {Math.min(pagination.page * pagination.pageSize, pagination.totalItems)} of{' '}
-      {pagination.totalItems} entries
-    </div>
-    <div className="flex space-x-2">
-      <button
-        onClick={() => setPagination(prev => ({...prev, page: Math.max(1, prev.page - 1)}))}
-        disabled={pagination.page === 1}
-        className="px-3 py-1 border rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Previous
-      </button>
-      <button
-        onClick={() => setPagination(prev => ({...prev, page: prev.page + 1}))}
-        disabled={pagination.page * pagination.pageSize >= pagination.totalItems}
-        className="px-3 py-1 border rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-)}
+              {feeStructures.length > 0 && (
+                <div className="px-6 py-4 border-t flex items-center justify-between">
+                  <div className="text-sm text-gray-500">
+                    Showing {(pagination.page - 1) * pagination.pageSize + 1} to{' '}
+                    {Math.min(pagination.page * pagination.pageSize, pagination.totalItems)} of{' '}
+                    {pagination.totalItems} entries
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setPagination(prev => ({...prev, page: Math.max(1, prev.page - 1)}))}
+                      disabled={pagination.page === 1}
+                      className="px-3 py-1 border rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setPagination(prev => ({...prev, page: prev.page + 1}))}
+                      disabled={pagination.page * pagination.pageSize >= pagination.totalItems}
+                      className="px-3 py-1 border rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -525,39 +549,39 @@ setSelectedFeeStructure(prev =>
             </div>
             
             <div className="p-6 space-y-4">
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Program
-  </label>
-  <select
-    value={formData.programId}
-    onChange={(e) => setFormData({...formData, programId: parseInt(e.target.value)})}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-  >
-    {programs.map(program => (
-      <option key={program.id} value={program.id}>
-        {program.name} ({program.code})
-      </option>
-    ))}
-  </select>
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Program
+                </label>
+                <select
+                  value={formData.programId}
+                  onChange={(e) => setFormData({...formData, programId: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                >
+                  {programs.map(program => (
+                    <option key={program.id} value={program.id}>
+                      {program.name} ({program.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Semester
-  </label>
-  <select
-    value={formData.semesterId}
-    onChange={(e) => setFormData({...formData, semesterId: parseInt(e.target.value)})}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-  >
-    {semesters.map(semester => (
-      <option key={semester.id} value={semester.id}>
-        {semester.name}
-      </option>
-    ))}
-  </select>
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Semester
+                </label>
+                <select
+                  value={formData.semesterId}
+                  onChange={(e) => setFormData({...formData, semesterId: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                >
+                  {semesters.map(semester => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -586,32 +610,32 @@ setSelectedFeeStructure(prev =>
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 p-6 border-t">
+            <div className="flex justify-end gap-3 p-6 border-t text-black">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                className="px-4 py-2 text-sm font-medium  bg-gray-100 hover:bg-gray-200 rounded-md"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleCreateFeeStructure}
-                disabled={!formData.programId || !formData.semesterId || formData.totalAmount <= 0 || loading.create}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
-                  loading.create ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
-                } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
-              >
-                {loading.create ? (
-                  <>
-                    <FiLoader className="animate-spin" size={16} />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <FiPlus size={16} />
-                    Create Fee Structure
-                  </>
-                )}
-              </button>
+<button
+  onClick={handleCreateFeeStructure}
+  disabled={!formData.programId || !formData.semesterId || formData.totalAmount <= 0 || loading.create}
+  className={`px-4 py-2 text-sm font-medium border border-white rounded-md flex items-center gap-2 ${
+    loading.create ? 'bg-emerald-400' : 'bg-emerald-500 hover:bg-emerald-600'
+  } text-white transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
+>
+  {loading.create ? (
+    <>
+      <FiLoader className="animate-spin" size={16} />
+      Creating...
+    </>
+  ) : (
+    <>
+      <FiPlus size={16} />
+      Create Fee Structure
+    </>
+  )}
+</button>
             </div>
           </div>
         </div>
@@ -728,39 +752,39 @@ setSelectedFeeStructure(prev =>
             </div>
             
             <div className="p-6 space-y-4">
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Program
-  </label>
-  <select
-    value={formData.programId}
-    onChange={(e) => setFormData({...formData, programId: parseInt(e.target.value)})}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-  >
-    {programs.map(program => (
-      <option key={program.id} value={program.id}>
-        {program.name} ({program.code})
-      </option>
-    ))}
-  </select>
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Program
+                </label>
+                <select
+                  value={formData.programId}
+                  onChange={(e) => setFormData({...formData, programId: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                >
+                  {programs.map(program => (
+                    <option key={program.id} value={program.id}>
+                      {program.name} ({program.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Semester
-  </label>
-  <select
-    value={formData.semesterId}
-    onChange={(e) => setFormData({...formData, semesterId: parseInt(e.target.value)})}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-  >
-    {semesters.map(semester => (
-      <option key={semester.id} value={semester.id}>
-        {semester.name}
-      </option>
-    ))}
-  </select>
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Semester
+                </label>
+                <select
+                  value={formData.semesterId}
+                  onChange={(e) => setFormData({...formData, semesterId: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                >
+                  {semesters.map(semester => (
+                    <option key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -797,7 +821,7 @@ setSelectedFeeStructure(prev =>
               <button
                 onClick={handleUpdateFeeStructure}
                 disabled={loading.update}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 KSH{
                   loading.update ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
               >
