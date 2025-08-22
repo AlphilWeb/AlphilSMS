@@ -1,22 +1,19 @@
-
 // components/admin/admin.staff.client.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import {
   getAllStaff,
-  getStaffDetails,
-  createStaff,
-  updateStaff,
   deleteStaff,
-  updateStaffDocuments,
-  searchStaff,
   type StaffWithDetails,
-  type StaffDetails,
-  type StaffCreateData,
-  StaffDeletePayload,
-//   type StaffUpdateData
+  type StaffDeletePayload,
 } from '@/lib/actions/admin/staff.actions';
+
+import {
+  getStaffForEdit,
+  updateStaff,
+} from '@/lib/actions/users/staff.edit.actions';
+import { getStaffFormOptions, addStaff } from '@/lib/actions/users/users.actions';
 
 import {
   FiUser, FiPlus, FiEdit2, FiTrash2,
@@ -26,13 +23,50 @@ import {
 import { ActionError } from '@/lib/utils';
 import { format } from 'date-fns';
 
+interface Option {
+  id: number;
+  name: string;
+}
+
+interface StaffFormOptions {
+  departments: Option[];
+  roles: Option[];
+}
+
+interface SelectedStaffType {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber?: string | null;
+  position: string;
+  departmentId: number;
+  department: {
+    id: number;
+    name: string;
+  };
+  user?: {
+    id: number;
+    role?: {
+      id: number;
+      name: string;
+    };
+  };
+  createdAt: Date;
+  updatedAt: Date;
+  employmentDocumentsUrl?: string | null;
+  nationalIdPhotoUrl?: string | null;
+  academicCertificatesUrl?: string | null;
+  passportPhotoUrl?: string | null;
+}
+
 export default function AdminStaffClient() {
   const [staff, setStaff] = useState<StaffWithDetails[]>([]);
-  const [selectedStaff, setSelectedStaff] = useState<StaffDetails | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<SelectedStaffType | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
+  // const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [loading, setLoading] = useState({
     staff: true,
     details: false,
@@ -43,22 +77,25 @@ export default function AdminStaffClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [options, setOptions] = useState<StaffFormOptions>({ departments: [], roles: [] });
+  const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
 
-  const [formData, setFormData] = useState<Partial<StaffCreateData>>({
+  const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     idNumber: '',
-    departmentId: 1,
+    departmentId: 0,
     position: '',
-    roleId: 2 // Assuming 2 is the default staff role ID
+    roleId: 0,
+    password: '',
   });
 
   const [documentsFormData, setDocumentsFormData] = useState({
-    employmentDocumentsUrl: '',
-    nationalIdPhotoUrl: '',
-    academicCertificatesUrl: '',
-    passportPhotoUrl: ''
+    employmentDocuments: null as File | null,
+    nationalIdPhoto: null as File | null,
+    academicCertificates: null as File | null,
+    passportPhoto: null as File | null
   });
 
   // Fetch all staff on component mount and when search changes
@@ -67,7 +104,7 @@ export default function AdminStaffClient() {
       try {
         setLoading(prev => ({ ...prev, staff: true }));
         setError(null);
-        const staffData = searchQuery.trim() ? await searchStaff(searchQuery) : await getAllStaff();
+        const staffData = await getAllStaff();
         setStaff(staffData);
       } catch (err) {
         setError(err instanceof ActionError ? err.message : 'Failed to load staff');
@@ -79,35 +116,121 @@ export default function AdminStaffClient() {
     loadStaff();
   }, [searchQuery]);
 
+  // Load form options
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const opts = await getStaffFormOptions();
+        setOptions(opts);
+        // Set default values
+        if (opts.departments.length > 0 && opts.roles.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            departmentId: opts.departments[0].id,
+            roleId: opts.roles.find(r => r.name.toLowerCase().includes('staff'))?.id || opts.roles[0].id
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load form options:', err);
+      }
+    };
+
+    loadOptions();
+  }, []);
+
   // Load staff details when selected
-  const handleSelectStaff = async (staffId: number) => {
-    try {
-      setLoading(prev => ({ ...prev, details: true }));
-      setError(null);
-      
-      const details = await getStaffDetails(staffId);
-      setSelectedStaff(details);
-      setFormData({
-        firstName: details.firstName,
-        lastName: details.lastName,
-        email: details.email,
-        idNumber: details.idNumber || '',
-        departmentId: details.department.id,
-        position: details.position,
-        roleId: details.user.role.id
-      });
-      setDocumentsFormData({
-        employmentDocumentsUrl: details.employmentDocumentsUrl || '',
-        nationalIdPhotoUrl: details.nationalIdPhotoUrl || '',
-        academicCertificatesUrl: details.academicCertificatesUrl || '',
-        passportPhotoUrl: details.passportPhotoUrl || ''
-      });
-      setIsViewModalOpen(true);
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to load staff details');
-    } finally {
-      setLoading(prev => ({ ...prev, details: false }));
+// Load staff details when selected
+const handleSelectStaff = async (staffId: number) => {
+  try {
+    setLoading(prev => ({ ...prev, details: true }));
+    setError(null);
+    
+    const [opts, staffRes] = await Promise.all([
+      getStaffFormOptions(),
+      getStaffForEdit(staffId)
+    ]);
+
+    setOptions(opts);
+
+if (staffRes.success && staffRes.staff) {
+  const staffToSet = {
+    ...staffRes.staff,
+    user: staffRes.staff.user ?? undefined,
+  };
+
+  setSelectedStaff(staffToSet);
+  
+  const userRoleId = staffRes.staff.user?.role?.id || 
+                       (opts.roles ?? []).find(r => r.name.toLowerCase().includes('staff'))?.id || 
+                       (opts.roles ?? [])[0]?.id || 0;
+  
+  setFormData({
+    firstName: staffRes.staff.firstName,
+    lastName: staffRes.staff.lastName,
+    email: staffRes.staff.email,
+    idNumber: staffRes.staff.idNumber || '',
+    departmentId: staffRes.staff.departmentId,
+    position: staffRes.staff.position,
+    roleId: userRoleId, // Set the role ID from the user
+    password: '' // Empty password field for security
+  });
+
+  // Set file previews
+  const previews: Record<string, string> = {};
+  if (staffRes.staff.passportPhotoUrl) previews.passportPhoto = staffRes.staff.passportPhotoUrl;
+  if (staffRes.staff.nationalIdPhotoUrl) previews.nationalIdPhoto = staffRes.staff.nationalIdPhotoUrl;
+  if (staffRes.staff.academicCertificatesUrl) previews.academicCertificates = staffRes.staff.academicCertificatesUrl;
+  if (staffRes.staff.employmentDocumentsUrl) previews.employmentDocuments = staffRes.staff.employmentDocumentsUrl;
+  setFilePreviews(previews);
+  
+  setIsViewModalOpen(true);
+} else {
+      setError(staffRes.error || 'Failed to load staff details');
     }
+  } catch (err) {
+    setError(err instanceof ActionError ? err.message : 'Failed to load staff details');
+  } finally {
+    setLoading(prev => ({ ...prev, details: false }));
+  }
+};
+
+  // Handle form input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name.endsWith('Id') ? Number(value) : value,
+    }));
+  };
+
+  // Handle file input changes
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    const { files } = e.target;
+    if (files && files.length > 0) {
+      setDocumentsFormData(prev => ({
+        ...prev,
+        [field]: files[0]
+      }));
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFilePreviews(prev => ({
+          ...prev,
+          [field]: e.target?.result as string
+        }));
+      };
+      reader.readAsDataURL(files[0]);
+    }
+  };
+
+  // Remove file from form
+  const removeFile = (field: string) => {
+    setDocumentsFormData(prev => ({ ...prev, [field]: null }));
+    setFilePreviews(prev => {
+      const newPreviews = { ...prev };
+      delete newPreviews[field];
+      return newPreviews;
+    });
   };
 
   // Create new staff
@@ -120,49 +243,78 @@ export default function AdminStaffClient() {
         throw new ActionError('All required fields must be filled');
       }
 
-      const newStaff = await createStaff({
+      if (!formData.password) {
+        throw new ActionError('Password is required');
+      }
+
+      // Optional: Add password strength validation
+      if (formData.password.length < 8) {
+        throw new ActionError('Password must be at least 8 characters long');
+      }
+
+
+      const staffData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         idNumber: formData.idNumber,
         departmentId: formData.departmentId,
         position: formData.position,
-        roleId: formData.roleId
-      });
+        roleId: formData.roleId,
+        password: formData.password,
+        passportPhoto: documentsFormData.passportPhoto ?? undefined,
+        nationalIdPhoto: documentsFormData.nationalIdPhoto ?? undefined,
+        academicCertificates: documentsFormData.academicCertificates ?? undefined,
+        employmentDocuments: documentsFormData.employmentDocuments ?? undefined
+      };
+
+      const newStaff = await addStaff(staffData);
       
-      setStaff(prev => [...prev, {
-        id: newStaff.id,
-        firstName: newStaff.firstName,
-        lastName: newStaff.lastName,
-        email: newStaff.email,
-        idNumber: newStaff.idNumber,
-        position: newStaff.position,
-        department: {
-          id: formData.departmentId!,
-          name: '' // Will be updated when selected
-        },
-        user: {
-          id: 0, // Temporary, will be updated
-          role: {
-            id: formData.roleId!,
-            name: '' // Will be updated
-          }
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }]);
-      
-      setIsCreateModalOpen(false);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        idNumber: '',
-        departmentId: 1,
-        position: '',
-        roleId: 2
-      });
-      setSuccess('Staff member created successfully!');
+      if (newStaff.success && newStaff.staff) {
+        setStaff(prev => [...prev, {
+          id: newStaff.staff!.id,
+          firstName: newStaff.staff!.firstName,
+          lastName: newStaff.staff!.lastName,
+          email: newStaff.staff!.email,
+          idNumber: newStaff.staff!.idNumber,
+          position: newStaff.staff!.position,
+          department: {
+            id: formData.departmentId,
+            name: options.departments.find(d => d.id === formData.departmentId)?.name || ''
+          },
+          user: {
+            id: newStaff.staff!.userId || 0,
+            role: {
+              id: formData.roleId,
+              name: options.roles.find(r => r.id === formData.roleId)?.name || ''
+            }
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }]);
+        
+        setIsCreateModalOpen(false);
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          idNumber: '',
+          departmentId: options.departments[0]?.id || 0,
+          position: '',
+          roleId: options.roles.find(r => r.name.toLowerCase().includes('staff'))?.id || options.roles[0]?.id || 0,
+          password: ''
+        });
+        setDocumentsFormData({
+          employmentDocuments: null,
+          nationalIdPhoto: null,
+          academicCertificates: null,
+          passportPhoto: null
+        });
+        setFilePreviews({});
+        setSuccess('Staff member created successfully!');
+      } else {
+        throw new ActionError(newStaff.error || 'Failed to create staff');
+      }
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to create staff member');
     } finally {
@@ -171,41 +323,81 @@ export default function AdminStaffClient() {
   };
 
   // Update staff
-  const handleUpdateStaff = async () => {
-    if (!selectedStaff) return;
+// Update staff
+const handleUpdateStaff = async () => {
+  if (!selectedStaff) return;
 
-    try {
-      setLoading(prev => ({ ...prev, update: true }));
-      setError(null);
+  try {
+    setLoading(prev => ({ ...prev, update: true }));
+    setError(null);
 
-      const updatedStaff = await updateStaff(selectedStaff.id, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        idNumber: formData.idNumber,
-        departmentId: formData.departmentId,
-        position: formData.position,
-        roleId: formData.roleId
-      });
-      
+    const shouldDeleteFiles = {
+      employmentDocuments: !documentsFormData.employmentDocuments && !filePreviews.employmentDocuments,
+      nationalIdPhoto: !documentsFormData.nationalIdPhoto && !filePreviews.nationalIdPhoto,
+      academicCertificates: !documentsFormData.academicCertificates && !filePreviews.academicCertificates,
+      passportPhoto: !documentsFormData.passportPhoto && !filePreviews.passportPhoto,
+    };
+
+    // Create update payload with password and roleId
+const updatePayload: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber: string;
+  departmentId: number;
+  position: string;
+  roleId: number;
+  password: string;
+  shouldDeleteFiles: {
+    employmentDocuments: boolean;
+    nationalIdPhoto: boolean;
+    academicCertificates: boolean;
+    passportPhoto: boolean;
+  };
+  employmentDocuments?: File;
+  nationalIdPhoto?: File;
+  academicCertificates?: File;
+  passportPhoto?: File;
+} = {
+  ...formData,
+  shouldDeleteFiles,
+};
+    
+    // Only include password if it's not empty
+    if (formData.password.trim() !== "") {
+      updatePayload.password = formData.password;
+    }
+    
+    // Always include roleId
+    updatePayload.roleId = formData.roleId;
+    
+    // Add file uploads if they exist
+    if (documentsFormData.employmentDocuments) updatePayload.employmentDocuments = documentsFormData.employmentDocuments;
+    if (documentsFormData.nationalIdPhoto) updatePayload.nationalIdPhoto = documentsFormData.nationalIdPhoto;
+    if (documentsFormData.academicCertificates) updatePayload.academicCertificates = documentsFormData.academicCertificates;
+    if (documentsFormData.passportPhoto) updatePayload.passportPhoto = documentsFormData.passportPhoto;
+
+    const updatedStaff = await updateStaff(selectedStaff.id, updatePayload);
+    
+    if (updatedStaff.success && updatedStaff.staff) {
       setStaff(prev => prev.map(staff => 
         staff.id === selectedStaff.id 
           ? { 
               ...staff, 
-              firstName: updatedStaff.firstName,
-              lastName: updatedStaff.lastName,
-              email: updatedStaff.email,
-              idNumber: updatedStaff.idNumber,
-              position: updatedStaff.position,
+              firstName: updatedStaff.staff!.firstName,
+              lastName: updatedStaff.staff!.lastName,
+              email: updatedStaff.staff!.email,
+              idNumber: updatedStaff.staff!.idNumber,
+              position: updatedStaff.staff!.position,
               department: {
-                id: formData.departmentId!,
-                name: staff.department.name
+                id: formData.departmentId,
+                name: options.departments.find(d => d.id === formData.departmentId)?.name || staff.department.name
               },
               user: {
                 id: staff.user.id,
                 role: {
-                  id: formData.roleId!,
-                  name: staff.user.role.name
+                  id: formData.roleId,
+                  name: options.roles.find(r => r.id === formData.roleId)?.name || staff.user.role.name
                 }
               },
               updatedAt: new Date()
@@ -213,22 +405,22 @@ export default function AdminStaffClient() {
           : staff
       ));
       
-      setSelectedStaff(prev => prev ? { 
+      setSelectedStaff((prev: SelectedStaffType | null): SelectedStaffType | null => prev ? { 
         ...prev, 
-        firstName: updatedStaff.firstName,
-        lastName: updatedStaff.lastName,
-        email: updatedStaff.email,
-        idNumber: updatedStaff.idNumber,
-        position: updatedStaff.position,
+        firstName: updatedStaff.staff!.firstName,
+        lastName: updatedStaff.staff!.lastName,
+        email: updatedStaff.staff!.email,
+        idNumber: updatedStaff.staff!.idNumber,
+        position: updatedStaff.staff!.position,
         department: {
-          id: formData.departmentId!,
-          name: prev.department.name
+          id: formData.departmentId,
+          name: options.departments.find((d: Option) => d.id === formData.departmentId)?.name || prev.department.name
         },
         user: {
-          id: prev.user.id,
+          id: prev?.user?.id ?? 0,
           role: {
-            id: formData.roleId!,
-            name: prev.user.role.name
+            id: formData.roleId,
+            name: options.roles.find((r: Option) => r.id === formData.roleId)?.name || (prev?.user?.role?.name ?? '')
           }
         },
         updatedAt: new Date()
@@ -236,71 +428,40 @@ export default function AdminStaffClient() {
       
       setIsEditModalOpen(false);
       setSuccess('Staff member updated successfully!');
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to update staff member');
-    } finally {
-      setLoading(prev => ({ ...prev, update: false }));
+    } else {
+      throw new ActionError(updatedStaff.error || 'Failed to update staff');
     }
-  };
-
-  // Update staff documents
-  const handleUpdateDocuments = async () => {
-    if (!selectedStaff) return;
-
-    try {
-      setLoading(prev => ({ ...prev, documents: true }));
-      setError(null);
-
-      const updatedStaff = await updateStaffDocuments(selectedStaff.id, {
-        employmentDocumentsUrl: documentsFormData.employmentDocumentsUrl || null,
-        nationalIdPhotoUrl: documentsFormData.nationalIdPhotoUrl || null,
-        academicCertificatesUrl: documentsFormData.academicCertificatesUrl || null,
-        passportPhotoUrl: documentsFormData.passportPhotoUrl || null
-      });
-      
-      setSelectedStaff(prev => prev ? { 
-        ...prev, 
-        employmentDocumentsUrl: updatedStaff.employmentDocumentsUrl,
-        nationalIdPhotoUrl: updatedStaff.nationalIdPhotoUrl,
-        academicCertificatesUrl: updatedStaff.academicCertificatesUrl,
-        passportPhotoUrl: updatedStaff.passportPhotoUrl,
-        updatedAt: new Date()
-      } : null);
-      
-      setIsDocumentsModalOpen(false);
-      setSuccess('Staff documents updated successfully!');
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to update staff documents');
-    } finally {
-      setLoading(prev => ({ ...prev, documents: false }));
-    }
-  };
-
-  // Delete staff
-const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
-  const targetStaff = staffMember || selectedStaff;
-  if (!targetStaff) return;
-
-  if (!confirm(`Are you sure you want to delete ${targetStaff.firstName}-${targetStaff.lastName}? This action cannot be undone.`)) return;
-
-  try {
-    setError(null);
-    await deleteStaff(targetStaff.id);
-
-    setStaff(prev => prev.filter(s => s.id !== targetStaff.id));
-
-    // Only reset modal state if we're deleting the selected staff
-    if (!staffMember) {
-      setSelectedStaff(null);
-      setIsViewModalOpen(false);
-    }
-
-    setSuccess('Staff member deleted successfully!');
   } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to delete staff member');
+    setError(err instanceof ActionError ? err.message : 'Failed to update staff member');
+  } finally {
+    setLoading(prev => ({ ...prev, update: false }));
   }
 };
 
+  // Delete staff
+  const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
+    const targetStaff = staffMember || selectedStaff;
+    if (!targetStaff) return;
+
+    if (!confirm(`Are you sure you want to delete ${targetStaff.firstName}-${targetStaff.lastName}? This action cannot be undone.`)) return;
+
+    try {
+      setError(null);
+      await deleteStaff(targetStaff.id);
+
+      setStaff(prev => prev.filter(s => s.id !== targetStaff.id));
+
+      // Only reset modal state if we're deleting the selected staff
+      if (!staffMember) {
+        setSelectedStaff(null);
+        setIsViewModalOpen(false);
+      }
+
+      setSuccess('Staff member deleted successfully!');
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to delete staff member');
+    }
+  };
 
   // Format date for display
   const formatDate = (date: Date) => {
@@ -434,18 +595,18 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
                             setIsViewModalOpen(false);
                             setIsEditModalOpen(true);
                           }}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
+                          className="text-pink-600 hover:text-pink-900 mr-4"
                           title="Edit"
                         >
                           <FiEdit2 />
                         </button>
-<button
-  onClick={() => handleDeleteStaff(staffMember)}
-  className="text-red-600 hover:text-red-900"
-  title="Delete"
->
-  <FiTrash2 />
-</button>
+                        <button
+                          onClick={() => handleDeleteStaff(staffMember)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -459,8 +620,8 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
       {/* Create Staff Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex justify-between items-center border-b p-6">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-6 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <FiPlus size={18} /> New Staff Member
               </h2>
@@ -476,39 +637,45 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name
+                    First Name *
                   </label>
                   <input
                     type="text"
-                    value={formData.firstName || ''}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
                     placeholder="John"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name
+                    Last Name *
                   </label>
                   <input
                     type="text"
-                    value={formData.lastName || ''}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
                     placeholder="Doe"
+                    required
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
+                  Email *
                 </label>
                 <input
                   type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
                   placeholder="john.doe@university.edu"
+                  required
                 />
               </div>
               <div>
@@ -517,53 +684,184 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
                 </label>
                 <input
                   type="text"
-                  value={formData.idNumber || ''}
-                  onChange={(e) => setFormData({...formData, idNumber: e.target.value})}
+                  name="idNumber"
+                  value={formData.idNumber}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
                   placeholder="EMP123456"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Position
+                  Position *
                 </label>
                 <input
                   type="text"
-                  value={formData.position || ''}
-                  onChange={(e) => setFormData({...formData, position: e.target.value})}
+                  name="position"
+                  value={formData.position}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
                   placeholder="Professor"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department ID
+                    Department *
                   </label>
-                  <input
-                    type="number"
-                    value={formData.departmentId || ''}
-                    onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
+                  <select
+                    name="departmentId"
+                    value={formData.departmentId}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="1"
-                  />
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {options.departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role ID
+                    Role *
+                  </label>
+                  <select
+                    name="roleId"
+                    value={formData.roleId}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    required
+                  >
+                    <option value="">Select Role</option>
+                    {options.roles.map((role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Password *
                   </label>
                   <input
-                    type="number"
-                    value={formData.roleId || ''}
-                    onChange={(e) => setFormData({...formData, roleId: parseInt(e.target.value)})}
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="2"
+                    placeholder="Enter password"
+                    required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must be at least 8 characters
+                  </p>
+                </div>
+
+              {/* File Upload Sections */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Passport Photo
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'passportPhoto')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {filePreviews.passportPhoto && (
+                    <div className="mt-2">
+                      <image href={filePreviews.passportPhoto} className="h-20 w-20 object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={() => removeFile('passportPhoto')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    National ID Photo
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'nationalIdPhoto')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {filePreviews.nationalIdPhoto && (
+                    <div className="mt-2">
+                      <image href={filePreviews.nationalIdPhoto} className="h-20 w-20 object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={() => removeFile('nationalIdPhoto')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Academic Certificates
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleFileChange(e, 'academicCertificates')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {filePreviews.academicCertificates && (
+                    <div className="mt-2">
+                      <div className="h-20 w-20 bg-gray-100 rounded flex items-center justify-center">
+                        <FiFileText className="text-gray-400 text-2xl" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile('academicCertificates')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Employment Documents
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleFileChange(e, 'employmentDocuments')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {filePreviews.employmentDocuments && (
+                    <div className="mt-2">
+                      <div className="h-20 w-20 bg-gray-100 rounded flex items-center justify-center">
+                        <FiFileText className="text-gray-400 text-2xl" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile('employmentDocuments')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 p-6 border-t">
+            <div className="flex justify-end gap-3 p-6 border-t sticky bottom-0 bg-white">
               <button
                 onClick={() => setIsCreateModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
@@ -572,8 +870,8 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
               </button>
               <button
                 onClick={handleCreateStaff}
-                disabled={!formData.firstName || !formData.lastName || !formData.email || 
-                         !formData.position || !formData.departmentId || !formData.roleId || loading.create}
+                disabled={loading.create || !formData.firstName || !formData.lastName || !formData.email || 
+                         !formData.position || !formData.departmentId || !formData.roleId || !formData.password}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
                   loading.create ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
@@ -596,166 +894,173 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
       )}
 
       {/* View Staff Details Modal */}
-      {isViewModalOpen && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="flex justify-between items-center border-b p-6">
-              <h2 className="text-xl font-bold text-gray-800">Staff Details</h2>
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-              >
-                <FiX size={20} />
-              </button>
+{/* View Staff Details Modal */}
+{isViewModalOpen && selectedStaff && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+      <div className="flex justify-between items-center border-b p-6">
+        <h2 className="text-xl font-bold text-gray-800">Staff Details</h2>
+        <button
+          onClick={() => setIsViewModalOpen(false)}
+          className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+        >
+          <FiX size={20} />
+        </button>
+      </div>
+      
+      <div className="p-6">
+        <div className="flex items-start gap-6">
+          <div className="flex-shrink-0 h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
+            <FiUser className="text-emerald-600 text-2xl" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-gray-800">
+              {selectedStaff.firstName} {selectedStaff.lastName}
+            </h2>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                <p className="mt-1 text-sm text-gray-900">{selectedStaff.email}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedStaff.idNumber || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Position</h3>
+                <p className="mt-1 text-sm text-gray-900">{selectedStaff.position}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Department</h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedStaff.department?.name || 'Unknown'}
+                </p>
+              </div>
+              
+              {/* User Account Information */}
+              {selectedStaff.user && (
+                <>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">User ID</h3>
+                    <p className="mt-1 text-sm text-gray-900">{selectedStaff.user.id}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">User Role</h3>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {selectedStaff.user.role?.name || 'Unknown'}
+                    </p>
+                  </div>
+                </>
+              )}
+              
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Date Joined</h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {formatDate(selectedStaff.createdAt)}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {formatDate(selectedStaff.updatedAt)}
+                </p>
+              </div>
             </div>
-            
-            <div className="p-6">
-              <div className="flex items-start gap-6">
-                <div className="flex-shrink-0 h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <FiUser className="text-emerald-600 text-2xl" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-800">
-                    {selectedStaff.firstName} {selectedStaff.lastName}
-                  </h2>
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                      <p className="mt-1 text-sm text-gray-900">{selectedStaff.email}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {selectedStaff.idNumber || 'Not provided'}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Position</h3>
-                      <p className="mt-1 text-sm text-gray-900">{selectedStaff.position}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Department</h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {selectedStaff.department.name}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Role</h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {selectedStaff.user.role.name}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Date Joined</h3>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {formatDate(selectedStaff.createdAt)}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Documents Section */}
-                  <div className="mt-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                          <FiFileText /> Employment Documents
-                        </h4>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {selectedStaff.employmentDocumentsUrl ? (
-                            <a href={selectedStaff.employmentDocumentsUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                              View Document
-                            </a>
-                          ) : 'Not uploaded'}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                          <FiCreditCard /> National ID
-                        </h4>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {selectedStaff.nationalIdPhotoUrl ? (
-                            <a href={selectedStaff.nationalIdPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                              View Document
-                            </a>
-                          ) : 'Not uploaded'}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                          <FiAward /> Academic Certificates
-                        </h4>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {selectedStaff.academicCertificatesUrl ? (
-                            <a href={selectedStaff.academicCertificatesUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                              View Document
-                            </a>
-                          ) : 'Not uploaded'}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                          <FiCamera /> Passport Photo
-                        </h4>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {selectedStaff.passportPhotoUrl ? (
-                            <a href={selectedStaff.passportPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                              View Photo
-                            </a>
-                          ) : 'Not uploaded'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+            {/* Documents Section */}
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <FiFileText /> Employment Documents
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedStaff.employmentDocumentsUrl ? (
+                      <a href={selectedStaff.employmentDocumentsUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                        View Document
+                      </a>
+                    ) : 'Not uploaded'}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <FiCreditCard /> National ID
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedStaff.nationalIdPhotoUrl ? (
+                      <a href={selectedStaff.nationalIdPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                        View Document
+                      </a>
+                    ) : 'Not uploaded'}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <FiAward /> Academic Certificates
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedStaff.academicCertificatesUrl ? (
+                      <a href={selectedStaff.academicCertificatesUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                        View Document
+                      </a>
+                    ) : 'Not uploaded'}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <FiCamera /> Passport Photo
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedStaff.passportPhotoUrl ? (
+                      <a href={selectedStaff.passportPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                        View Photo
+                      </a>
+                    ) : 'Not uploaded'}
+                  </p>
                 </div>
               </div>
             </div>
-            
-            <div className="flex justify-end gap-3 p-6 border-t">
-              <button
-                onClick={() => {
-                  setIsViewModalOpen(false);
-                  setIsDocumentsModalOpen(true);
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md flex items-center gap-2"
-              >
-                <FiEdit2 size={16} />
-                Update Documents
-              </button>
-              <button
-                onClick={() => {
-                  setIsViewModalOpen(false);
-                  setIsEditModalOpen(true);
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"
-              >
-                <FiEdit2 size={16} />
-                Edit Staff
-              </button>
-<button
-  onClick={() => handleDeleteStaff}
-  className="text-red-600 hover:text-red-900"
-  title="Delete"
->
-  <FiTrash2 />
-</button>
-
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
-      )}
+      </div>
+      
+      <div className="flex justify-end gap-3 p-6 border-t">
+        <button
+          onClick={() => {
+            setIsViewModalOpen(false);
+            setIsEditModalOpen(true);
+          }}
+          className="px-4 py-2 text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 rounded-md flex items-center gap-2"
+        >
+          <FiEdit2 size={16} />
+          Edit Staff
+        </button>
+        <button
+          onClick={() => handleDeleteStaff()}
+          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
+        >
+          <FiTrash2 size={16} />
+          Delete Staff
+        </button>
+        <button
+          onClick={() => setIsViewModalOpen(false)}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Edit Staff Modal */}
       {isEditModalOpen && selectedStaff && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex justify-between items-center border-b p-6">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-6 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <FiEdit2 size={18} /> Edit Staff Member
               </h2>
@@ -771,36 +1076,42 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name
+                    First Name *
                   </label>
                   <input
                     type="text"
-                    value={formData.firstName || ''}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name
+                    Last Name *
                   </label>
                   <input
                     type="text"
-                    value={formData.lastName || ''}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    required
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
+                  Email *
                 </label>
                 <input
                   type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                  required
                 />
               </div>
               <div>
@@ -809,49 +1120,181 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
                 </label>
                 <input
                   type="text"
-                  value={formData.idNumber || ''}
-                  onChange={(e) => setFormData({...formData, idNumber: e.target.value})}
+                  name="idNumber"
+                  value={formData.idNumber}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Position
+                  Position *
                 </label>
                 <input
                   type="text"
-                  value={formData.position || ''}
-                  onChange={(e) => setFormData({...formData, position: e.target.value})}
+                  name="position"
+                  value={formData.position}
+                  onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department ID
+                    Department *
+                  </label>
+                  <select
+                    name="departmentId"
+                    value={formData.departmentId}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {options.departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    New Password (leave blank to keep current)
+  </label>
+  <input
+    type="password"
+    name="password"
+    value={formData.password}
+    onChange={handleChange}
+    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+    placeholder="Enter new password"
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Leave blank to keep current password
+  </p>
+</div>
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Role *
+  </label>
+  <select
+    name="roleId"
+    value={formData.roleId}
+    onChange={handleChange}
+    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+    required
+  >
+    <option value="">Select Role</option>
+    {options.roles.map((role) => (
+      <option key={role.id} value={role.id}>{role.name}</option>
+    ))}
+  </select>
+</div>
+              </div>
+
+
+              {/* File Upload Sections */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Passport Photo
                   </label>
                   <input
-                    type="number"
-                    value={formData.departmentId || ''}
-                    onChange={(e) => setFormData({...formData, departmentId: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'passportPhoto')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                  {filePreviews.passportPhoto && (
+                    <div className="mt-2">
+                      <image href={filePreviews.passportPhoto} className="h-20 w-20 object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={() => removeFile('passportPhoto')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role ID
+                    National ID Photo
                   </label>
                   <input
-                    type="number"
-                    value={formData.roleId || ''}
-                    onChange={(e) => setFormData({...formData, roleId: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'nationalIdPhoto')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                  {filePreviews.nationalIdPhoto && (
+                    <div className="mt-2">
+                      <image href={filePreviews.nationalIdPhoto} className="h-20 w-20 object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={() => removeFile('nationalIdPhoto')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Academic Certificates
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleFileChange(e, 'academicCertificates')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {filePreviews.academicCertificates && (
+                    <div className="mt-2">
+                      <div className="h-20 w-20 bg-gray-100 rounded flex items-center justify-center">
+                        <FiFileText className="text-gray-400 text-2xl" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile('academicCertificates')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Employment Documents
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleFileChange(e, 'employmentDocuments')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {filePreviews.employmentDocuments && (
+                    <div className="mt-2">
+                      <div className="h-20 w-20 bg-gray-100 rounded flex items-center justify-center">
+                        <FiFileText className="text-gray-400 text-2xl" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile('employmentDocuments')}
+                        className="mt-1 text-red-600 text-sm hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 p-6 border-t">
+            <div className="flex justify-end gap-3 p-6 border-t sticky bottom-0 bg-white">
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
@@ -872,101 +1315,6 @@ const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
                   </>
                 ) : (
                   'Save Changes'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Update Documents Modal */}
-      {isDocumentsModalOpen && selectedStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex justify-between items-center border-b p-6">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <FiEdit2 size={18} /> Update Staff Documents
-              </h2>
-              <button 
-                onClick={() => setIsDocumentsModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-              >
-                <FiX size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Employment Documents URL
-                </label>
-                <input
-                  type="text"
-                  value={documentsFormData.employmentDocumentsUrl || ''}
-                  onChange={(e) => setDocumentsFormData({...documentsFormData, employmentDocumentsUrl: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="https://example.com/employment.pdf"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  National ID Photo URL
-                </label>
-                <input
-                  type="text"
-                  value={documentsFormData.nationalIdPhotoUrl || ''}
-                  onChange={(e) => setDocumentsFormData({...documentsFormData, nationalIdPhotoUrl: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:focus:ring-emerald-500 text-gray-800"
-                  placeholder="https://example.com/id.jpg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Academic Certificates URL
-                </label>
-                <input
-                  type="text"
-                  value={documentsFormData.academicCertificatesUrl || ''}
-                  onChange={(e) => setDocumentsFormData({...documentsFormData, academicCertificatesUrl: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="https://example.com/certificates.pdf"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Passport Photo URL
-                </label>
-                <input
-                  type="text"
-                  value={documentsFormData.passportPhotoUrl || ''}
-                  onChange={(e) => setDocumentsFormData({...documentsFormData, passportPhotoUrl: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="https://example.com/photo.jpg"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3 p-6 border-t">
-              <button
-                onClick={() => setIsDocumentsModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateDocuments}
-                disabled={loading.documents}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
-                  loading.documents ? 'bg-purple-400' : 'bg-purple-600 hover:bg-purple-700'
-                } transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed`}
-              >
-                {loading.documents ? (
-                  <>
-                    <FiLoader className="animate-spin" size={16} />
-                    Updating...
-                  </>
-                ) : (
-                  'Update Documents'
                 )}
               </button>
             </div>
