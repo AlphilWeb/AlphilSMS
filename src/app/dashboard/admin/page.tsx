@@ -2,21 +2,19 @@
 import AdminDashboardHeader from "@/components/adminDashboardHeader";
 import Footer from "@/components/footer";
 import DashboardClientComponent from "@/components/dashboard/dashboard-client-component";
-import { db } from '@/lib/db/index'; // Your Drizzle DB instance
+import { db } from '@/lib/db/index';
 import {
   users, students, staff, departments, programs, semesters,
   courses, enrollments, grades, transcripts, timetables,
   feeStructures, invoices, payments, staffSalaries, userLogs
-} from '@/lib/db/schema'; // Your Drizzle schema tables
+} from '@/lib/db/schema';
 import { count } from 'drizzle-orm';
-import { checkAuthAndPermissions } from '@/lib/auth'; // Your auth utility
+import { checkAuthAndPermissions } from '@/lib/auth';
 
-export const dynamic = 'force-dynamic'; // Ensure data is always fresh
+export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
-  // Ensure only authorized users can view the dashboard
-  // Assuming 'admin' (role 1) is the primary role for the dashboard
-  await checkAuthAndPermissions(['admin', 'registrar', 'department_head']); // Example: Allow admin, registrar, dept head
+  await checkAuthAndPermissions(['admin', 'registrar', 'department_head']);
 
   // Fetch counts for all relevant tables in parallel
   const [
@@ -55,7 +53,7 @@ export default async function AdminDashboardPage() {
     db.select({ count: count() }).from(userLogs),
   ]);
 
-  // Extract counts from the results (each result is an array with one object { count: string })
+  // Extract counts from the results
   const counts = {
     userCount: Number(userCountResult[0].count),
     studentCount: Number(studentCountResult[0].count),
@@ -79,17 +77,22 @@ export default async function AdminDashboardPage() {
     <>
       <AdminDashboardHeader />
 
-      <main className="pl-[220px] h-screen bg-gradient-to-b from-emerald-950 to-emerald-900 text-white">
-        {/* Sticky header section for the main dashboard title */}
-        <div className="sticky top-[58px] z-30 bg-emerald-800 px-12 py-4 flex flex-wrap justify-between items-center shadow-md">
+      <main className="pl-[220px] min-h-screen bg-emerald-800">
+        {/* Sticky header section */}
+        <div className="sticky top-[58px] z-30 bg-white border-b border-gray-200 px-8 py-6 flex flex-wrap justify-between items-center shadow-sm">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-white">Admin Dashboard Overview</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
           </div>
-          {/* No specific navigation needed for the main dashboard overview, as the header handles main navigation */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</span>
+            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          </div>
         </div>
 
-        {/* Pass fetched counts to the client component */}
-        <DashboardClientComponent counts={counts} />
+        {/* Scrollable dashboard content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(100vh-140px)]">
+          <DashboardClientComponent counts={counts} />
+        </div>
 
         <Footer />
       </main>
