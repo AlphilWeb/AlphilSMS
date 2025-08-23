@@ -392,7 +392,7 @@ export default function LecturerAssignmentsManager() {
 
       {/* Assignment Management Modal */}
       {isModalOpen && selectedAssignment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
@@ -755,7 +755,7 @@ export default function LecturerAssignmentsManager() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmation && editingAssignment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">Confirm Deletion</h2>

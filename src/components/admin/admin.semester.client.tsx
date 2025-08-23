@@ -435,7 +435,7 @@ export default function AdminSemestersClient() {
 
       {/* Semester Details Modal */}
       {isDetailsModalOpen && selectedSemester && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-sm  bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-2xl font-bold text-gray-800">Semester Details</h2>
@@ -789,7 +789,7 @@ export default function AdminSemestersClient() {
 
       {/* Create Semester Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">

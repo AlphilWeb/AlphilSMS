@@ -449,7 +449,7 @@ export default function AdminCoursesClient() {
 
       {/* Course Details Modal */}
       {isDetailsModalOpen && selectedCourse && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-2xl font-bold text-gray-800">Course Details</h2>
@@ -621,7 +621,7 @@ export default function AdminCoursesClient() {
 
       {/* Lecturer Selection Modal */}
       {isLecturerModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -668,7 +668,7 @@ export default function AdminCoursesClient() {
 
       {/* Create Course Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">

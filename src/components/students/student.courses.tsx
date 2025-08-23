@@ -18,7 +18,7 @@ import type {
 import {
   FiBook,
   FiClock,
-  FiDownload,
+  // FiDownload,
   FiUpload,
   FiFileText,
   FiCheckCircle,
@@ -26,10 +26,10 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiEye,
-  FiSearch
+  FiSearch,
+  FiX,
 } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
-import { getDownloadUrl } from '@/lib/actions/files.download.action';
 import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
 import dynamic from 'next/dynamic';
 const DocumentViewer = dynamic(() => import('../documentViewer'), { ssr: false });
@@ -216,27 +216,6 @@ export default function StudentCourseManager({
     }
   };
 
-  const handleDownload = async (itemId: number, itemType: 'assignment' | 'quiz' | 'course-material') => {
-    try {
-      const result = await getDownloadUrl(itemId, itemType);
-      
-      if (result.success && result.url) {
-        const a = document.createElement('a');
-        a.href = result.url;
-        a.download = '';
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        throw new Error(result.error || 'Failed to get download URL');
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Download failed');
-    }
-  };
-
   const handleViewMaterial = async (material: CourseMaterial) => {
     if (!material.id) {
       setError('Invalid material');
@@ -312,7 +291,7 @@ export default function StudentCourseManager({
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-3">
-          <FaChalkboardTeacher className="h-8 w-8 text-emerald-600" />
+          <FaChalkboardTeacher className="h-8 w-8 text-pink-600" />
           <h1 className="text-3xl font-bold text-gray-800">My Courses</h1>
         </div>
       </div>
@@ -339,7 +318,7 @@ export default function StudentCourseManager({
             <input
               type="text"
               placeholder="Search courses..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -375,7 +354,7 @@ export default function StudentCourseManager({
                       key={course.id} 
                       className={`cursor-pointer transition-colors ${
                         selectedCourse?.id === course.id
-                          ? 'bg-emerald-50 hover:bg-emerald-100'
+                          ? 'bg-pink-50 hover:bg-pink-100'
                           : 'hover:bg-gray-50'
                       }`}
                       onClick={() => setSelectedCourse(course)}
@@ -390,7 +369,7 @@ export default function StudentCourseManager({
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-pink-100 text-pink-800">
                           {course.credits} cr
                         </span>
                       </td>
@@ -423,33 +402,33 @@ export default function StudentCourseManager({
               <nav className="-mb-px flex space-x-8">
                 <button
                   onClick={() => setActiveTab('materials')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                     activeTab === 'materials'
-                      ? 'border-blue-500 text-blue-600'
+                      ? 'border-pink-500 text-pink-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Materials ({materials.length})
+                  <FiFileText /> Materials ({materials.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('assignments')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                     activeTab === 'assignments'
-                      ? 'border-purple-500 text-purple-600'
+                      ? 'border-pink-500 text-pink-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Assignments ({assignments.length})
+                  <FiUpload /> Assignments ({assignments.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('quizzes')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
                     activeTab === 'quizzes'
-                      ? 'border-orange-500 text-orange-600'
+                      ? 'border-pink-500 text-pink-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Quizzes ({quizzes.length})
+                  <FiClock /> Quizzes ({quizzes.length})
                 </button>
               </nav>
             </div>
@@ -487,7 +466,7 @@ export default function StudentCourseManager({
                                   <div>
                                     <h4 className="font-medium text-gray-800">{material.title}</h4>
                                     <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full capitalize">
+                                      <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
                                         {material.type.replace('_', ' ')}
                                       </span>
                                       <span className="text-xs text-gray-500">
@@ -503,21 +482,12 @@ export default function StudentCourseManager({
                                             e.stopPropagation();
                                             handleViewMaterial(material);
                                           }}
-                                          className="text-blue-600 hover:text-blue-800 p-1"
+                                          className="text-pink-600 hover:text-pink-800 p-1"
                                           title="View"
                                         >
                                           <FiEye size={16} />
                                         </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDownload(material.id, 'course-material');
-                                          }}
-                                          className="text-emerald-600 hover:text-emerald-800 p-1"
-                                          title="Download"
-                                        >
-                                          <FiDownload size={16} />
-                                        </button>
+                                        
                                       </>
                                     )}
                                     {isExpanded ? (
@@ -542,16 +512,11 @@ export default function StudentCourseManager({
                                       <div className="mt-3 flex gap-2">
                                         <button
                                           onClick={() => handleViewMaterial(material)}
-                                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                          className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
                                         >
                                           View Material
                                         </button>
-                                        <button
-                                          onClick={() => handleDownload(material.id, 'course-material')}
-                                          className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
-                                        >
-                                          Download Material
-                                        </button>
+
                                       </div>
                                     )}
                                   </div>
@@ -597,15 +562,7 @@ export default function StudentCourseManager({
                                       {assignment.description}
                                     </div>
                                   )}
-                                  {assignment.fileUrl && (
-                                    <button
-                                      onClick={() => handleDownload(assignment.id, 'assignment')}
-                                      className="text-blue-600 hover:text-blue-900"
-                                      title="Download assignment"
-                                    >
-                                      <FiDownload size={16} />
-                                    </button>
-                                  )}
+                                  
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                   <div className="flex items-center">
@@ -643,21 +600,13 @@ export default function StudentCourseManager({
                                           setSelectedAssignment(assignment);
                                           setShowAssignmentModal(true);
                                         }}
-                                        className="text-emerald-600 hover:text-emerald-900"
+                                        className="text-pink-600 hover:text-pink-900"
                                       >
                                         <FiUpload size={16} />
                                       </button>
                                     ) : (
                                       <>
-                                        {assignment.submitted && (
-                                          <button
-                                            onClick={() => handleDownload(assignment.id, 'assignment')}
-                                            className="text-blue-600 hover:text-blue-900"
-                                            title="Download submission"
-                                          >
-                                            <FiDownload size={16} />
-                                          </button>
-                                        )}
+                                        
                                         {assignment.submission?.grade !== null && (
                                           <span className="text-green-600">
                                             <FiCheckCircle size={16} />
@@ -740,19 +689,19 @@ export default function StudentCourseManager({
                                           setSelectedQuiz(quiz);
                                           setShowQuizModal(true);
                                         }}
-                                        className="text-emerald-600 hover:text-emerald-900"
+                                        className="text-pink-600 hover:text-pink-900"
                                       >
                                         <FiUpload size={16} />
                                       </button>
                                     ) : quiz.submitted ? (
                                       <>
-                                        <button
+                                        {/* <button
                                           onClick={() => handleDownload(quiz.id, 'quiz')}
-                                          className="text-blue-600 hover:text-blue-900"
+                                          className="text-pink-600 hover:text-pink-900"
                                           title="Download quiz"
                                         >
                                           <FiDownload size={16} />
-                                        </button>
+                                        </button> */}
                                         {quiz.submission?.score !== null && (
                                           <span className="text-green-600">
                                             <FiCheckCircle size={16} />
@@ -782,7 +731,7 @@ export default function StudentCourseManager({
 
       {/* Assignment Submission Modal */}
       {showAssignmentModal && selectedAssignment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+        <div className="fixed inset-0 backdrop-blur-sm border border-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
@@ -798,7 +747,7 @@ export default function StudentCourseManager({
                     type="file"
                     id="assignmentFile"
                     onChange={handleFileChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
@@ -820,8 +769,8 @@ export default function StudentCourseManager({
                     disabled={!submissionFile || isLoading}
                     className={`px-4 py-2 text-white rounded-md ${
                       !submissionFile || isLoading
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-700'
+                        ? 'bg-pink-400 cursor-not-allowed'
+                        : 'bg-pink-600 hover:bg-pink-700'
                     }`}
                   >
                     {isLoading ? 'Submitting...' : 'Submit Assignment'}
@@ -835,7 +784,7 @@ export default function StudentCourseManager({
 
       {/* Quiz Submission Modal */}
       {showQuizModal && selectedQuiz && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+        <div className="fixed inset-0 backdrop-blur-sm border border-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
@@ -854,7 +803,7 @@ export default function StudentCourseManager({
                     type="file"
                     id="quizFile"
                     onChange={handleFileChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
                   />
                 </div>
 
@@ -876,8 +825,8 @@ export default function StudentCourseManager({
                     disabled={!submissionFile || isLoading}
                     className={`px-4 py-2 text-white rounded-md ${
                       !submissionFile || isLoading
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-orange-600 hover:bg-orange-700'
+                        ? 'bg-pink-400 cursor-not-allowed'
+                        : 'bg-pink-600 hover:bg-pink-700'
                     }`}
                   >
                     {isLoading ? 'Submitting...' : 'Submit Quiz'}
@@ -891,10 +840,27 @@ export default function StudentCourseManager({
 
       {/* Document Viewer Modal */}
       {isViewerOpen && currentDocument && (
-        <DocumentViewer 
-          document={currentDocument} 
-          onClose={() => setIsViewerOpen(false)} 
-        />
+        <div className="fixed inset-0 backdrop-blur-sm border border-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {currentDocument.title}
+              </h2>
+              <button
+                onClick={() => setIsViewerOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <DocumentViewer 
+                document={currentDocument} 
+                onClose={() => setIsViewerOpen(false)} 
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
