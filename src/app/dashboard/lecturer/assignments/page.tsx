@@ -1,47 +1,25 @@
 // app/dashboard/lecturer/assignments/page.tsx
-import { getLecturerAssignments } from '@/lib/actions/lecturer.manage.assignments.action';
-import LecturerDashboardHeader from '@/components/lecturerDashboardHeader';
 import LecturerAssignmentsManager from '@/components/lecturer/lecturer.manage.assignments';
+import LecturerDashboardHeader from '@/components/lecturerDashboardHeader';
 import ErrorMessage from '@/components/ui/error-message';
-
-// Define the types directly in this file
-interface Course {
-  id: number;
-  name: string;
-  code: string;
-}
-
-interface Assignment {
-  id: number;
-  title: string;
-  description: string | null;
-  fileUrl: string | null;
-  dueDate: Date;
-  assignedDate: Date;
-  course: Course;
-}
 
 export default async function LecturerAssignmentsPage() {
   try {
-    // Fetch initial assignments data from the server
-    const initialAssignments: Assignment[] = await getLecturerAssignments();
-
     return (
       <>
         <LecturerDashboardHeader />
-        
+
         <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
           <div className="p-6 space-y-6 max-w-7xl mx-auto">
             {/* Welcome Banner */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h1 className="text-2xl font-bold text-gray-800">Assignments Manager</h1>
-              <p className="text-gray-600">Create and manage your course assignments</p>
+              <h1 className="text-2xl font-bold text-gray-800">Assignments Management</h1>
+              <p className="text-gray-600">Create, manage, and grade student assignments</p>
             </div>
 
             {/* Main Assignments Content */}
             <div className="bg-white rounded-lg shadow p-6">
-              {/* Pass the initial data to the client component */}
-              <LecturerAssignmentsManager initialAssignments={initialAssignments} />
+              <LecturerAssignmentsManager />
             </div>
           </div>
         </main>
@@ -56,7 +34,7 @@ export default async function LecturerAssignmentsPage() {
           <div className="p-6 max-w-7xl mx-auto">
             <ErrorMessage
               title="Failed to load assignments"
-              message="There was an error loading your assignments. Please try again later."
+              message="There was an error loading the assignments manager. Please try again later."
             />
           </div>
         </main>
