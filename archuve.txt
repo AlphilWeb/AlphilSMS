@@ -1,751 +1,515 @@
-'use client';
+// "use server";
 
-import { useState, useEffect } from 'react';
-import {
-  getLecturerCourses,
-  getCourseDetails,
-  getCourseMaterials,
-  uploadCourseMaterial,
-  deleteCourseMaterial,
-  getCourseEnrollments,
-  getCourseTimetable,
-  type CourseWithProgram,
-  type CourseDetails,
-  type CourseMaterial,
-  type CourseEnrollment,
-} from '@/lib/actions/lecturer.manage.courses.action';
+// import { eq, desc } from "drizzle-orm";
+// import chromium from "@sparticuz/chromium";
+// import puppeteer from "puppeteer";
+// import puppeteerCore from "puppeteer-core"; // used in production (serverless)
+// import { db, documentLogs, payments, students, invoices, programs, departments, enrollments, courses, grades, semesters, staff } from "@/lib/db";
 
-import {
-  FiBook, FiUsers, FiFileText, FiClock, FiUpload, 
-  FiTrash2, FiEye, FiChevronDown, FiChevronUp,
-} from 'react-icons/fi';
+// async function getBrowser() {
+//   if (process.env.NODE_ENV === "production") {
+//     return await puppeteerCore.launch({
+//       args: chromium.args,
+//       executablePath: await chromium.executablePath(),
+//       headless: true,
+//     });
+//   } else {
+//     return await puppeteer.launch({
+//       headless: true, 
+//       executablePath: process.env.CHROME_PATH || undefined, // puppeteer will use bundled chromium
+//     });
+//   }
+// }
 
-import TipTapEditor from '@/components/TipTapEditor';
-import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
-import DocumentViewer from '../documentViewer';
+// /**
+//  * Logs document generation activity to the database
+//  */
+// async function logDocumentGeneration(
+//   userId: number, 
+//   documentType: string, 
+//   targetId: number,
+//   ipAddress?: string,
+//   userAgent?: string
+// ) {
+//   try {
+//     await db.insert(documentLogs).values({
+//       userId,
+//       documentType,
+//       targetId,
+//       ipAddress,
+//       userAgent,
+//     });
+//   } catch (error) {
+//     console.error("Failed to log document generation:", error);
+//     // Don't throw here as we don't want to fail the main operation
+//   }
+// }
 
-type TimetableEntry = {
-  dayOfWeek: string;
-  startTime: string;
-  endTime: string;
-  room: string | null;
-};
-interface MaterialContent {
-  html: string;
-  json: object;
-}
-
-export default function LecturerCoursesClient() {
-  const [courses, setCourses] = useState<CourseWithProgram[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<CourseDetails | null>(null);
-  const [materials, setMaterials] = useState<CourseMaterial[]>([]);
-  const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([]);
-  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'materials' | 'students' | 'timetable'>('materials');
-  const [loading, setLoading] = useState({
-    courses: true,
-    details: false,
-    materials: false,
-    enrollments: false,
-    timetable: false,
-    upload: false
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [expandedMaterialIds, setExpandedMaterialIds] = useState<Set<number>>(new Set());
-  const [newMaterial, setNewMaterial] = useState<{
-    title: string;
-    type: string;
-    content: MaterialContent | string;
-    file: File | null;
-  }>({
-    title: '',
-    type: 'notes',
-    content: { html: '', json: {} },
-    file: null,
-  });
-  
-  // Document viewer state
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<{
-    url: string;
-    type: string;
-    title: string;
-    content?: string;
-  } | null>(null);
-
-  const toggleExpanded = (id: number) => {
-    setExpandedMaterialIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  // Fetch all courses on component mount
-  useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        setLoading(prev => ({ ...prev, courses: true }));
-        const data = await getLecturerCourses();
-        setCourses(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load courses');
-      } finally {
-        setLoading(prev => ({ ...prev, courses: false }));
-      }
-    };
-
-    loadCourses();
-  }, []);
-
-  // Load course details when selected
-  const handleSelectCourse = async (courseId: number) => {
-    try {
-      setLoading(prev => ({ 
-        ...prev, 
-        details: true,
-        materials: true,
-        enrollments: true,
-        timetable: true
-      }));
-      setError(null);
-      
-      const [details, mats, enrolls, timetable] = await Promise.all([
-        getCourseDetails(courseId),
-        getCourseMaterials(courseId),
-        getCourseEnrollments(courseId),
-        getCourseTimetable(courseId)
-      ]);
-
-      setSelectedCourse(details);
-      setMaterials(mats);
-      setEnrollments(enrolls);
-      setTimetable(timetable);
-      setActiveTab('materials');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load course details');
-    } finally {
-      setLoading(prev => ({ 
-        ...prev, 
-        details: false,
-        materials: false,
-        enrollments: false,
-        timetable: false
-      }));
-    }
-  };
-
-  // Handle file upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNewMaterial(prev => ({
-        ...prev,
-        file: e.target.files![0]
-      }));
-    }
-  };
-
-  // Submit new material
-  const handleUploadMaterial = async () => {
-    if (!selectedCourse) {
-      setError('Please select a course.');
-      return;
-    }
-
-    // Validation
-    if (newMaterial.type === 'notes') {
-      const contentEmpty = typeof newMaterial.content === 'string' 
-        ? !newMaterial.content.trim()
-        : !newMaterial.content.html.trim();
-      
-      if (contentEmpty) {
-        setError('Content is required for notes.');
-        return;
-      }
-    } else if (!newMaterial.file) {
-      setError('File is required for this material type.');
-      return;
-    }
-
-    try {
-      setLoading(prev => ({ ...prev, upload: true }));
-      setError(null);
-
-      const formData = new FormData();
-      formData.append('title', newMaterial.title);
-      formData.append('type', newMaterial.type);
-
-      if (newMaterial.type === 'notes') {
-        const contentToSend = typeof newMaterial.content === 'string'
-          ? JSON.stringify({ html: newMaterial.content, json: {} })
-          : JSON.stringify(newMaterial.content);
-        
-        formData.append('content', contentToSend);
-      } else if (newMaterial.file) {
-        formData.append('file', newMaterial.file);
-      }
-
-      const uploadedMaterial = await uploadCourseMaterial(selectedCourse.id, formData);
-
-      setMaterials(prev => [{
-        ...uploadedMaterial,
-        content: typeof uploadedMaterial.content === 'object' 
-          ? uploadedMaterial.content 
-          : { html: uploadedMaterial.content as string, json: {} }
-      }, ...prev]);
-      
-      // Reset form
-      setNewMaterial({
-        title: '',
-        type: 'notes',
-        content: { html: '', json: {} },
-        file: null,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload material');
-    } finally {
-      setLoading(prev => ({ ...prev, upload: false }));
-    }
-  };
-
-  // Delete material
-  const handleDeleteMaterial = async (materialId: number) => {
-    if (!selectedCourse) return;
+// /**
+//  * Generates a PDF from HTML using Puppeteer in a serverless environment
+//  */
+// async function generatePdfFromHtml(html: string): Promise<Buffer> {
+//   let browser;
+//   try {
+//     browser = await getBrowser();
+//     const page = await browser.newPage();
     
-    try {
-      setError(null);
-      await deleteCourseMaterial(materialId);
-      setMaterials(prev => prev.filter(m => m.id !== materialId));
-      setExpandedMaterialIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(materialId);
-        return newSet;
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete material');
-    }
-  };
+//     // Set the HTML content
+//     await page.setContent(html, {
+//       waitUntil: "networkidle0",
+//     });
+    
+//     // Generate PDF
+//     const pdfUint8Array = await page.pdf({
+//       format: "A4",
+//       printBackground: true,
+//       margin: {
+//         top: "20mm",
+//         right: "15mm",
+//         bottom: "20mm",
+//         left: "15mm",
+//       },
+//     });
 
-const handleView = async (material: CourseMaterial) => {
-  if (!material.id) {
-    setError('Invalid material');
-    return;
-  }
+//     // Convert Uint8Array to Buffer for Node.js compatibility
+//     const pdfBuffer = Buffer.from(pdfUint8Array);
 
-  try {
-    setError(null);
+//     return pdfBuffer;
+//   } catch (error) {
+//     console.error("PDF generation failed:", error);
+//     throw new Error("Failed to generate PDF");
+//   } finally {
+//     if (browser) {
+//       await browser.close();
+//     }
+//   }
+// }
 
-    if (material.type === 'notes') {
-      setCurrentDocument({
-        url: '',
-        type: 'notes',
-        title: material.title,
-        content: getMaterialContent(material),
-      });
-      setIsViewerOpen(true);
-      return;
-    }
+// /**
+//  * Generates a receipt PDF for a payment
+//  */
+// export async function generateReceiptPdf(
+//   paymentId: number, 
+//   userId: number,
+//   ipAddress?: string,
+//   userAgent?: string
+// ): Promise<Buffer> {
+//   try {
+//     // Fetch payment data with related information
+//     const paymentData = await db
+//       .select({
+//         payment: payments,
+//         student: students,
+//         invoice: invoices,
+//       })
+//       .from(payments)
+//       .where(eq(payments.id, paymentId))
+//       .innerJoin(students, eq(payments.studentId, students.id))
+//       .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
+//       .then((rows) => rows[0]);
 
-    const result = await getDocumentViewerUrl(material.id, 'course-material');
-    if (!result.success || !result.fileUrl) {
-      setError(result.error || 'Failed to retrieve document URL');
-      return;
-    }
+//     if (!paymentData) {
+//       throw new Error("Payment not found");
+//     }
 
-    setCurrentDocument({
-      url: result.fileUrl,
-      type: 'pdf',
-      title: material.title,
-    });
-    setIsViewerOpen(true);
-  } catch (error) {
-    console.error('Error retrieving document URL:', error);
-    setError('Failed to open document viewer');
-  }
-};
+//     const { payment, student, invoice } = paymentData;
 
-  // Format time
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes));
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+//     // Generate HTML for the receipt
+//     const html = `
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <meta charset="UTF-8">
+//         <title>Payment Receipt</title>
+//         <style>
+//           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+//           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+//           .school-name { font-size: 24px; font-weight: bold; }
+//           .receipt-title { font-size: 20px; margin: 15px 0; }
+//           .details { margin: 20px 0; }
+//           .detail-row { display: flex; margin-bottom: 8px; }
+//           .detail-label { width: 150px; font-weight: bold; }
+//           .detail-value { flex: 1; }
+//           .amount { font-size: 18px; font-weight: bold; margin: 15px 0; }
+//           .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+//           table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+//           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+//           th { background-color: #f2f2f2; }
+//         </style>
+//       </head>
+//       <body>
+//         <div class="header">
+//           <div class="school-name">SCHOOL NAME</div>
+//           <div>School Address, City, Country</div>
+//           <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
+//         </div>
+        
+//         <div class="receipt-title">PAYMENT RECEIPT</div>
+        
+//         <div class="details">
+//           <div class="detail-row">
+//             <div class="detail-label">Receipt Number:</div>
+//             <div class="detail-value">${payment.id}</div>
+//           </div>
+//           <div class="detail-row">
+//             <div class="detail-label">Date:</div>
+//             <div class="detail-value">${new Date(payment.transactionDate).toLocaleDateString()}</div>
+//           </div>
+//           <div class="detail-row">
+//             <div class="detail-label">Student Name:</div>
+//             <div class="detail-value">${student.firstName} ${student.lastName}</div>
+//           </div>
+//           <div class="detail-row">
+//             <div class="detail-label">Student ID:</div>
+//             <div class="detail-value">${student.studentNumber}</div>
+//           </div>
+//           <div class="detail-row">
+//             <div class="detail-label">Invoice Reference:</div>
+//             <div class="detail-value">${invoice.id}</div>
+//           </div>
+//         </div>
+        
+//         <div class="amount">
+//           Amount Paid: $${payment.amount}
+//         </div>
+        
+//         <div class="details">
+//           <div class="detail-row">
+//             <div class="detail-label">Payment Method:</div>
+//             <div class="detail-value">${payment.paymentMethod}</div>
+//           </div>
+//           <div class="detail-row">
+//             <div class="detail-label">Reference Number:</div>
+//             <div class="detail-value">${payment.referenceNumber || 'N/A'}</div>
+//           </div>
+//         </div>
+        
+//         <div class="footer">
+//           This is an official receipt from School Name. Thank you for your payment.
+//           <br>Generated on: ${new Date().toLocaleDateString()}
+//         </div>
+//       </body>
+//       </html>
+//     `;
 
-  const getMaterialContent = (material: CourseMaterial): string => {
-    if (!material.content) return '';
+//     // Generate PDF
+//     const pdfBuffer = await generatePdfFromHtml(html);
+    
+//     // Log the document generation
+//     await logDocumentGeneration(
+//       userId, 
+//       "receipt", 
+//       paymentId,
+//       ipAddress,
+//       userAgent
+//     );
+    
+//     return pdfBuffer;
+//   } catch (error) {
+//     console.error("Error generating receipt PDF:", error);
+//     throw new Error(
+//       error instanceof Error 
+//         ? error.message 
+//         : "Failed to generate receipt PDF"
+//     );
+//   }
+// }
 
-    if (typeof material.content === 'string') {
-      return material.content;
-    }
+// /**
+//  * Generates a transcript PDF for a student
+//  */
+// export async function generateTranscriptPdf(
+//   studentId: number, 
+//   userId: number,
+//   ipAddress?: string,
+//   userAgent?: string
+// ): Promise<Buffer> {
+//   try {
+//     // Fetch student data with academic records
+//     const studentData = await db
+//       .select({
+//         student: students,
+//         program: programs,
+//         department: { name: departments.name },
+//       })
+//       .from(students)
+//       .where(eq(students.id, studentId))
+//       .innerJoin(programs, eq(students.programId, programs.id))
+//       .innerJoin(departments, eq(students.departmentId, departments.id))
+//       .then((rows) => rows[0]);
 
-    if (typeof material.content === 'object' && material.content !== null) {
-      if ('html' in material.content && typeof material.content.html === 'string') {
-        return material.content.html;
-      }
-      
-      try {
-        return JSON.stringify(material.content);
-      } catch {
-        return '';
-      }
-    }
+//     if (!studentData) {
+//       throw new Error("Student not found");
+//     }
 
-    return '';
-  };
+//     const { student, program, department } = studentData;
 
-  // Get file extension from URL
-  const getFileExtension = (url: string) => {
-    try {
-      return url.split('.').pop()?.toLowerCase();
-    } catch {
-      return '';
-    }
-  };
+//     // Fetch all enrollments with grades and course information
+//     const academicRecords = await db
+//       .select({
+//         enrollment: enrollments,
+//         course: courses,
+//         grade: grades,
+//         semester: semesters,
+//       })
+//       .from(enrollments)
+//       .where(eq(enrollments.studentId, studentId))
+//       .innerJoin(courses, eq(enrollments.courseId, courses.id))
+//       .innerJoin(semesters, eq(enrollments.semesterId, semesters.id))
+//       .leftJoin(grades, eq(enrollments.id, grades.enrollmentId))
+//       .orderBy(desc(semesters.startDate), courses.name);
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Course Management</h1>
-      </div>
+//     // Calculate GPA if grades exist
+//     let cumulativeGPA = 0;
+//     if (academicRecords.length > 0 && academicRecords[0].grade) {
+//       const totalGPA = academicRecords.reduce((sum, record) => {
+//         return sum + Number(record.grade?.gpa || 0);
+//       }, 0);
+//       cumulativeGPA = totalGPA / academicRecords.length;
+//     }
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
+//     // Group records by semester
+//     const recordsBySemester: Record<number, typeof academicRecords> = {};
+//     academicRecords.forEach(record => {
+//       const semesterId = record.semester.id;
+//       if (!recordsBySemester[semesterId]) {
+//         recordsBySemester[semesterId] = [];
+//       }
+//       recordsBySemester[semesterId].push(record);
+//     });
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Courses List */}
-        <div className="lg:col-span-1">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">Your Courses</h2>
-          
-          {loading.courses ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse"></div>
-              ))}
-            </div>
-          ) : courses.length === 0 ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No courses found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {courses.map((course) => (
-                <div
-                  key={course.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    selectedCourse?.id === course.id 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => handleSelectCourse(course.id)}
-                >
-                  <div>
-                    <h3 className="font-semibold text-gray-800">{course.name}</h3>
-                    <p className="text-sm text-gray-600">{course.code} • {course.program.code}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {course.semester.name} • {course.credits} credits
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+//     // Generate HTML for the transcript
+//     const html = `
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <meta charset="UTF-8">
+//         <title>Academic Transcript</title>
+//         <style>
+//           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+//           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+//           .school-name { font-size: 24px; font-weight: bold; }
+//           .transcript-title { font-size: 20px; margin: 15px 0; text-align: center; }
+//           .student-info { margin: 20px 0; }
+//           .info-row { display: flex; margin-bottom: 8px; }
+//           .info-label { width: 150px; font-weight: bold; }
+//           .info-value { flex: 1; }
+//           .semester-section { margin: 25px 0; }
+//           .semester-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+//           table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+//           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+//           th { background-color: #f2f2f2; }
+//           .summary { margin-top: 30px; }
+//           .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+//           .page-break { page-break-after: always; }
+//         </style>
+//       </head>
+//       <body>
+//         <div class="header">
+//           <div class="school-name">SCHOOL NAME</div>
+//           <div>School Address, City, Country</div>
+//           <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
+//         </div>
+        
+//         <div class="transcript-title">ACADEMIC TRANSCRIPT</div>
+        
+//         <div class="student-info">
+//           <div class="info-row">
+//             <div class="info-label">Student Name:</div>
+//             <div class="info-value">${student.firstName} ${student.lastName}</div>
+//           </div>
+//           <div class="info-row">
+//             <div class="info-label">Student ID:</div>
+//             <div class="info-value">${student.studentNumber}</div>
+//           </div>
+//           <div class="info-row">
+//             <div class="info-label">Program:</div>
+//             <div class="info-value">${program.name}</div>
+//           </div>
+//           <div class="info-row">
+//             <div class="info-label">Department:</div>
+//             <div class="info-value">${department.name}</div>
+//           </div>
+//           <div class="info-row">
+//             <div class="info-label">Date Generated:</div>
+//             <div class="info-value">${new Date().toLocaleDateString()}</div>
+//           </div>
+//         </div>
+        
+//         ${Object.entries(recordsBySemester).map(([semesterId, records], index) => {
+//           const semester = records[0].semester;
+//           return `
+//             <div class="semester-section ${index > 0 ? 'page-break' : ''}">
+//               <div class="semester-title">${semester.name} (${new Date(semester.startDate).getFullYear()})</div>
+//               <table>
+//                 <thead>
+//                   <tr>
+//                     <th>Course Code</th>
+//                     <th>Course Name</th>
+//                     <th>Credits</th>
+//                     <th>Grade</th>
+//                     <th>GPA</th>
+//                   </tr>
+//                 </thead>
+//                 <tbody>
+//                   ${records.map(record => `
+//                     <tr>
+//                       <td>${record.course.code}</td>
+//                       <td>${record.course.name}</td>
+//                       <td>${record.course.credits}</td>
+//                       <td>${record.grade?.letterGrade || 'Incomplete'}</td>
+//                       <td>${record.grade?.gpa || '-'}</td>
+//                     </tr>
+//                   `).join('')}
+//                 </tbody>
+//               </table>
+//             </div>
+//           `;
+//         }).join('')}
+        
+//         <div class="summary">
+//           <div class="info-row">
+//             <div class="info-label">Cumulative GPA:</div>
+//             <div class="info-value">${cumulativeGPA.toFixed(2)}</div>
+//           </div>
+//         </div>
+        
+//         <div class="footer">
+//           This is an official transcript from School Name.
+//           <br>Generated on: ${new Date().toLocaleDateString()}
+//         </div>
+//       </body>
+//       </html>
+//     `;
 
-        {/* Course Details */}
-        <div className="lg:col-span-3">
-          {!selectedCourse ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">Select a course to view details</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Course Header */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800">
-                      {selectedCourse.name} ({selectedCourse.code})
-                    </h2>
-                    <p className="text-gray-600">
-                      {selectedCourse.program.name} • {selectedCourse.semester.name}
-                    </p>
-                    {selectedCourse.description && (
-                      <p className="mt-2 text-gray-700">{selectedCourse.description}</p>
-                    )}
-                  </div>
-                </div>
+//     // Generate PDF
+//     const pdfBuffer = await generatePdfFromHtml(html);
+    
+//     // Log the document generation
+//     await logDocumentGeneration(
+//       userId, 
+//       "transcript", 
+//       studentId,
+//       ipAddress,
+//       userAgent
+//     );
+    
+//     return pdfBuffer;
+//   } catch (error) {
+//     console.error("Error generating transcript PDF:", error);
+//     throw new Error(
+//       error instanceof Error 
+//         ? error.message 
+//         : "Failed to generate transcript PDF"
+//     );
+//   }
+// }
 
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Students</p>
-                    <p className="font-medium text-blue-600">
-                      {selectedCourse.studentCount}
-                    </p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Materials</p>
-                    <p className="font-medium text-green-600">
-                      {selectedCourse.materialsCount}
-                    </p>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Credits</p>
-                    <p className="font-medium text-purple-600">
-                      {selectedCourse.credits}
-                    </p>
-                  </div>
-                </div>
-              </div>
+// /**
+//  * Generates a staff list PDF
+//  */
+// export async function generateStaffListPdf(
+//   role?: string,
+//   userId?: number,
+//   ipAddress?: string,
+//   userAgent?: string
+// ): Promise<Buffer> {
+//   try {
+//     // Fetch staff data
+//     const staffQuery = db
+//       .select({
+//         staff: staff,
+//         department: { name: departments.name },
+//       })
+//       .from(staff)
+//       .innerJoin(departments, eq(staff.departmentId, departments.id))
+//       .where(role ? eq(staff.position, role) : undefined)
+//       .orderBy(staff.lastName, staff.firstName);
 
-              {/* Tabs */}
-              <div className="flex border-b border-gray-200">
-                <button
-                  className={`px-4 py-2 font-medium flex items-center gap-2 ${
-                    activeTab === 'materials'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('materials')}
-                >
-                  <FiFileText /> Materials
-                </button>
-                <button
-                  className={`px-4 py-2 font-medium flex items-center gap-2 ${
-                    activeTab === 'students'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('students')}
-                >
-                  <FiUsers /> Students
-                </button>
-                <button
-                  className={`px-4 py-2 font-medium flex items-center gap-2 ${
-                    activeTab === 'timetable'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('timetable')}
-                >
-                  <FiClock /> Timetable
-                </button>
-              </div>
+//     const staffData = await staffQuery;
 
-              {/* Materials Tab */}
-              {activeTab === 'materials' && (
-                <div className="space-y-6">
-                  {/* Upload Form */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-medium mb-4 flex items-center gap-2 text-blue-600">
-                      <FiUpload /> Upload New Material
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Title
-                        </label>
-                        <input
-                          type="text"
-                          value={newMaterial.title}
-                          onChange={(e) => setNewMaterial({...newMaterial, title: e.target.value})}
-                          className="text-black w-full px-3 py-2 border border-gray-300 rounded-md"
-                          placeholder="Material title"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Type
-                        </label>
-<select
-  value={newMaterial.type}
-  onChange={(e) => setNewMaterial({...newMaterial, type: e.target.value})}
-  className="text-gray-700 w-full px-3 py-2 border border-gray-300 rounded-md"
->
-  <option value="notes">Lecture Notes</option>
-  <option value="pdf">PDF</option>
-</select>
-                      </div>
-                      
-                      {newMaterial.type === 'notes' ? (
-                        <div className='border'>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Content
-                          </label>
-                          <TipTapEditor
-                            content={typeof newMaterial.content === 'string' 
-                              ? newMaterial.content 
-                              : newMaterial.content.html}
-                            onChange={({ html, json }) => setNewMaterial(prev => ({
-                              ...prev,
-                              content: { html, json }
-                            }))}
-                          />
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            File Upload
-                          </label>
-                          <div className="relative">
-                            <label
-                              className={`flex flex-col items-center justify-center w-full px-4 py-6 border-2 border-dashed ${
-                                newMaterial.file ? 'border-blue-300' : 'border-gray-300'
-                              } rounded-md cursor-pointer hover:border-blue-400 transition-colors`}
-                            >
-                              <input
-                                type="file"
-                                onChange={handleFileChange}
-                                className="hidden"
-                              />
-                              <div className="flex flex-col items-center justify-center text-center">
-                                <FiUpload className="w-6 h-6 mb-2 text-gray-400" />
-                                {newMaterial.file ? (
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {newMaterial.file.name}
-                                  </p>
-                                ) : (
-                                  <>
-                                    <p className="text-sm text-gray-500">
-                                      <span className="font-medium">Click to upload</span> or drag and drop
-                                    </p>
-                                    <p className="text-xs italic text-gray-400">No file chosen</p>
-                                  </>
-                                )}
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      )}
+//     // Generate HTML for the staff list
+//     const html = `
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <meta charset="UTF-8">
+//         <title>Staff Directory</title>
+//         <style>
+//           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+//           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+//           .school-name { font-size: 24px; font-weight: bold; }
+//           .report-title { font-size: 20px; margin: 15px 0; text-align: center; }
+//           .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
+//           table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+//           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+//           th { background-color: #f2f2f2; }
+//           .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+//         </style>
+//       </head>
+//       <body>
+//         <div class="header">
+//           <div class="school-name">SCHOOL NAME</div>
+//           <div>School Address, City, Country</div>
+//           <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
+//         </div>
+        
+//         <div class="report-title">STAFF DIRECTORY</div>
+        
+//         ${role ? `<div class="filter-info">Filtered by: ${role}</div>` : ''}
+        
+//         <table>
+//           <thead>
+//             <tr>
+//               <th>Name</th>
+//               <th>Position</th>
+//               <th>Department</th>
+//               <th>Email</th>
+//             </tr>
+//           </thead>
+//           <tbody>
+//             ${staffData.map(person => `
+//               <tr>
+//                 <td>${person.staff.firstName} ${person.staff.lastName}</td>
+//                 <td>${person.staff.position}</td>
+//                 <td>${person.department.name}</td>
+//                 <td>${person.staff.email}</td>
+//               </tr>
+//             `).join('')}
+//           </tbody>
+//         </table>
+        
+//         <div class="footer">
+//           Total staff: ${staffData.length}
+//           <br>Generated on: ${new Date().toLocaleDateString()}
+//         </div>
+//       </body>
+//       </html>
+//     `;
 
-                      <button
-                        onClick={handleUploadMaterial}
-                        disabled={
-                          !newMaterial.title ||
-                          (newMaterial.type === 'notes' && !newMaterial.content) ||
-                          (newMaterial.type !== 'notes' && !newMaterial.file) ||
-                          loading.upload
-                        }
-                        className={`w-full px-4 py-2 rounded-md text-white flex items-center justify-center gap-2 ${
-                          loading.upload ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-                        } transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed`}
-                      >
-                        {loading.upload ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Uploading...
-                          </>
-                        ) : (
-                          'Upload Material'
-                        )}
-                      </button>
-                    </div>
-                  </div>
+//     // Generate PDF
+//     const pdfBuffer = await generatePdfFromHtml(html);
+    
+//     // Log the document generation if userId is provided
+//     if (userId) {
+//       await logDocumentGeneration(
+//         userId, 
+//         "staff_list", 
+//         0, // Using 0 as targetId since this is not for a specific record
+//         ipAddress,
+//         userAgent
+//       );
+//     }
+    
+//     return pdfBuffer;
+//   } catch (error) {
+//     console.error("Error generating staff list PDF:", error);
+//     throw new Error(
+//       error instanceof Error 
+//         ? error.message 
+//         : "Failed to generate staff list PDF"
+//     );
+//   }
+// }
 
-                  {/* Materials List */}
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <h3 className="font-semibold text-gray-800 p-4 border-b flex items-center gap-2">
-                      <FiFileText /> Course Materials
-                    </h3>
-                    <div className="divide-y divide-gray-200">
-                      {loading.materials ? (
-                        <div className="p-4">
-                          {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-16 bg-gray-100 rounded mb-2 animate-pulse"></div>
-                          ))}
-                        </div>
-                      ) : materials.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
-                          No materials uploaded yet
-                        </div>
-                      ) : (
-                        materials.map((material) => {
-                          const isExpanded = expandedMaterialIds.has(material.id);
 
-                          return (
-                            <div key={material.id} className="bg-white text-black">
-                              {/* Card Header */}
-                              <div 
-                                className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
-                                onClick={() => toggleExpanded(material.id)}
-                              >
-                                <div>
-                                  <h4 className="font-medium text-gray-800">{material.title}</h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full capitalize">
-                                      {material.type.replace('_', ' ')}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      Uploaded {new Date(material.uploadedAt).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  {material.fileUrl && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleView(material);
-                                      }}
-                                      className="text-emerald-600 hover:text-emerald-800 p-1"
-                                      title="View"
-                                    >
-                                      <FiEye size={16} />
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteMaterial(material.id);
-                                    }}
-                                    className="text-red-600 hover:text-red-800 p-1"
-                                    title="Delete"
-                                  >
-                                    <FiTrash2 size={16} />
-                                  </button>
-                                  {isExpanded ? (
-                                    <FiChevronUp className="text-gray-500" />
-                                  ) : (
-                                    <FiChevronDown className="text-gray-500" />
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Card Content - Collapsible */}
-                              {isExpanded && (
-                                <div className="px-4 pb-4 border-t border-gray-100">
-                                  {material.type === 'notes' ? (
-                                    <div className="prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none mt-3 p-3 bg-white rounded-md">
-                                      <div dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }} />
-                                    </div>
-                                  ) : (
-                                    <div className="mt-3">
-                                      <p className="text-sm text-gray-600 mb-2">
-                                        {material.fileUrl ? (
-                                          <span>File: {material.fileUrl.split('/').pop()}</span>
-                                        ) : 'No file attached'}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Students Tab */}
-              {activeTab === 'students' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <h3 className="font-semibold text-gray-800 p-4 border-b flex items-center gap-2">
-                    <FiUsers /> Enrolled Students ({enrollments.length})
-                  </h3>
-                  <div className="divide-y">
-                    {loading.enrollments ? (
-                      <div className="p-4">
-                        {[...Array(5)].map((_, i) => (
-                          <div key={i} className="h-16 bg-gray-100 rounded mb-2 animate-pulse"></div>
-                        ))}
-                      </div>
-                    ) : enrollments.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
-                        No students enrolled in this course
-                      </div>
-                    ) : (
-                      enrollments.map((enrollment) => (
-                        <div key={enrollment.id} className="p-4 hover:bg-gray-50">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h4 className="font-medium text-gray-800">
-                                {enrollment.student.firstName} {enrollment.student.lastName}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                {enrollment.student.registrationNumber}
-                              </p>
-                              {enrollment.enrollmentDate && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Enrolled on {new Date(enrollment.enrollmentDate).toLocaleDateString()}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Timetable Tab */}
-              {activeTab === 'timetable' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <h3 className="font-semibold text-gray-800 p-4 border-b flex items-center gap-2">
-                    <FiClock /> Course Schedule
-                  </h3>
-                  <div className="divide-y">
-                    {loading.timetable ? (
-                      <div className="p-4">
-                        {[...Array(2)].map((_, i) => (
-                          <div key={i} className="h-16 bg-gray-100 rounded mb-2 animate-pulse"></div>
-                        ))}
-                      </div>
-                    ) : timetable.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
-                        No schedule set for this course
-                      </div>
-                    ) : (
-                      timetable.map((entry, index) => (
-                        <div key={index} className="p-4 hover:bg-gray-50">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h4 className="font-medium text-gray-800 capitalize">
-                                {entry.dayOfWeek}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                {formatTime(entry.startTime)} - {formatTime(entry.endTime)}
-                              </p>
-                            </div>
-                            <div className="text-gray-600">
-                              {entry.room || 'Room not specified'}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Document Viewer Modal */}
-      {isViewerOpen && currentDocument && (
-
-          <DocumentViewer 
-    document={currentDocument} 
-    onClose={() => setIsViewerOpen(false)} 
-  />
-      )}
-    </div>
-  );
-}
