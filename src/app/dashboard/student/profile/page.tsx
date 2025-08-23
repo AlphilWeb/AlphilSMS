@@ -17,7 +17,13 @@ export default async function ProfilePage() {
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="p-6">
                 <h1 className="text-2xl font-bold text-gray-800 mb-6">My Profile</h1>
-                <ProfileSection profileData={profileData} />
+<ProfileSection
+  profileData={{
+    ...profileData,
+    email: profileData.email ?? '',
+    createdAt: profileData.createdAt ?? '',
+  }}
+/>
               </div>
             </div>
             <Footer />
