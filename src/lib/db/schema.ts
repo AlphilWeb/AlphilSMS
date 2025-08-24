@@ -273,7 +273,7 @@ export const students = pgTable('students', {
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  idNumber: varchar('id_number', { length: 50 }).unique(), // Added idNumber field
+  idNumber: varchar('id_number', { length: 50 }).unique(), 
   registrationNumber: varchar('registration_number', { length: 100 }).notNull().unique(),
   studentNumber: varchar('student_number', { length: 100 }).notNull().unique(),
   passportPhotoUrl: text('passport_photo_url'),
