@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   getStudentEnrolledCourses,
   getCourseMaterials,
+  getProgramMaterials,
   getCourseAssignments,
   getCourseQuizzes,
   submitAssignment,
@@ -18,7 +19,6 @@ import type {
 import {
   FiBook,
   FiClock,
-  // FiDownload,
   FiUpload,
   FiFileText,
   FiCheckCircle,
@@ -28,6 +28,8 @@ import {
   FiEye,
   FiSearch,
   FiX,
+  FiGrid,
+  FiLayers
 } from 'react-icons/fi';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
@@ -69,6 +71,8 @@ export default function StudentCourseManager({
   const [submissionFile, setSubmissionFile] = useState<File | null>(null);
   const [expandedMaterialIds, setExpandedMaterialIds] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [materialsViewMode, setMaterialsViewMode] = useState<'course' | 'program'>('course');
+  const [allProgramMaterials, setAllProgramMaterials] = useState<CourseMaterial[]>([]);
   
   // Document viewer state
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -98,6 +102,11 @@ export default function StudentCourseManager({
     course.programName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Get the appropriate materials based on view mode
+  const displayedMaterials = materialsViewMode === 'course' 
+    ? materials 
+    : allProgramMaterials;
+
   // Fetch all enrolled courses
   useEffect(() => {
     const fetchCourses = async () => {
@@ -119,21 +128,49 @@ export default function StudentCourseManager({
     fetchCourses();
   }, []);
 
-  // Fetch course details when selected
+  // Fetch all program materials once when component mounts
+  useEffect(() => {
+    const fetchProgramMaterials = async () => {
+      try {
+        const programMats = await getProgramMaterials();
+        setAllProgramMaterials(programMats);
+      } catch (err) {
+        console.error('Failed to load program materials:', err);
+      }
+    };
+
+    fetchProgramMaterials();
+  }, []);
+
+  // Fetch course details when selected or view mode changes
   useEffect(() => {
     if (!selectedCourse) return;
 
     const fetchCourseDetails = async () => {
       try {
         setIsLoading(true);
-        const [mats, assigns, quizs] = await Promise.all([
-          getCourseMaterials(selectedCourse.id),
-          getCourseAssignments(selectedCourse.id),
-          getCourseQuizzes(selectedCourse.id)
-        ]);
-        setMaterials(mats);
-        setAssignments(assigns);
-        setQuizzes(quizs);
+        
+        if (materialsViewMode === 'course') {
+          // Fetch only current course materials
+          const [mats, assigns, quizs] = await Promise.all([
+            getCourseMaterials(selectedCourse.id),
+            getCourseAssignments(selectedCourse.id),
+            getCourseQuizzes(selectedCourse.id)
+          ]);
+          setMaterials(mats);
+          setAssignments(assigns);
+          setQuizzes(quizs);
+        } else {
+          // Fetch all program materials (already cached) and current course assignments/quizzes
+          const [assigns, quizs] = await Promise.all([
+            getCourseAssignments(selectedCourse.id),
+            getCourseQuizzes(selectedCourse.id)
+          ]);
+          setAssignments(assigns);
+          setQuizzes(quizs);
+          // Materials are already set from allProgramMaterials
+        }
+        
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load course details');
@@ -143,7 +180,12 @@ export default function StudentCourseManager({
     };
 
     fetchCourseDetails();
-  }, [selectedCourse]);
+  }, [selectedCourse, materialsViewMode]);
+
+  // Toggle between course and program view
+  const toggleMaterialsView = () => {
+    setMaterialsViewMode(prev => prev === 'course' ? 'program' : 'course');
+  };
 
   const handleAssignmentSubmit = async () => {
     if (!selectedAssignment || !submissionFile) return;
@@ -274,6 +316,20 @@ export default function StudentCourseManager({
     }
 
     return '';
+  };
+
+  const groupMaterialsBySemester = (materials: CourseMaterial[]) => {
+    const grouped: { [key: string]: CourseMaterial[] } = {};
+    
+    materials.forEach(material => {
+      const semesterKey = material.semesterName || 'Unknown Semester';
+      if (!grouped[semesterKey]) {
+        grouped[semesterKey] = [];
+      }
+      grouped[semesterKey].push(material);
+    });
+    
+    return grouped;
   };
 
   const formatDate = (date: Date) => {
@@ -408,7 +464,7 @@ export default function StudentCourseManager({
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <FiFileText /> Materials ({materials.length})
+                  <FiFileText /> Materials ({displayedMaterials.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('assignments')}
@@ -442,89 +498,116 @@ export default function StudentCourseManager({
               </div>
             ) : (
               <>
-                {/* Materials Tab - Updated with collapsible cards and view functionality */}
+                {/* Materials Tab - Updated with view mode toggle */}
                 {activeTab === 'materials' && (
                   <div className="space-y-4">
-                    {materials.length === 0 ? (
+                    {/* View Mode Toggle */}
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-medium text-gray-800">
+                        {materialsViewMode === 'course' ? 'Course Materials' : 'All Program Materials'}
+                      </h3>
+                      <button
+                        onClick={toggleMaterialsView}
+                        className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-300 hover:bg-gray-200 rounded-md transition-colors"
+                        title={materialsViewMode === 'course' ? 'View all program materials' : 'View only current course materials'}
+                      >
+                        {materialsViewMode === 'course' ? (
+                          <>
+                            <FiLayers size={14} />
+                            View All Program
+                          </>
+                        ) : (
+                          <>
+                            <FiGrid size={14} />
+                            View This Course Only
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {displayedMaterials.length === 0 ? (
                       <div className="p-6 text-center bg-gray-50 rounded-lg">
                         <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
                         <p className="text-gray-500">No materials available</p>
                       </div>
                     ) : (
-                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="divide-y divide-gray-200">
-                          {materials.map((material) => {
-                            const isExpanded = expandedMaterialIds.has(material.id);
-
-                            return (
-                              <div key={material.id} className="bg-white">
-                                {/* Card Header */}
-                                <div 
-                                  className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
-                                  onClick={() => toggleExpanded(material.id)}
-                                >
-                                  <div>
-                                    <h4 className="font-medium text-gray-800">{material.title}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
-                                        {material.type.replace('_', ' ')}
-                                      </span>
-                                      <span className="text-xs text-gray-500">
-                                        Uploaded {formatDate(material.uploadedAt)}
-                                      </span>
+                      <div className="space-y-6">
+                        {Object.entries(groupMaterialsBySemester(displayedMaterials)).map(([semesterName, semesterMaterials]) => (
+                          <div key={semesterName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                              <h3 className="font-semibold text-gray-800">{semesterName}</h3>
+                            </div>
+                            <div className="divide-y divide-gray-200">
+                              {semesterMaterials.map((material) => {
+                                const isExpanded = expandedMaterialIds.has(material.id);
+                                
+                                return (
+                                  <div key={material.id} className="bg-white">
+                                    {/* Card Header */}
+                                    <div 
+                                      className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+                                      onClick={() => toggleExpanded(material.id)}
+                                    >
+                                      <div>
+                                        <h4 className="font-medium text-gray-800">{material.title}</h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
+                                            {material.type.replace('_', ' ')}
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            {material.courseCode} • Uploaded {formatDate(material.uploadedAt)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        {material.type !== 'notes' && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleViewMaterial(material);
+                                            }}
+                                            className="text-pink-600 hover:text-pink-800 p-1"
+                                            title="View"
+                                          >
+                                            <FiEye size={16} />
+                                          </button>
+                                        )}
+                                        {isExpanded ? (
+                                          <FiChevronUp className="text-gray-500" />
+                                        ) : (
+                                          <FiChevronDown className="text-gray-500" />
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    {material.type !== 'notes' && (
-                                      <>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleViewMaterial(material);
-                                          }}
-                                          className="text-pink-600 hover:text-pink-800 p-1"
-                                          title="View"
-                                        >
-                                          <FiEye size={16} />
-                                        </button>
-                                        
-                                      </>
-                                    )}
-                                    {isExpanded ? (
-                                      <FiChevronUp className="text-gray-500" />
-                                    ) : (
-                                      <FiChevronDown className="text-gray-500" />
-                                    )}
-                                  </div>
-                                </div>
 
-                                {/* Card Content - Collapsible */}
-                                {isExpanded && (
-                                  <div className="px-4 pb-4 border-t border-gray-100">
-                                    {material.type === 'notes' ? (
-                                      <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                                        <div 
-                                          className="prose prose-sm max-w-none text-black" 
-                                          dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }}
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="mt-3 flex gap-2">
-                                        <button
-                                          onClick={() => handleViewMaterial(material)}
-                                          className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
-                                        >
-                                          View Material
-                                        </button>
-
+                                    {/* Card Content - Collapsible */}
+                                    {isExpanded && (
+                                      <div className="px-4 pb-4 border-t border-gray-100">
+                                        {material.type === 'notes' ? (
+                                          <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                                            <div 
+                                              className="prose prose-sm max-w-none text-black" 
+                                              dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }}
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className="mt-3 flex gap-2">
+                                            <button
+                                              onClick={() => handleViewMaterial(material)}
+                                              className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
+                                            >
+                                              View Material
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -695,13 +778,6 @@ export default function StudentCourseManager({
                                       </button>
                                     ) : quiz.submitted ? (
                                       <>
-                                        {/* <button
-                                          onClick={() => handleDownload(quiz.id, 'quiz')}
-                                          className="text-pink-600 hover:text-pink-900"
-                                          title="Download quiz"
-                                        >
-                                          <FiDownload size={16} />
-                                        </button> */}
                                         {quiz.submission?.score !== null && (
                                           <span className="text-green-600">
                                             <FiCheckCircle size={16} />
