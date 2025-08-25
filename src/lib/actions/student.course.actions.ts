@@ -18,7 +18,7 @@ import {
   assignments,
   quizzes
 } from '@/lib/db/schema';
-import { eq, and, notInArray, desc, sql } from 'drizzle-orm';
+import { eq, and, notInArray, desc, sql, lte } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { uploadFileToR2 } from '../file-upload';
@@ -63,13 +63,19 @@ export type CourseMaterial = {
   title: string;
   type: string;
   fileUrl: string | null;
-  content: string | CourseMaterialContent | null; // Updated type
+  content: string | CourseMaterialContent | null;
   uploadedAt: Date;
   uploadedBy: {
     firstName: string | null;
     lastName: string | null;
   } | null;
   viewed: boolean;
+  // Add these new properties
+  semesterId?: number;
+  semesterName?: string;
+  courseId?: number;
+  courseName?: string;
+  courseCode?: string;
 };
 
 export type CourseAssignment = {
@@ -291,20 +297,103 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
           FROM ${materialViews} 
           WHERE ${materialViews.materialId} = ${courseMaterials.id}
           AND ${materialViews.studentId} = ${student.id}
-        )`.as('viewed')
+        )`.as('viewed'),
+        // Add course and semester information
+        semesterId: courses.semesterId,
+        semesterName: semesters.name,
+        courseId: courses.id,
+        courseName: courses.name,
+        courseCode: courses.code
       })
       .from(courseMaterials)
+      .innerJoin(courses, eq(courseMaterials.courseId, courses.id))
+      .innerJoin(semesters, eq(courses.semesterId, semesters.id))
       .leftJoin(staff, eq(courseMaterials.uploadedById, staff.id))
       .where(eq(courseMaterials.courseId, courseId))
       .orderBy(desc(courseMaterials.uploadedAt));
 
     return materials.map(material => {
-      // Convert raw database content to our expected type
+      // ... (keep your existing content processing logic)
+      const processedContent: string | CourseMaterialContent | null = null;
+      
+      if (material.content !== null) {
+        // ... (your existing content processing code)
+      }
+
+      return {
+        ...material,
+        content: processedContent,
+        viewed: Number(material.viewed) > 0,
+        semesterId: material.semesterId,
+        semesterName: material.semesterName,
+        courseId: material.courseId,
+        courseName: material.courseName,
+        courseCode: material.courseCode
+      };
+    });
+  } catch (error) {
+    console.error('[GET_COURSE_MATERIALS_ERROR]', error);
+    throw new Error('Failed to fetch course materials');
+  }
+}
+
+// 2. NEW function for all program materials up to current semester
+export async function getProgramMaterials(): Promise<CourseMaterial[]> {
+  try {
+    const authUser = await getAuthUser();
+    if (!authUser?.userId) throw new Error('Unauthorized');
+
+    const student = await db.query.students.findFirst({
+      where: eq(students.userId, authUser.userId),
+      columns: { id: true, programId: true, currentSemesterId: true }
+    });
+
+    if (!student) throw new Error('Student record not found');
+    if (!student.currentSemesterId) throw new Error('Student current semester not set');
+
+    const materials = await db
+      .select({
+        id: courseMaterials.id,
+        title: courseMaterials.title,
+        type: courseMaterials.type,
+        fileUrl: courseMaterials.fileUrl,
+        content: sql<string | object | null>`${courseMaterials.content}`,
+        uploadedAt: courseMaterials.uploadedAt,
+        uploadedBy: {
+          firstName: staff.firstName,
+          lastName: staff.lastName
+        },
+        viewed: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${materialViews} 
+          WHERE ${materialViews.materialId} = ${courseMaterials.id}
+          AND ${materialViews.studentId} = ${student.id}
+        )`.as('viewed'),
+        // Add course and semester information for grouping
+        semesterId: courses.semesterId,
+        semesterName: semesters.name,
+        courseId: courses.id,
+        courseName: courses.name,
+        courseCode: courses.code
+      })
+      .from(courseMaterials)
+      .innerJoin(courses, eq(courseMaterials.courseId, courses.id))
+      .innerJoin(semesters, eq(courses.semesterId, semesters.id))
+      .leftJoin(staff, eq(courseMaterials.uploadedById, staff.id))
+      .where(
+        and(
+          eq(courses.programId, student.programId),
+          lte(semesters.id, student.currentSemesterId)
+        )
+      )
+      .orderBy(desc(semesters.id), desc(courses.id), desc(courseMaterials.uploadedAt));
+
+    return materials.map(material => {
+      // Convert raw database content (keep your existing logic)
       let processedContent: string | CourseMaterialContent | null = null;
       
       if (material.content !== null) {
         if (typeof material.content === 'string') {
-          // Try to parse as JSON if it's a string
           try {
             const parsed = JSON.parse(material.content);
             processedContent = {
@@ -314,18 +403,16 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
               version: parsed.version || '1.0'
             };
           } catch {
-            // If parsing fails, treat as plain string
             processedContent = material.content;
           }
         } else if (typeof material.content === 'object') {
-          // Directly convert object to our type
-            const contentObj = material.content as {
-              html?: string;
-              json?: object;
-              createdAt?: string;
-              version?: string;
-            };
-            processedContent = {
+          const contentObj = material.content as {
+            html?: string;
+            json?: object;
+            createdAt?: string;
+            version?: string;
+          };
+          processedContent = {
             html: contentObj.html || '',
             json: contentObj.json || {},
             createdAt: contentObj.createdAt || new Date().toISOString(),
@@ -337,12 +424,17 @@ export async function getCourseMaterials(courseId: number): Promise<CourseMateri
       return {
         ...material,
         content: processedContent,
-        viewed: Number(material.viewed) > 0
+        viewed: Number(material.viewed) > 0,
+        semesterId: material.semesterId,
+        semesterName: material.semesterName,
+        courseId: material.courseId,
+        courseName: material.courseName,
+        courseCode: material.courseCode
       };
     });
   } catch (error) {
-    console.error('[GET_COURSE_MATERIALS_ERROR]', error);
-    throw new Error('Failed to fetch course materials');
+    console.error('[GET_PROGRAM_MATERIALS_ERROR]', error);
+    throw new Error('Failed to fetch program materials');
   }
 }
 
