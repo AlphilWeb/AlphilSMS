@@ -11,6 +11,8 @@ import {
   type StudentEnrollment,
 } from '@/lib/actions/admin/students.action';
 
+import BulkStudentsModal from '@/components/admin/bulk-students-modal.client';
+
 import {
   getStudentForEdit,
   updateStudent,
@@ -34,7 +36,7 @@ interface StudentFormOptions {
   programs: Option[];
   departments: Option[];
   semesters: Option[];
-  roles?: Option[]; 
+  roles: Option[]; 
 }
 
 interface SelectedStudentType {
@@ -74,6 +76,34 @@ interface SelectedStudentType {
   certificateUrl?: string | null;
 }
 
+interface StudentData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber: string;
+  registrationNumber: string;
+  studentNumber: string;
+  programId: number;
+  departmentId: number;
+  currentSemesterId: number;
+  password: string;
+  roleId: number;
+}
+
+interface StudentData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber: string;
+  registrationNumber: string;
+  studentNumber: string;
+  programId: number;
+  departmentId: number;
+  currentSemesterId: number;
+  password: string;
+  roleId: number;
+}
+
 export default function AdminStudentsClient() {
   const [students, setStudents] = useState<StudentWithDetails[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<SelectedStudentType | null>(null);
@@ -93,7 +123,7 @@ export default function AdminStudentsClient() {
   const [success, setSuccess] = useState<string | null>(null);
   const [options, setOptions] = useState<StudentFormOptions>({ programs: [], departments: [], semesters: [], roles: [] });
   const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
-
+const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -123,7 +153,8 @@ export default function AdminStudentsClient() {
         const studentsData = await getAllStudents();
         setStudents(studentsData);
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load students');
+        setError(err instanceof ActionError ? err.message : 'Failed to load students' );
+        console.error('Error loading students:', err);
       } finally {
         setLoading(prev => ({ ...prev, students: false }));
       }
@@ -161,24 +192,41 @@ if (opts.programs.length > 0 && opts.departments.length > 0 && opts.semesters.le
     loadOptions();
   }, []);
 
-  // Handle search
-  useEffect(() => {
-    if (!searchQuery.trim()) return;
-
-    const timer = setTimeout(async () => {
+// Handle search
+useEffect(() => {
+  // If search query is empty, reload all students immediately
+  if (!searchQuery.trim()) {
+    const loadAllStudents = async () => {
       try {
         setLoading(prev => ({ ...prev, students: true }));
-        const results = await searchStudents(searchQuery);
-        setStudents(results);
+        const studentsData = await getAllStudents();
+        setStudents(studentsData);
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Search failed');
+        setError(err instanceof ActionError ? err.message : 'Failed to load students');
       } finally {
         setLoading(prev => ({ ...prev, students: false }));
       }
-    }, 500);
+    };
+    
+    loadAllStudents();
+    return;
+  }
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // If there's a search query, use the debounced search
+  const timer = setTimeout(async () => {
+    try {
+      setLoading(prev => ({ ...prev, students: true }));
+      const results = await searchStudents(searchQuery);
+      setStudents(results);
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Search failed');
+    } finally {
+      setLoading(prev => ({ ...prev, students: false }));
+    }
+  }, 500);
+
+  return () => clearTimeout(timer);
+}, [searchQuery]);
 
   // Load student details when selected
   const handleSelectStudent = async (studentId: number) => {
@@ -503,6 +551,84 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
   }
 };
 
+  const handleBulkCreateStudents = async (students: StudentData[]) => {
+    try {
+      setLoading(prev => ({ ...prev, create: true }));
+      setError(null);
+      
+      const createdStudents: StudentWithDetails[] = [];
+      
+      for (const student of students) {
+        // Validate required fields
+        if (!student.firstName || !student.lastName || !student.email || 
+            !student.registrationNumber || !student.studentNumber || 
+            !student.programId || !student.departmentId || !student.currentSemesterId ||
+            !student.password || !student.roleId) {
+          throw new ActionError(`All required fields must be filled for all students`);
+        }
+
+        const studentData: StudentData = {
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          idNumber: student.idNumber,
+          registrationNumber: student.registrationNumber,
+          studentNumber: student.studentNumber,
+          programId: student.programId,
+          departmentId: student.departmentId,
+          currentSemesterId: student.currentSemesterId,
+          password: student.password,
+          roleId: student.roleId,
+        };
+
+        const newStudent = await addStudent(studentData);
+        
+        if (newStudent.success && newStudent.student) {
+          createdStudents.push({
+            id: newStudent.student.id,
+            firstName: newStudent.student.firstName,
+            lastName: newStudent.student.lastName,
+            email: newStudent.student.email,
+            registrationNumber: newStudent.student.registrationNumber,
+            studentNumber: newStudent.student.studentNumber,
+            program: {
+              id: student.programId,
+              name: options.programs.find(p => p.id === student.programId)?.name || ''
+            },
+            department: {
+              id: student.departmentId,
+              name: options.departments.find(d => d.id === student.departmentId)?.name || ''
+            },
+            currentSemester: {
+              id: student.currentSemesterId,
+              name: options.semesters.find(s => s.id === student.currentSemesterId)?.name || ''
+            },
+            user: {
+              id: newStudent.student.userId || 0,
+              role: {
+                id: student.roleId,
+                name: (options.roles ?? []).find(r => r.id === student.roleId)?.name || ''
+              }
+            },
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        } else {
+          throw new ActionError(newStudent.error || 'Failed to create student');
+        }
+      }
+      
+      // Add all created students to the list
+      setStudents(prev => [...prev, ...createdStudents]);
+      setIsBulkModalOpen(false);
+      setSuccess(`${students.length} students created successfully!`);
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to create students');
+    } finally {
+      setLoading(prev => ({ ...prev, create: false }));
+    }
+  };
+
   // Delete student
   const handleDeleteStudent = async () => {
     if (!selectedStudent) return;
@@ -534,15 +660,23 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Student Management</h1>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 flex items-center gap-2"
-        >
-          <FiPlus size={16} /> New Student
-        </button>
-      </div>
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+  <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Student Management</h1>
+  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+    <button
+      onClick={() => setIsCreateModalOpen(true)}
+      className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+    >
+      <FiPlus size={16} /> New Student
+    </button>
+    <button
+      onClick={() => setIsBulkModalOpen(true)}
+      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+    >
+      <FiPlus size={16} /> Bulk Entry
+    </button>
+  </div>
+</div>
 
       {/* Error Message */}
       {error && (
@@ -1387,37 +1521,37 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
                 </div>
               </div>
 
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    New Password (leave blank to keep current)
-  </label>
-  <input
-    type="password"
-    name="password"
-    value={formData.password}
-    onChange={handleChange}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-    placeholder="Enter new password"
-  />
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password (leave blank to keep current)
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                  placeholder="Enter new password"
+                />
+              </div>
 
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Role *
-  </label>
-  <select
-    name="roleId"
-    value={formData.roleId}
-    onChange={handleChange}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-    required
-  >
-    <option value="">Select Role</option>
-    {options.roles?.map((role) => (
-      <option key={role.id} value={role.id}>{role.name}</option>
-    ))}
-  </select>
-</div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role *
+                </label>
+                <select
+                  name="roleId"
+                  value={formData.roleId}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                  required
+                >
+                  <option value="">Select Role</option>
+                  {options.roles?.map((role) => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
+                </select>
+              </div>
 
               {/* File Upload Sections */}
               <div className="grid grid-cols-3 gap-4">
@@ -1522,6 +1656,12 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
           </div>
         </div>
       )}
+      <BulkStudentsModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        onSubmit={handleBulkCreateStudents}
+        options={options}
+      />
     </div>
   );
 }
