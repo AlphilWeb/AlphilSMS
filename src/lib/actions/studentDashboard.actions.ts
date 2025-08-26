@@ -19,13 +19,12 @@ import { getAuthUser } from '@/lib/auth';
 
 type UpcomingClassQueryResult = {
   timetables: InferSelectModel<typeof timetables>;
-  courses: InferSelectModel<typeof courses> | null; // courses can be null due to leftJoin
-  staff: InferSelectModel<typeof staff> | null;     // staff can be null due to leftJoin
+  courses: InferSelectModel<typeof courses> | null;
+  staff: InferSelectModel<typeof staff> | null;
 };
 
 export async function getStudentDashboardData() {
   try {
-      // Test database connection first
     const isConnected = await testConnection();
     if (!isConnected) {
       throw new Error('Database connection failed');
@@ -51,15 +50,14 @@ export async function getStudentDashboardData() {
     }
 
     // Get current semester enrollments
-const enrollmentsData = await db.select()
-  .from(enrollments)
-  .where(
-    and(
-      eq(enrollments.studentId, student.id),
-      // Conditionally check for semester ID if it's not null
-      student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
-    )
-  );
+    const enrollmentsData = await db.select()
+      .from(enrollments)
+      .where(
+        and(
+          eq(enrollments.studentId, student.id),
+          student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
+        )
+      );
 
     if (enrollmentsData.length === 0) {
       return {
@@ -68,6 +66,7 @@ const enrollmentsData = await db.select()
           firstName: student.firstName,
           lastName: student.lastName,
           email: student.email,
+          idNumber: student.idNumber,
           registrationNumber: student.registrationNumber,
           studentNumber: student.studentNumber,
           passportPhotoUrl: student.passportPhotoUrl,
@@ -79,10 +78,13 @@ const enrollmentsData = await db.select()
         academic: {
           enrolledCourses: 0,
           currentGPA: 0,
-          nextClass: null
+          nextClass: null,
+          recentGrades: []
         },
         financial: {
           totalBalance: 0,
+          totalBilled: 0,
+          totalPaid: 0,
           nextPaymentDue: null,
           latestPayment: null
         },
@@ -127,6 +129,18 @@ const enrollmentsData = await db.select()
       return acc;
     }, 0) / (enrollmentsWithGrades.length || 1);
 
+    // Get recent grades (last 5 graded courses)
+    const recentGrades = enrollmentsWithGrades
+      .filter(enrollment => enrollment.grade?.totalScore)
+      .sort((a, b) => new Date(b.grade?.updatedAt || 0).getTime() - new Date(a.grade?.updatedAt || 0).getTime())
+      .slice(0, 5)
+      .map(enrollment => ({
+        courseCode: enrollment.course?.code || 'N/A',
+        courseName: enrollment.course?.name || 'Unknown Course',
+        gradeValue: Number(enrollment.grade?.totalScore || 0),
+        letterGrade: enrollment.grade?.letterGrade || 'N/A'
+      }));
+
     // Get latest transcript for CGPA
     const latestTranscript = await db.query.transcripts.findFirst({
       where: eq(transcripts.studentId, student.id),
@@ -144,20 +158,19 @@ const enrollmentsData = await db.select()
       const currentTime = formatTime(now);
       
       upcomingClasses = await db.select()
-  .from(timetables)
-  .where(
-    and(
-      // Conditionally check for a non-null semester ID
-      student.currentSemesterId !== null ? eq(timetables.semesterId, student.currentSemesterId) : sql`false`,
-      sql`${timetables.courseId} IN (${sql.raw(
-        enrollmentsData.map(e => e.courseId).join(',')
-      )})`,
-      sql`${timetables.dayOfWeek} IN (${sql.raw(
-        daysBetween.map(d => `'${d}'`).join(',')
-      )})`,
-      sql`${timetables.endTime} > ${currentTime}`
-    )
-  )
+        .from(timetables)
+        .where(
+          and(
+            student.currentSemesterId !== null ? eq(timetables.semesterId, student.currentSemesterId) : sql`false`,
+            sql`${timetables.courseId} IN (${sql.raw(
+              enrollmentsData.map(e => e.courseId).join(',')
+            )})`,
+            sql`${timetables.dayOfWeek} IN (${sql.raw(
+              daysBetween.map(d => `'${d}'`).join(',')
+            )})`,
+            sql`${timetables.endTime} > ${currentTime}`
+          )
+        )
         .leftJoin(courses, eq(timetables.courseId, courses.id))
         .leftJoin(staff, eq(timetables.lecturerId, staff.id))
         .orderBy(asc(timetables.dayOfWeek), asc(timetables.startTime))
@@ -168,18 +181,23 @@ const enrollmentsData = await db.select()
     }
 
     // Get financial information
-    const outstandingInvoices = await db.query.invoices.findMany({
-      where: and(
-        eq(invoices.studentId, student.id),
-        sql`${invoices.balance} > 0`
-      ),
-      orderBy: (invoices, { asc }) => [asc(invoices.dueDate)]
+    const allInvoices = await db.query.invoices.findMany({
+      where: eq(invoices.studentId, student.id),
     });
 
-    const totalBalance = outstandingInvoices.reduce((sum, invoice) => {
+    const totalBilled = allInvoices.reduce((sum, invoice) => {
+      return sum + Number(invoice.amountDue);
+    }, 0);
+
+    const totalPaid = allInvoices.reduce((sum, invoice) => {
+      return sum + Number(invoice.amountPaid);
+    }, 0);
+
+    const totalBalance = allInvoices.reduce((sum, invoice) => {
       return sum + Number(invoice.balance);
     }, 0);
 
+    const outstandingInvoices = allInvoices.filter(invoice => Number(invoice.balance) > 0);
     const nextPaymentDue = outstandingInvoices.length > 0 
       ? outstandingInvoices[0].dueDate 
       : null;
@@ -203,6 +221,7 @@ const enrollmentsData = await db.select()
         firstName: student.firstName,
         lastName: student.lastName,
         email: student.email,
+        idNumber: student.idNumber,
         registrationNumber: student.registrationNumber,
         studentNumber: student.studentNumber,
         passportPhotoUrl: student.passportPhotoUrl,
@@ -224,9 +243,12 @@ const enrollmentsData = await db.select()
           lecturer: upcomingClasses[0].staff 
             ? `${upcomingClasses[0].staff.firstName} ${upcomingClasses[0].staff.lastName}`
             : 'Not assigned'
-        } : null
+        } : null,
+        recentGrades
       },
       financial: {
+        totalBilled,
+        totalPaid,
         totalBalance,
         nextPaymentDue,
         latestPayment: latestPayment ? {
