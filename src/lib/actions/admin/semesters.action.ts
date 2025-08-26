@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/db';
 import { semesters, courses, enrollments, students, userLogs, timetables, academicCalendarEvents, programs, staff, departments } from '@/lib/db/schema';
-import { and, eq, asc, sql, or, ne } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionError } from '@/lib/utils';
@@ -260,22 +260,22 @@ export async function createSemester(
     throw new ActionError('End date must be after start date');
   }
 
-  // Check for overlapping semesters using direct SQL comparison
-  const overlappingSemester = await db
-    .select()
-    .from(semesters)
-    .where(
-      or(
-        sql`${semesters.startDate}::date < ${endDate}::date AND ${semesters.endDate}::date > ${startDate}::date`,
-        sql`${semesters.startDate}::date = ${startDate}::date`,
-        sql`${semesters.endDate}::date = ${endDate}::date`
-      )
-    )
-    .then((res) => res[0]);
+  // // Check for overlapping semesters using direct SQL comparison
+  // const overlappingSemester = await db
+  //   .select()
+  //   .from(semesters)
+  //   .where(
+  //     or(
+  //       sql`${semesters.startDate}::date < ${endDate}::date AND ${semesters.endDate}::date > ${startDate}::date`,
+  //       sql`${semesters.startDate}::date = ${startDate}::date`,
+  //       sql`${semesters.endDate}::date = ${endDate}::date`
+  //     )
+  //   )
+  //   .then((res) => res[0]);
 
-  if (overlappingSemester) {
-    throw new ActionError(`Semester dates overlap with "${overlappingSemester.name}"`);
-  }
+  // if (overlappingSemester) {
+  //   throw new ActionError(`Semester dates overlap with "${overlappingSemester.name}"`);
+  // }
 
   const newSemester = await db
     .insert(semesters)
@@ -331,24 +331,24 @@ export async function updateSemester(
   }
 
   // Check for overlapping semesters (excluding current semester)
-  const overlappingSemester = await db
-    .select()
-    .from(semesters)
-    .where(
-      and(
-        ne(semesters.id, semesterId),
-        or(
-          sql`${semesters.startDate}::date < ${end}::date AND ${semesters.endDate}::date > ${start}::date`,
-          sql`${semesters.startDate}::date = ${start}::date`,
-          sql`${semesters.endDate}::date = ${end}::date`
-        )
-      )
-    )
-    .then((res) => res[0]);
+  // const overlappingSemester = await db
+  //   .select()
+  //   .from(semesters)
+  //   .where(
+  //     and(
+  //       ne(semesters.id, semesterId),
+  //       or(
+  //         sql`${semesters.startDate}::date < ${end}::date AND ${semesters.endDate}::date > ${start}::date`,
+  //         sql`${semesters.startDate}::date = ${start}::date`,
+  //         sql`${semesters.endDate}::date = ${end}::date`
+  //       )
+  //     )
+  //   )
+  //   .then((res) => res[0]);
 
-  if (overlappingSemester) {
-    throw new ActionError(`Semester dates overlap with "${overlappingSemester.name}"`);
-  }
+  // if (overlappingSemester) {
+  //   throw new ActionError(`Semester dates overlap with "${overlappingSemester.name}"`);
+  // }
 
   const updatedSemester = await db
     .update(semesters)
