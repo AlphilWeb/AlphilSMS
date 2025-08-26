@@ -1,5 +1,6 @@
 import { pgTable, serial, text, timestamp, unique, foreignKey, integer, numeric, date, time, varchar, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations, InferInsertModel, InferSelectModel } from 'drizzle-orm';
+// import { create } from 'domain';
 
 // --- Core Tables ---
 
@@ -273,7 +274,7 @@ export const students = pgTable('students', {
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  idNumber: varchar('id_number', { length: 50 }).unique(), 
+  idNumber: varchar('id_number', { length: 50 }).unique(),
   registrationNumber: varchar('registration_number', { length: 100 }).notNull().unique(),
   studentNumber: varchar('student_number', { length: 100 }).notNull().unique(),
   passportPhotoUrl: text('passport_photo_url'),
@@ -345,6 +346,8 @@ export const grades = pgTable('grades', {
   totalScore: numeric('total_score', { precision: 5, scale: 2 }),
   letterGrade: varchar('letter_grade', { length: 5 }),
   gpa: numeric('gpa', { precision: 3, scale: 2 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
   return {
     // Explicit Foreign Key Constraint: grades.enrollmentId -> enrollments.id
