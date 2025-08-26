@@ -311,7 +311,7 @@ useEffect(() => {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-KE', {
       style: 'currency',
       currency: 'USD'
     }).format(amount);

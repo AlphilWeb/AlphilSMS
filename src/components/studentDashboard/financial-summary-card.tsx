@@ -10,12 +10,16 @@ interface FinancialSummaryCardProps {
     date: Date;
     method: string;
   } | null;
+  totalBilled: number;
+  totalPaid: number;
 }
 
 export default function FinancialSummaryCard({
   totalBalance,
   nextPaymentDue,
-  latestPayment
+  latestPayment,
+  totalBilled,
+  totalPaid
 }: FinancialSummaryCardProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6 h-full min-h-[300px]">
@@ -53,6 +57,21 @@ export default function FinancialSummaryCard({
           >
             Make a Payment
           </Link>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 border-t pt-4">
+          <div>
+            <p className="text-sm text-gray-500">Total Billed</p>
+            <p className="font-medium text-gray-900">
+              {totalBilled.toLocaleString('en-US', { style: 'currency', currency: 'KES' })}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Paid</p>
+            <p className="font-medium text-green-600">
+              {totalPaid.toLocaleString('en-US', { style: 'currency', currency: 'KES' })}
+            </p>
+          </div>
         </div>
 
         {latestPayment && (

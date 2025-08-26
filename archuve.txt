@@ -1,515 +1,181 @@
-// "use server";
+Based on our implementation, here's how you should structure your data for optimal functionality:
 
-// import { eq, desc } from "drizzle-orm";
-// import chromium from "@sparticuz/chromium";
-// import puppeteer from "puppeteer";
-// import puppeteerCore from "puppeteer-core"; // used in production (serverless)
-// import { db, documentLogs, payments, students, invoices, programs, departments, enrollments, courses, grades, semesters, staff } from "@/lib/db";
+## Recommended Database Structure
 
-// async function getBrowser() {
-//   if (process.env.NODE_ENV === "production") {
-//     return await puppeteerCore.launch({
-//       args: chromium.args,
-//       executablePath: await chromium.executablePath(),
-//       headless: true,
-//     });
-//   } else {
-//     return await puppeteer.launch({
-//       headless: true, 
-//       executablePath: process.env.CHROME_PATH || undefined, // puppeteer will use bundled chromium
-//     });
-//   }
-// }
+### 1. Programs Table (Single Program)
+```typescript
+// programs table
+{
+  id: 1,
+  name: "Caregiving Certificate Program",
+  code: "CGP",
+  departmentId: [your_department_id],
+  durationSemesters: 6
+}
+```
 
-// /**
-//  * Logs document generation activity to the database
-//  */
-// async function logDocumentGeneration(
-//   userId: number, 
-//   documentType: string, 
-//   targetId: number,
-//   ipAddress?: string,
-//   userAgent?: string
-// ) {
-//   try {
-//     await db.insert(documentLogs).values({
-//       userId,
-//       documentType,
-//       targetId,
-//       ipAddress,
-//       userAgent,
-//     });
-//   } catch (error) {
-//     console.error("Failed to log document generation:", error);
-//     // Don't throw here as we don't want to fail the main operation
-//   }
-// }
+### 2. Semesters Table (Six Semesters)
+```typescript
+// semesters table
+[
+  {
+    id: 1,
+    name: "Caregiving Level 1",
+    startDate: "2024-01-15",
+    endDate: "2024-05-15"
+  },
+  {
+    id: 2,
+    name: "Caregiving Level 2", 
+    startDate: "2024-06-01",
+    endDate: "2024-09-30"
+  },
+  {
+    id: 3,
+    name: "Caregiving Level 3",
+    startDate: "2024-10-15",
+    endDate: "2025-02-15"
+  },
+  {
+    id: 4,
+    name: "Caregiving Level 4",
+    startDate: "2025-03-01",
+    endDate: "2025-07-15"
+  },
+  {
+    id: 5,
+    name: "Caregiving Level 5",
+    startDate: "2025-08-01",
+    endDate: "2025-12-15"
+  },
+  {
+    id: 6,
+    name: "Caregiving Level 6",
+    startDate: "2026-01-15",
+    endDate: "2026-05-15"
+  }
+]
+```
 
-// /**
-//  * Generates a PDF from HTML using Puppeteer in a serverless environment
-//  */
-// async function generatePdfFromHtml(html: string): Promise<Buffer> {
-//   let browser;
-//   try {
-//     browser = await getBrowser();
-//     const page = await browser.newPage();
-    
-//     // Set the HTML content
-//     await page.setContent(html, {
-//       waitUntil: "networkidle0",
-//     });
-    
-//     // Generate PDF
-//     const pdfUint8Array = await page.pdf({
-//       format: "A4",
-//       printBackground: true,
-//       margin: {
-//         top: "20mm",
-//         right: "15mm",
-//         bottom: "20mm",
-//         left: "15mm",
-//       },
-//     });
+### 3. Courses Table (Example Structure)
+```typescript
+// courses table examples
+[
+  // Level 1 Courses
+  {
+    id: 1,
+    programId: 1, // Caregiving Program
+    semesterId: 1, // Caregiving Level 1
+    lecturerId: [lecturer_staff_id],
+    name: "Introduction to Caregiving",
+    code: "CGP101",
+    credits: 3.0,
+    description: "Basic principles and ethics of caregiving"
+  },
+  {
+    id: 2,
+    programId: 1,
+    semesterId: 1,
+    lecturerId: [lecturer_staff_id],
+    name: "Personal Care Fundamentals",
+    code: "CGP102", 
+    credits: 4.0,
+    description: "Basic personal care techniques and hygiene"
+  },
 
-//     // Convert Uint8Array to Buffer for Node.js compatibility
-//     const pdfBuffer = Buffer.from(pdfUint8Array);
+  // Level 2 Courses
+  {
+    id: 3,
+    programId: 1,
+    semesterId: 2, // Caregiving Level 2
+    lecturerId: [lecturer_staff_id],
+    name: "Advanced Personal Care",
+    code: "CGP201",
+    credits: 4.0,
+    description: "Advanced care techniques and specialized equipment"
+  },
+  {
+    id: 4,
+    programId: 1,
+    semesterId: 2,
+    lecturerId: [lecturer_staff_id],
+    name: "Nutrition for Caregivers",
+    code: "CGP202",
+    credits: 3.0,
+    description: "Diet planning and nutritional requirements"
+  },
 
-//     return pdfBuffer;
-//   } catch (error) {
-//     console.error("PDF generation failed:", error);
-//     throw new Error("Failed to generate PDF");
-//   } finally {
-//     if (browser) {
-//       await browser.close();
-//     }
-//   }
-// }
+  // Level 3 Courses
+  {
+    id: 5,
+    programId: 1,
+    semesterId: 3, // Caregiving Level 3
+    lecturerId: [lecturer_staff_id],
+    name: "Medical Terminology",
+    code: "CGP301",
+    credits: 3.0,
+    description: "Basic medical terms and documentation"
+  },
+  {
+    id: 6,
+    programId: 1,
+    semesterId: 3,
+    lecturerId: [lecturer_staff_id],
+    name: "First Aid and Emergency Response",
+    code: "CGP302",
+    credits: 4.0,
+    description: "Emergency procedures and basic first aid"
+  },
 
-// /**
-//  * Generates a receipt PDF for a payment
-//  */
-// export async function generateReceiptPdf(
-//   paymentId: number, 
-//   userId: number,
-//   ipAddress?: string,
-//   userAgent?: string
-// ): Promise<Buffer> {
-//   try {
-//     // Fetch payment data with related information
-//     const paymentData = await db
-//       .select({
-//         payment: payments,
-//         student: students,
-//         invoice: invoices,
-//       })
-//       .from(payments)
-//       .where(eq(payments.id, paymentId))
-//       .innerJoin(students, eq(payments.studentId, students.id))
-//       .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
-//       .then((rows) => rows[0]);
+  // Continue this pattern for Levels 4, 5, and 6...
+]
+```
 
-//     if (!paymentData) {
-//       throw new Error("Payment not found");
-//     }
+### 4. Students Table (Example)
+```typescript
+// students table example
+{
+  id: 1,
+  userId: [user_id],
+  programId: 1, // Caregiving Program
+  departmentId: [department_id],
+  currentSemesterId: 4, // Student is currently in Caregiving Level 4
+  firstName: "John",
+  lastName: "Doe",
+  email: "john.doe@email.com",
+  registrationNumber: "CGP2024001",
+  studentNumber: "CG001"
+  // ... other fields
+}
+```
 
-//     const { payment, student, invoice } = paymentData;
+## How This Works in Your Application:
 
-//     // Generate HTML for the receipt
-//     const html = `
-//       <!DOCTYPE html>
-//       <html>
-//       <head>
-//         <meta charset="UTF-8">
-//         <title>Payment Receipt</title>
-//         <style>
-//           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-//           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-//           .school-name { font-size: 24px; font-weight: bold; }
-//           .receipt-title { font-size: 20px; margin: 15px 0; }
-//           .details { margin: 20px 0; }
-//           .detail-row { display: flex; margin-bottom: 8px; }
-//           .detail-label { width: 150px; font-weight: bold; }
-//           .detail-value { flex: 1; }
-//           .amount { font-size: 18px; font-weight: bold; margin: 15px 0; }
-//           .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
-//           table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-//           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-//           th { background-color: #f2f2f2; }
-//         </style>
-//       </head>
-//       <body>
-//         <div class="header">
-//           <div class="school-name">SCHOOL NAME</div>
-//           <div>School Address, City, Country</div>
-//           <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-//         </div>
-        
-//         <div class="receipt-title">PAYMENT RECEIPT</div>
-        
-//         <div class="details">
-//           <div class="detail-row">
-//             <div class="detail-label">Receipt Number:</div>
-//             <div class="detail-value">${payment.id}</div>
-//           </div>
-//           <div class="detail-row">
-//             <div class="detail-label">Date:</div>
-//             <div class="detail-value">${new Date(payment.transactionDate).toLocaleDateString()}</div>
-//           </div>
-//           <div class="detail-row">
-//             <div class="detail-label">Student Name:</div>
-//             <div class="detail-value">${student.firstName} ${student.lastName}</div>
-//           </div>
-//           <div class="detail-row">
-//             <div class="detail-label">Student ID:</div>
-//             <div class="detail-value">${student.studentNumber}</div>
-//           </div>
-//           <div class="detail-row">
-//             <div class="detail-label">Invoice Reference:</div>
-//             <div class="detail-value">${invoice.id}</div>
-//           </div>
-//         </div>
-        
-//         <div class="amount">
-//           Amount Paid: $${payment.amount}
-//         </div>
-        
-//         <div class="details">
-//           <div class="detail-row">
-//             <div class="detail-label">Payment Method:</div>
-//             <div class="detail-value">${payment.paymentMethod}</div>
-//           </div>
-//           <div class="detail-row">
-//             <div class="detail-label">Reference Number:</div>
-//             <div class="detail-value">${payment.referenceNumber || 'N/A'}</div>
-//           </div>
-//         </div>
-        
-//         <div class="footer">
-//           This is an official receipt from School Name. Thank you for your payment.
-//           <br>Generated on: ${new Date().toLocaleDateString()}
-//         </div>
-//       </body>
-//       </html>
-//     `;
+### For a Student in Level 4:
+- **Program View**: Can access materials from Levels 1, 2, 3, and 4
+- **Course View**: Can access materials only from their currently enrolled Level 4 courses
 
-//     // Generate PDF
-//     const pdfBuffer = await generatePdfFromHtml(html);
-    
-//     // Log the document generation
-//     await logDocumentGeneration(
-//       userId, 
-//       "receipt", 
-//       paymentId,
-//       ipAddress,
-//       userAgent
-//     );
-    
-//     return pdfBuffer;
-//   } catch (error) {
-//     console.error("Error generating receipt PDF:", error);
-//     throw new Error(
-//       error instanceof Error 
-//         ? error.message 
-//         : "Failed to generate receipt PDF"
-//     );
-//   }
-// }
+### Benefits of This Structure:
 
-// /**
-//  * Generates a transcript PDF for a student
-//  */
-// export async function generateTranscriptPdf(
-//   studentId: number, 
-//   userId: number,
-//   ipAddress?: string,
-//   userAgent?: string
-// ): Promise<Buffer> {
-//   try {
-//     // Fetch student data with academic records
-//     const studentData = await db
-//       .select({
-//         student: students,
-//         program: programs,
-//         department: { name: departments.name },
-//       })
-//       .from(students)
-//       .where(eq(students.id, studentId))
-//       .innerJoin(programs, eq(students.programId, programs.id))
-//       .innerJoin(departments, eq(students.departmentId, departments.id))
-//       .then((rows) => rows[0]);
+1. **Clear Progression**: The semester IDs (1-6) create a natural progression order
+2. **Flexible Access**: Students can review previous levels while focusing on current work
+3. **Organized UI**: Materials will be grouped as:
+   - "Caregiving Level 4" (current)
+   - "Caregiving Level 3" (previous)
+   - "Caregiving Level 2" (previous)
+   - "Caregiving Level 1" (previous)
 
-//     if (!studentData) {
-//       throw new Error("Student not found");
-//     }
+4. **Scalable**: Easy to add more levels or specialized tracks later
 
-//     const { student, program, department } = studentData;
+### Enrollment Example:
+When a student progresses to Level 5, you simply update:
+```typescript
+// Update student's current semester
+await db.update(students)
+  .set({ currentSemesterId: 5 })
+  .where(eq(students.id, studentId));
+```
 
-//     // Fetch all enrollments with grades and course information
-//     const academicRecords = await db
-//       .select({
-//         enrollment: enrollments,
-//         course: courses,
-//         grade: grades,
-//         semester: semesters,
-//       })
-//       .from(enrollments)
-//       .where(eq(enrollments.studentId, studentId))
-//       .innerJoin(courses, eq(enrollments.courseId, courses.id))
-//       .innerJoin(semesters, eq(enrollments.semesterId, semesters.id))
-//       .leftJoin(grades, eq(enrollments.id, grades.enrollmentId))
-//       .orderBy(desc(semesters.startDate), courses.name);
+This automatically grants them access to materials from Levels 1-5 when in "Program View" mode.
 
-//     // Calculate GPA if grades exist
-//     let cumulativeGPA = 0;
-//     if (academicRecords.length > 0 && academicRecords[0].grade) {
-//       const totalGPA = academicRecords.reduce((sum, record) => {
-//         return sum + Number(record.grade?.gpa || 0);
-//       }, 0);
-//       cumulativeGPA = totalGPA / academicRecords.length;
-//     }
-
-//     // Group records by semester
-//     const recordsBySemester: Record<number, typeof academicRecords> = {};
-//     academicRecords.forEach(record => {
-//       const semesterId = record.semester.id;
-//       if (!recordsBySemester[semesterId]) {
-//         recordsBySemester[semesterId] = [];
-//       }
-//       recordsBySemester[semesterId].push(record);
-//     });
-
-//     // Generate HTML for the transcript
-//     const html = `
-//       <!DOCTYPE html>
-//       <html>
-//       <head>
-//         <meta charset="UTF-8">
-//         <title>Academic Transcript</title>
-//         <style>
-//           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-//           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-//           .school-name { font-size: 24px; font-weight: bold; }
-//           .transcript-title { font-size: 20px; margin: 15px 0; text-align: center; }
-//           .student-info { margin: 20px 0; }
-//           .info-row { display: flex; margin-bottom: 8px; }
-//           .info-label { width: 150px; font-weight: bold; }
-//           .info-value { flex: 1; }
-//           .semester-section { margin: 25px 0; }
-//           .semester-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-//           table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-//           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-//           th { background-color: #f2f2f2; }
-//           .summary { margin-top: 30px; }
-//           .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
-//           .page-break { page-break-after: always; }
-//         </style>
-//       </head>
-//       <body>
-//         <div class="header">
-//           <div class="school-name">SCHOOL NAME</div>
-//           <div>School Address, City, Country</div>
-//           <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-//         </div>
-        
-//         <div class="transcript-title">ACADEMIC TRANSCRIPT</div>
-        
-//         <div class="student-info">
-//           <div class="info-row">
-//             <div class="info-label">Student Name:</div>
-//             <div class="info-value">${student.firstName} ${student.lastName}</div>
-//           </div>
-//           <div class="info-row">
-//             <div class="info-label">Student ID:</div>
-//             <div class="info-value">${student.studentNumber}</div>
-//           </div>
-//           <div class="info-row">
-//             <div class="info-label">Program:</div>
-//             <div class="info-value">${program.name}</div>
-//           </div>
-//           <div class="info-row">
-//             <div class="info-label">Department:</div>
-//             <div class="info-value">${department.name}</div>
-//           </div>
-//           <div class="info-row">
-//             <div class="info-label">Date Generated:</div>
-//             <div class="info-value">${new Date().toLocaleDateString()}</div>
-//           </div>
-//         </div>
-        
-//         ${Object.entries(recordsBySemester).map(([semesterId, records], index) => {
-//           const semester = records[0].semester;
-//           return `
-//             <div class="semester-section ${index > 0 ? 'page-break' : ''}">
-//               <div class="semester-title">${semester.name} (${new Date(semester.startDate).getFullYear()})</div>
-//               <table>
-//                 <thead>
-//                   <tr>
-//                     <th>Course Code</th>
-//                     <th>Course Name</th>
-//                     <th>Credits</th>
-//                     <th>Grade</th>
-//                     <th>GPA</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   ${records.map(record => `
-//                     <tr>
-//                       <td>${record.course.code}</td>
-//                       <td>${record.course.name}</td>
-//                       <td>${record.course.credits}</td>
-//                       <td>${record.grade?.letterGrade || 'Incomplete'}</td>
-//                       <td>${record.grade?.gpa || '-'}</td>
-//                     </tr>
-//                   `).join('')}
-//                 </tbody>
-//               </table>
-//             </div>
-//           `;
-//         }).join('')}
-        
-//         <div class="summary">
-//           <div class="info-row">
-//             <div class="info-label">Cumulative GPA:</div>
-//             <div class="info-value">${cumulativeGPA.toFixed(2)}</div>
-//           </div>
-//         </div>
-        
-//         <div class="footer">
-//           This is an official transcript from School Name.
-//           <br>Generated on: ${new Date().toLocaleDateString()}
-//         </div>
-//       </body>
-//       </html>
-//     `;
-
-//     // Generate PDF
-//     const pdfBuffer = await generatePdfFromHtml(html);
-    
-//     // Log the document generation
-//     await logDocumentGeneration(
-//       userId, 
-//       "transcript", 
-//       studentId,
-//       ipAddress,
-//       userAgent
-//     );
-    
-//     return pdfBuffer;
-//   } catch (error) {
-//     console.error("Error generating transcript PDF:", error);
-//     throw new Error(
-//       error instanceof Error 
-//         ? error.message 
-//         : "Failed to generate transcript PDF"
-//     );
-//   }
-// }
-
-// /**
-//  * Generates a staff list PDF
-//  */
-// export async function generateStaffListPdf(
-//   role?: string,
-//   userId?: number,
-//   ipAddress?: string,
-//   userAgent?: string
-// ): Promise<Buffer> {
-//   try {
-//     // Fetch staff data
-//     const staffQuery = db
-//       .select({
-//         staff: staff,
-//         department: { name: departments.name },
-//       })
-//       .from(staff)
-//       .innerJoin(departments, eq(staff.departmentId, departments.id))
-//       .where(role ? eq(staff.position, role) : undefined)
-//       .orderBy(staff.lastName, staff.firstName);
-
-//     const staffData = await staffQuery;
-
-//     // Generate HTML for the staff list
-//     const html = `
-//       <!DOCTYPE html>
-//       <html>
-//       <head>
-//         <meta charset="UTF-8">
-//         <title>Staff Directory</title>
-//         <style>
-//           body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-//           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-//           .school-name { font-size: 24px; font-weight: bold; }
-//           .report-title { font-size: 20px; margin: 15px 0; text-align: center; }
-//           .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
-//           table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-//           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-//           th { background-color: #f2f2f2; }
-//           .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
-//         </style>
-//       </head>
-//       <body>
-//         <div class="header">
-//           <div class="school-name">SCHOOL NAME</div>
-//           <div>School Address, City, Country</div>
-//           <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-//         </div>
-        
-//         <div class="report-title">STAFF DIRECTORY</div>
-        
-//         ${role ? `<div class="filter-info">Filtered by: ${role}</div>` : ''}
-        
-//         <table>
-//           <thead>
-//             <tr>
-//               <th>Name</th>
-//               <th>Position</th>
-//               <th>Department</th>
-//               <th>Email</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             ${staffData.map(person => `
-//               <tr>
-//                 <td>${person.staff.firstName} ${person.staff.lastName}</td>
-//                 <td>${person.staff.position}</td>
-//                 <td>${person.department.name}</td>
-//                 <td>${person.staff.email}</td>
-//               </tr>
-//             `).join('')}
-//           </tbody>
-//         </table>
-        
-//         <div class="footer">
-//           Total staff: ${staffData.length}
-//           <br>Generated on: ${new Date().toLocaleDateString()}
-//         </div>
-//       </body>
-//       </html>
-//     `;
-
-//     // Generate PDF
-//     const pdfBuffer = await generatePdfFromHtml(html);
-    
-//     // Log the document generation if userId is provided
-//     if (userId) {
-//       await logDocumentGeneration(
-//         userId, 
-//         "staff_list", 
-//         0, // Using 0 as targetId since this is not for a specific record
-//         ipAddress,
-//         userAgent
-//       );
-//     }
-    
-//     return pdfBuffer;
-//   } catch (error) {
-//     console.error("Error generating staff list PDF:", error);
-//     throw new Error(
-//       error instanceof Error 
-//         ? error.message 
-//         : "Failed to generate staff list PDF"
-//     );
-//   }
-// }
-
-
+The naming convention (`Caregiving Level X`) makes it immediately clear to students which materials belong to which stage of their education, while the numeric semester IDs ensure proper ordering in the UI.
