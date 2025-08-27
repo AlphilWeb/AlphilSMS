@@ -121,11 +121,11 @@ export default function AdminDashboardHeader() {
             <Image
               src="/icon.jpg" 
               alt="Alphil Training College"
-              width={40}
-              height={40}
-              className="h-10 w-auto"
+              width={50}
+              height={50}
+              className="h-16 w-auto"
             />
-            <h1 className="text-xl font-bold text-gray-800 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <h1 className="text-xl font-bold text-pink-500 mt-8hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           {/* User controls */}
