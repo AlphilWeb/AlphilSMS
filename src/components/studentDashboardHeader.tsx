@@ -153,7 +153,7 @@ export default function StudentDashboardHeader() {
               >
                 <div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
                   <Image
-                    src={studentData.avatar}
+                    src={`/${studentData.avatar}`}
                     alt="User avatar"
                     width={32}
                     height={32}

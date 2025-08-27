@@ -27,7 +27,7 @@ export default function WelcomeBanner({
         <div className="relative w-24 h-24 rounded-full bg-gray-100 overflow-hidden border-2 border-emerald-100">
           {passportPhotoUrl ? (
             <Image 
-              src={passportPhotoUrl}
+              src={`/$passportPhotoUrl`}
               alt="Student photo"
               fill
               className="object-cover"
@@ -41,7 +41,7 @@ export default function WelcomeBanner({
 
         {/* Student Info */}
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-800">Welcome  {firstName}!</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Welcome {firstName}!</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <p className="text-sm text-gray-500">Program</p>

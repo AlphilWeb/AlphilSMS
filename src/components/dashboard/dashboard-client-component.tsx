@@ -6,7 +6,7 @@ import {
   FiUsers, FiUser, FiBriefcase, FiBookOpen, FiCalendar,
   FiFileText, FiDollarSign, FiCreditCard, FiActivity, FiClipboard,
   FiHome, FiAward, FiBook, FiList,
-  FiClock, FiTrendingUp, FiBarChart2
+  FiClock, FiTrendingUp, FiBarChart2, FiArrowRight
 } from "react-icons/fi";
 
 // Define the interface for the counts received as props
@@ -184,37 +184,44 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "academic":
-        return "from-emerald-500 to-teal-600";
+        return "bg-emerald-100 text-emerald-600";
       case "financial":
-        return "from-blue-500 to-indigo-600";
+        return "bg-blue-100 text-blue-600";
       case "management":
-        return "from-purple-500 to-violet-600";
+        return "bg-purple-100 text-purple-600";
       default:
-        return "from-gray-500 to-gray-600";
+        return "bg-gray-100 text-gray-600";
     }
   };
 
   const getTrendColor = (trend: string) => {
-    if (trend.includes('+')) return "text-emerald-400";
-    if (trend === "Current" || trend === "Active" || trend === "Updated") return "text-blue-400";
-    return "text-gray-400";
+    if (trend.includes('+')) return "text-emerald-600 bg-emerald-50";
+    if (trend === "Current" || trend === "Active" || trend === "Updated") return "text-blue-600 bg-blue-50";
+    return "text-gray-600 bg-gray-50";
+  };
+
+  const categoryGroups = {
+    academic: dashboardCards.filter(card => card.category === "academic"),
+    financial: dashboardCards.filter(card => card.category === "financial"),
+    management: dashboardCards.filter(card => card.category === "management")
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <p className="text-gray-600">Welcome to your education management system dashboard</p>
+    <div className="bg-emerald-800 p-6 rounded-2xl">
+      {/* Header Section */}
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-white mb-2">System Management Portal</h2>
+        <p className="text-emerald-100">Comprehensive overview of your education management system</p>
       </div>
 
-      {/* Stats Summary */}
+      {/* Quick Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-emerald-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Students</p>
               <p className="text-2xl font-bold text-gray-800">{counts.studentCount}</p>
-              <p className="text-sm text-emerald-500 flex items-center gap-1 mt-1">
+              <p className="text-sm text-emerald-600 flex items-center gap-1 mt-1">
                 <FiTrendingUp size={14} />
                 +8% from last month
               </p>
@@ -225,14 +232,14 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-emerald-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-800">
                 ${(counts.paymentCount * 500).toLocaleString()}
               </p>
-              <p className="text-sm text-blue-500 flex items-center gap-1 mt-1">
+              <p className="text-sm text-blue-600 flex items-center gap-1 mt-1">
                 <FiBarChart2 size={14} />
                 +18% from last month
               </p>
@@ -243,12 +250,12 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-emerald-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Active Courses</p>
               <p className="text-2xl font-bold text-gray-800">{counts.courseCount}</p>
-              <p className="text-sm text-purple-500 flex items-center gap-1 mt-1">
+              <p className="text-sm text-purple-600 flex items-center gap-1 mt-1">
                 <FiActivity size={14} />
                 +15% new courses
               </p>
@@ -260,51 +267,154 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
         </div>
       </div>
 
-      {/* Dashboard Cards Grid */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Access</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {dashboardCards.map((card, index) => (
-            <Link key={index} href={card.href} className="block group">
-              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 transition-all duration-300 hover:shadow-lg hover:border-emerald-200 hover:translate-y-1">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-xl bg-gradient-to-r ${getCategoryColor(card.category)}`}>
-                    <card.icon className="text-white text-xl" />
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTrendColor(card.trend)} bg-opacity-20 ${getTrendColor(card.trend).replace('text-', 'bg-')}`}>
-                    {card.trend}
-                  </span>
-                </div>
-                
-                <div className="mb-2">
-                  <h3 className="text-lg font-semibold text-gray-800 group-hover:text-emerald-600 transition-colors">
-                    {card.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">{card.description}</p>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-gray-800">{card.count}</span>
-                  <div className="w-8 h-8 bg-emerald-50 rounded-full flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                    <div className="w-4 h-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full"></div>
-                  </div>
-                </div>
+      {/* Category Sections */}
+      <div className="space-y-8">
+        {/* Academic Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-white flex items-center gap-3">
+              <div className="p-2 bg-emerald-600 rounded-lg">
+                <FiBook className="text-white" />
               </div>
-            </Link>
-          ))}
+              Academic Management
+            </h3>
+            <span className="text-emerald-200 text-sm">
+              {categoryGroups.academic.length} modules
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {categoryGroups.academic.map((card, index) => (
+              <Link key={index} href={card.href} className="block group">
+                <div className="bg-white rounded-xl shadow-md p-5 border border-emerald-100 transition-all duration-200 hover:shadow-lg hover:border-emerald-300 hover:translate-y-0.5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`p-2 rounded-lg ${getCategoryColor(card.category)}`}>
+                      <card.icon className="text-xl" />
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTrendColor(card.trend)}`}>
+                      {card.trend}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800 group-hover:text-emerald-700 transition-colors">
+                      {card.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">{card.description}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-gray-800">{card.count}</span>
+                    <div className="w-7 h-7 bg-emerald-50 rounded-full flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                      <FiArrowRight className="text-emerald-600 text-sm" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Financial Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-white flex items-center gap-3">
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <FiDollarSign className="text-white" />
+              </div>
+              Financial Management
+            </h3>
+            <span className="text-emerald-200 text-sm">
+              {categoryGroups.financial.length} modules
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {categoryGroups.financial.map((card, index) => (
+              <Link key={index} href={card.href} className="block group">
+                <div className="bg-white rounded-xl shadow-md p-5 border border-emerald-100 transition-all duration-200 hover:shadow-lg hover:border-blue-300 hover:translate-y-0.5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`p-2 rounded-lg ${getCategoryColor(card.category)}`}>
+                      <card.icon className="text-xl" />
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTrendColor(card.trend)}`}>
+                      {card.trend}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
+                      {card.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">{card.description}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-gray-800">{card.count}</span>
+                    <div className="w-7 h-7 bg-blue-50 rounded-full flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                      <FiArrowRight className="text-blue-600 text-sm" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Management Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-white flex items-center gap-3">
+              <div className="p-2 bg-purple-600 rounded-lg">
+                <FiUsers className="text-white" />
+              </div>
+              System Management
+            </h3>
+            <span className="text-emerald-200 text-sm">
+              {categoryGroups.management.length} modules
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {categoryGroups.management.map((card, index) => (
+              <Link key={index} href={card.href} className="block group">
+                <div className="bg-white rounded-xl shadow-md p-5 border border-emerald-100 transition-all duration-200 hover:shadow-lg hover:border-purple-300 hover:translate-y-0.5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`p-2 rounded-lg ${getCategoryColor(card.category)}`}>
+                      <card.icon className="text-xl" />
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTrendColor(card.trend)}`}>
+                      {card.trend}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800 group-hover:text-purple-700 transition-colors">
+                      {card.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">{card.description}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-bold text-gray-800">{card.count}</span>
+                    <div className="w-7 h-7 bg-purple-50 rounded-full flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                      <FiArrowRight className="text-purple-600 text-sm" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Footer Section */}
-      <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+      {/* System Status Footer */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-emerald-100 mt-8">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">System Status</h3>
-            <p className="text-sm text-gray-500">All systems operational</p>
+            <p className="text-sm text-gray-500">All systems operational and running smoothly</p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-            <span className="text-sm text-emerald-600">Online</span>
+            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+            <span className="text-sm text-emerald-600 font-medium">Online & Secure</span>
           </div>
         </div>
       </div>
