@@ -25,7 +25,7 @@ export default function WelcomeBanner({
             />
           </div>
           <div className="ml-4">
-            <h2 className="text-xl font-bold text-gray-900">Welcome back, {firstName}!</h2>
+            <h2 className="text-xl font-bold text-gray-900">Welcome back {firstName}!</h2>
             <p className="text-sm text-gray-500">
               {position} • {department}
             </p>

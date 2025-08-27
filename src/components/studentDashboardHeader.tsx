@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function StudentDashboardHeader() {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile menu
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [studentData, setStudentData] = useState<StudentHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +46,6 @@ export default function StudentDashboardHeader() {
     loadData();
   }, []);
   
-  // Close the mobile menu automatically when the route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
