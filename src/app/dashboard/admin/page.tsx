@@ -11,6 +11,7 @@ import {
 import { count } from 'drizzle-orm';
 import { checkAuthAndPermissions } from '@/lib/auth';
 
+
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
@@ -77,22 +78,19 @@ export default async function AdminDashboardPage() {
     <>
       <AdminDashboardHeader />
 
-      <main className="pl-[220px] min-h-screen bg-emerald-800">
+      <main className="md:pl-64 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800">
         {/* Sticky header section */}
-        <div className="sticky top-[58px] z-30 bg-white border-b border-gray-200 px-8 py-6 flex flex-wrap justify-between items-center shadow-sm">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
-          </div>
+        <div className="sticky top-0 z-30 bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap justify-between items-center shadow-sm">
+
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">Last updated: {new Date().toLocaleTimeString()}</span>
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
           </div>
         </div>
 
-        {/* Scrollable dashboard content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(100vh-140px)]">
+
+          {/* Dashboard Client Component */}
           <DashboardClientComponent counts={counts} />
-        </div>
 
         <Footer />
       </main>
