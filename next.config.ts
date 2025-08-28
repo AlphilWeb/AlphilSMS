@@ -3,6 +3,14 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'alphilsms.46697d0c4cf22940fd573b95841a13ea.r2.cloudflarestorage.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
     domains: ['avatars.githubusercontent.com', 'example.com', 'yourdomain.com'],
   },
   webpack: (config, { isServer, webpack }) => {
@@ -19,7 +27,6 @@ const nextConfig: NextConfig = {
         })
       );
     } else {
-      // Mark canvas as external on server to prevent bundling native code
       config.externals = config.externals || [];
       config.externals.push('canvas');
     }
