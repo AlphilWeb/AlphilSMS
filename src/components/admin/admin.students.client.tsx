@@ -22,7 +22,9 @@ import { getStudentFormOptions, addStudent } from '@/lib/actions/test/test.actio
 import {
   FiUser, FiBook, FiPlus, FiEdit2, FiTrash2, 
   FiLoader, FiX, FiSearch, FiInfo, FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera,
-  FiExternalLink
+  FiExternalLink,
+  FiEye,
+  FiEyeOff
 } from 'react-icons/fi';
 import { ActionError } from '@/lib/utils';
 
@@ -143,6 +145,8 @@ const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     idPhoto: null as File | null,
     certificate: null as File | null,
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   // Fetch all students on component mount and when search changes
   useEffect(() => {
@@ -295,6 +299,38 @@ const studentToSet = {
     }));
   };
 
+  //   const formatErrorMessage = (error: unknown): string => {
+  //   console.error('Raw error:', error);
+    
+  //   if (error instanceof ActionError) {
+  //     return error.message;
+  //   }
+    
+  //   if (typeof error === 'string') {
+  //     return error;
+  //   }
+    
+  //   if (error && typeof error === 'object') {
+  //     // Handle Zod validation errors
+  //     if ('issues' in error && Array.isArray(error.issues)) {
+  //       const issues = error.issues as Array<{path: string[], message: string}>;
+  //       if (issues.length > 0) {
+  //         return issues.map(issue => {
+  //           const field = issue.path[issue.path.length - 1];
+  //           return `${field ? field + ': ' : ''}${issue.message}`;
+  //         }).join(', ');
+  //       }
+  //     }
+      
+  //     // Handle other object errors
+  //     if ('message' in error && typeof error.message === 'string') {
+  //       return error.message;
+  //     }
+  //   }
+    
+  //   return 'An unexpected error occurred. Please try again.';
+  // };
+
   // Handle file input changes
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const { files } = e.target;
@@ -442,6 +478,10 @@ const handleUpdateStudent = async () => {
   try {
     setLoading(prev => ({ ...prev, update: true }));
     setError(null);
+
+      if (formData.password && formData.password.length > 0 && formData.password.length < 8) {
+        throw new ActionError('Password must be at least 8 characters long');
+      }
 
     const shouldDeleteFiles = {
       certificate: !documentsFormData.certificate && !filePreviews.certificate,
@@ -752,7 +792,8 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
                   {students.map((student) => (
                     <tr 
                       key={student.id} 
-                      className="hover:bg-gray-50"
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleSelectStudent(student.id)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -1138,8 +1179,8 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
       {/* View Student Details Modal */}
       {/* View Student Details Modal */}
 {isViewModalOpen && selectedStudent && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-    <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-auto">
+    <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
       <div className="flex justify-between items-center border-b p-6">
         <h2 className="text-xl font-bold text-gray-800">Student Details</h2>
         <button
@@ -1525,14 +1566,26 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   New Password (leave blank to keep current)
                 </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="Enter new password"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800 pr-10"
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Must be at least 8 characters
+                </p>
               </div>
 
               <div>

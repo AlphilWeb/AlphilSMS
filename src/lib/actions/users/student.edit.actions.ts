@@ -5,13 +5,24 @@ import { students, users } from "@/lib/db/schema";
 import { s3Client, bucketName } from "@/lib/s3-client";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { studentSchemaClient } from "../test/student.schema";
 import bcrypt from "bcryptjs";
 
-// Type for the form data
-type StudentFormData = z.infer<typeof studentSchemaClient>;
+// Custom type definitions
+type StudentFormData = {
+  programId: number;
+  departmentId: number;
+  currentSemesterId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber?: string | null;
+  registrationNumber: string;
+  studentNumber: string;
+  passportPhoto?: File | null;
+  idPhoto?: File | null;
+  certificate?: File | null;
+};
 
 // Helper function to upload file to R2
 async function uploadFileToR2(file: File, folder: string): Promise<string> {
@@ -118,8 +129,18 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
   roleId?: number;
 }) {
   try {
-    // Validate input data
-    const validatedData = studentSchemaClient.parse(data);
+    // Manual validation (without Zod)
+    if (!data.firstName || data.firstName.length < 2 || data.firstName.length > 100) {
+      throw new Error("Invalid first name");
+    }
+    if (!data.lastName || data.lastName.length < 2 || data.lastName.length > 100) {
+      throw new Error("Invalid last name");
+    }
+
+    if (!data.programId || !data.departmentId || !data.currentSemesterId) {
+      throw new Error("Program, Department, or Semester not selected");
+    }
+    // You can add more validation checks here as needed
 
     // Check if student exists
     const existingStudent = await db.query.students.findFirst({
@@ -142,9 +163,9 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
       where: (students, { and, or, eq, ne }) => 
         and(
           or(
-            eq(students.email, validatedData.email),
-            eq(students.registrationNumber, validatedData.registrationNumber),
-            eq(students.studentNumber, validatedData.studentNumber)
+            eq(students.email, data.email),
+            eq(students.registrationNumber, data.registrationNumber),
+            eq(students.studentNumber, data.studentNumber)
           ),
           ne(students.id, studentId)
         ),
@@ -152,9 +173,9 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
 
     if (uniqueCheck) {
       throw new Error(
-        uniqueCheck.email === validatedData.email 
+        uniqueCheck.email === data.email 
           ? "Email already exists" 
-          : uniqueCheck.registrationNumber === validatedData.registrationNumber 
+          : uniqueCheck.registrationNumber === data.registrationNumber 
             ? "Registration number already exists" 
             : "Student number already exists"
       );
@@ -164,7 +185,7 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
     const uniqueUserEmailCheck = await db.query.users.findFirst({
       where: (users, { and, eq, ne }) => 
         and(
-          eq(users.email, validatedData.email),
+          eq(users.email, data.email),
           ne(users.id, existingStudent.user!.id)
         ),
     });
@@ -193,32 +214,32 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
 
     const uploadPromises = [];
 
-    if (validatedData.certificate instanceof File) {
+    if (data.certificate instanceof File) {
       if (existingStudent.certificateUrl) {
         await deleteFileFromR2(existingStudent.certificateUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.certificate, "certificates")
+        uploadFileToR2(data.certificate, "certificates")
           .then(url => { fileUpdates.certificateUrl = url; })
       );
     }
 
-    if (validatedData.idPhoto instanceof File) {
+    if (data.idPhoto instanceof File) {
       if (existingStudent.idPhotoUrl) {
         await deleteFileFromR2(existingStudent.idPhotoUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.idPhoto, "id-photos")
+        uploadFileToR2(data.idPhoto, "id-photos")
           .then(url => { fileUpdates.idPhotoUrl = url; })
       );
     }
 
-    if (validatedData.passportPhoto instanceof File) {
+    if (data.passportPhoto instanceof File) {
       if (existingStudent.passportPhotoUrl) {
         await deleteFileFromR2(existingStudent.passportPhotoUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.passportPhoto, "passport-photos")
+        uploadFileToR2(data.passportPhoto, "passport-photos")
           .then(url => { fileUpdates.passportPhotoUrl = url; })
       );
     }
@@ -226,17 +247,17 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
     await Promise.all(uploadPromises);
 
     // Prepare user updates
-const userUpdates: {
-  email: string;
-  idNumber: string | null;
-  updatedAt: Date;
-  passwordHash?: string;
-  roleId?: number;
-} = {
-  email: validatedData.email,
-  idNumber: validatedData.idNumber || null,
-  updatedAt: new Date(),
-};
+    const userUpdates: {
+      email: string;
+      idNumber: string | null;
+      updatedAt: Date;
+      passwordHash?: string;
+      roleId?: number;
+    } = {
+      email: data.email,
+      idNumber: data.idNumber || null,
+      updatedAt: new Date(),
+    };
 
     // Update password if provided and not empty
     if (data.password && data.password.trim() !== "") {
@@ -259,15 +280,15 @@ const userUpdates: {
     const [updatedStudent] = await db
       .update(students)
       .set({
-        programId: validatedData.programId,
-        departmentId: validatedData.departmentId,
-        currentSemesterId: validatedData.currentSemesterId,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        email: validatedData.email,
-        idNumber: validatedData.idNumber,
-        registrationNumber: validatedData.registrationNumber,
-        studentNumber: validatedData.studentNumber,
+        programId: data.programId,
+        departmentId: data.departmentId,
+        currentSemesterId: data.currentSemesterId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        idNumber: data.idNumber,
+        registrationNumber: data.registrationNumber,
+        studentNumber: data.studentNumber,
         ...fileUpdates,
         updatedAt: new Date(),
       })

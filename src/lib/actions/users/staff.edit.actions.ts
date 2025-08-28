@@ -5,14 +5,25 @@ import { staff, departments, users, roles } from "@/lib/db/schema";
 import { s3Client, bucketName } from "@/lib/s3-client";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
 import { asc, eq } from "drizzle-orm";
-import { staffSchemaClient } from "../test/student.schema";
 import { StaffWithDetails } from "../admin/staff.actions";
 import bcrypt from "bcryptjs";
 
-// Type for the form data
-type StaffFormData = z.infer<typeof staffSchemaClient>;
+// Custom type for the form data
+type StaffFormData = {
+  departmentId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber?: string | null;
+  position: string;
+  password?: string;
+  roleId?: number;
+  employmentDocuments?: File | null;
+  nationalIdPhoto?: File | null;
+  academicCertificates?: File | null;
+  passportPhoto?: File | null;
+};
 
 export async function getAllStaff(): Promise<StaffWithDetails[]> {
   const raw = await db
@@ -143,8 +154,30 @@ export async function updateStaff(staffId: number, data: StaffFormData & {
   roleId?: number;
 }) {
   try {
-    // Validate input data
-    const validatedData = staffSchemaClient.parse(data);
+    // Manual validation (without Zod)
+    if (!data.firstName || data.firstName.length < 1 || data.firstName.length > 100) {
+      throw new Error("First name is required");
+    }
+    if (!data.lastName || data.lastName.length < 1 || data.lastName.length > 100) {
+      throw new Error("Last name is required");
+    }
+
+    if (data.idNumber && data.idNumber.length > 50) {
+        throw new Error("ID number cannot exceed 50 characters");
+    }
+    if (!data.position || data.position.length < 1 || data.position.length > 100) {
+        throw new Error("Position is required");
+    }
+    if (data.password && data.password.length < 8) {
+        throw new Error("Password must be at least 8 characters");
+    }
+    if (!data.departmentId || data.departmentId <= 0) {
+        throw new Error("Department is required");
+    }
+    if (data.roleId && data.roleId <= 0) {
+        throw new Error("Role is required");
+    }
+    // You can add more specific file size validations here if needed
 
     // Check if staff exists
     const existingStaff = await db.query.staff.findFirst({
@@ -166,7 +199,7 @@ export async function updateStaff(staffId: number, data: StaffFormData & {
     const emailExists = await db.query.staff.findFirst({
       where: (staff, { and, eq, ne }) => 
         and(
-          eq(staff.email, validatedData.email),
+          eq(staff.email, data.email),
           ne(staff.id, staffId)
         ),
     });
@@ -179,7 +212,7 @@ export async function updateStaff(staffId: number, data: StaffFormData & {
     const uniqueUserEmailCheck = await db.query.users.findFirst({
       where: (users, { and, eq, ne }) => 
         and(
-          eq(users.email, validatedData.email),
+          eq(users.email, data.email),
           ne(users.id, existingStaff.user!.id)
         ),
     });
@@ -189,11 +222,11 @@ export async function updateStaff(staffId: number, data: StaffFormData & {
     }
 
     // Check if idNumber already exists (if provided and excluding current staff)
-    if (typeof validatedData.idNumber === "string" && validatedData.idNumber.trim() !== "") {
+    if (typeof data.idNumber === "string" && data.idNumber.trim() !== "") {
       const idNumberExists = await db.query.staff.findFirst({
         where: (staff, { and, eq, ne }) => 
           and(
-            eq(staff.idNumber, validatedData.idNumber as string),
+            eq(staff.idNumber, data.idNumber as string),
             ne(staff.id, staffId)
           ),
       });
@@ -229,42 +262,42 @@ export async function updateStaff(staffId: number, data: StaffFormData & {
     // Handle new file uploads
     const uploadPromises = [];
     
-    if (validatedData.employmentDocuments instanceof File) {
+    if (data.employmentDocuments instanceof File) {
       if (existingStaff.employmentDocumentsUrl) {
         await deleteFileFromR2(existingStaff.employmentDocumentsUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.employmentDocuments, "employment-documents")
+        uploadFileToR2(data.employmentDocuments, "employment-documents")
           .then(url => { fileUpdates.employmentDocumentsUrl = url; })
       );
     }
 
-    if (validatedData.nationalIdPhoto instanceof File) {
+    if (data.nationalIdPhoto instanceof File) {
       if (existingStaff.nationalIdPhotoUrl) {
         await deleteFileFromR2(existingStaff.nationalIdPhotoUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.nationalIdPhoto, "national-id-photos")
+        uploadFileToR2(data.nationalIdPhoto, "national-id-photos")
           .then(url => { fileUpdates.nationalIdPhotoUrl = url; })
       );
     }
 
-    if (validatedData.academicCertificates instanceof File) {
+    if (data.academicCertificates instanceof File) {
       if (existingStaff.academicCertificatesUrl) {
         await deleteFileFromR2(existingStaff.academicCertificatesUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.academicCertificates, "academic-certificates")
+        uploadFileToR2(data.academicCertificates, "academic-certificates")
           .then(url => { fileUpdates.academicCertificatesUrl = url; })
       );
     }
 
-    if (validatedData.passportPhoto instanceof File) {
+    if (data.passportPhoto instanceof File) {
       if (existingStaff.passportPhotoUrl) {
         await deleteFileFromR2(existingStaff.passportPhotoUrl);
       }
       uploadPromises.push(
-        uploadFileToR2(validatedData.passportPhoto, "passport-photos")
+        uploadFileToR2(data.passportPhoto, "passport-photos")
           .then(url => { fileUpdates.passportPhotoUrl = url; })
       );
     }
@@ -272,17 +305,17 @@ export async function updateStaff(staffId: number, data: StaffFormData & {
     await Promise.all(uploadPromises);
 
     // Prepare user updates
-const userUpdates: {
-  email: string;
-  idNumber: string | null;
-  updatedAt: Date;
-  passwordHash?: string;
-  roleId?: number;
-} = {
-  email: validatedData.email,
-  idNumber: validatedData.idNumber || null,
-  updatedAt: new Date(),
-};
+    const userUpdates: {
+      email: string;
+      idNumber: string | null;
+      updatedAt: Date;
+      passwordHash?: string;
+      roleId?: number;
+    } = {
+      email: data.email,
+      idNumber: data.idNumber || null,
+      updatedAt: new Date(),
+    };
 
     // Update password if provided and not empty
     if (data.password && data.password.trim() !== "") {
@@ -305,12 +338,12 @@ const userUpdates: {
     const [updatedStaff] = await db
       .update(staff)
       .set({
-        departmentId: validatedData.departmentId,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
-        email: validatedData.email,
-        idNumber: validatedData.idNumber || null,
-        position: validatedData.position,
+        departmentId: data.departmentId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        idNumber: data.idNumber || null,
+        position: data.position,
         ...fileUpdates,
         updatedAt: new Date(),
       })
