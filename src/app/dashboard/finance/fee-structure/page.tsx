@@ -1,7 +1,7 @@
 // app/dashboard/admin/enrollments/page.tsx
 import AdminFeeStructureClient from '@/components/admin/admin.feeStructures.client';
 import ErrorMessage from '@/components/ui/error-message';
-import BursarDashboardHeader from '@/components/bursar/bursar.dashboard.client';
+import BursarDashboardHeader from '@/components/bursar/bursarDashboardHeader';
 
 export default async function AdminEnrollmentsPage() {
   try {

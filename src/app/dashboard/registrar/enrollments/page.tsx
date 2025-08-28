@@ -2,7 +2,7 @@ import AdminEnrollmentsClient from '@/components/admin/admin.enrollments.client'
 import ErrorMessage from '@/components/ui/error-message';
 import RegistrarDashboardHeader from '@/components/registrar-dashboard-header';
 
-export default async function AdminEnrollmentsPage() {
+export default async function RegistrarAdminEnrollmentsPage() {
   try {
     return (
       <>

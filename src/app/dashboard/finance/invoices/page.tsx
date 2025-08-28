@@ -1,7 +1,7 @@
 // app/dashboard/admin/invoices/page.tsx
-import BursarDashboardHeader from '@/components/bursar/bursarDashboardHeader';
 import AdminInvoicesClient from '@/components/admin/admin.invoices.client';
 import ErrorMessage from '@/components/ui/error-message';
+import BursarDashboardHeader from '@/components/bursar/bursarDashboardHeader';
 
 export default async function AdminInvoicesPage() {
   try {

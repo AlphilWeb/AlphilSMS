@@ -1,181 +1,28 @@
-Based on our implementation, here's how you should structure your data for optimal functionality:
+first 
+  state - "  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(true);", 
 
-## Recommended Database Structure
+  then
+  use effect - "
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await getLecturerHeaderData();
+        setLecturerData(data);
 
-### 1. Programs Table (Single Program)
-```typescript
-// programs table
-{
-  id: 1,
-  name: "Caregiving Certificate Program",
-  code: "CGP",
-  departmentId: [your_department_id],
-  durationSemesters: 6
-}
-```
-
-### 2. Semesters Table (Six Semesters)
-```typescript
-// semesters table
-[
-  {
-    id: 1,
-    name: "Caregiving Level 1",
-    startDate: "2024-01-15",
-    endDate: "2024-05-15"
-  },
-  {
-    id: 2,
-    name: "Caregiving Level 2", 
-    startDate: "2024-06-01",
-    endDate: "2024-09-30"
-  },
-  {
-    id: 3,
-    name: "Caregiving Level 3",
-    startDate: "2024-10-15",
-    endDate: "2025-02-15"
-  },
-  {
-    id: 4,
-    name: "Caregiving Level 4",
-    startDate: "2025-03-01",
-    endDate: "2025-07-15"
-  },
-  {
-    id: 5,
-    name: "Caregiving Level 5",
-    startDate: "2025-08-01",
-    endDate: "2025-12-15"
-  },
-  {
-    id: 6,
-    name: "Caregiving Level 6",
-    startDate: "2026-01-15",
-    endDate: "2026-05-15"
-  }
-]
-```
-
-### 3. Courses Table (Example Structure)
-```typescript
-// courses table examples
-[
-  // Level 1 Courses
-  {
-    id: 1,
-    programId: 1, // Caregiving Program
-    semesterId: 1, // Caregiving Level 1
-    lecturerId: [lecturer_staff_id],
-    name: "Introduction to Caregiving",
-    code: "CGP101",
-    credits: 3.0,
-    description: "Basic principles and ethics of caregiving"
-  },
-  {
-    id: 2,
-    programId: 1,
-    semesterId: 1,
-    lecturerId: [lecturer_staff_id],
-    name: "Personal Care Fundamentals",
-    code: "CGP102", 
-    credits: 4.0,
-    description: "Basic personal care techniques and hygiene"
-  },
-
-  // Level 2 Courses
-  {
-    id: 3,
-    programId: 1,
-    semesterId: 2, // Caregiving Level 2
-    lecturerId: [lecturer_staff_id],
-    name: "Advanced Personal Care",
-    code: "CGP201",
-    credits: 4.0,
-    description: "Advanced care techniques and specialized equipment"
-  },
-  {
-    id: 4,
-    programId: 1,
-    semesterId: 2,
-    lecturerId: [lecturer_staff_id],
-    name: "Nutrition for Caregivers",
-    code: "CGP202",
-    credits: 3.0,
-    description: "Diet planning and nutritional requirements"
-  },
-
-  // Level 3 Courses
-  {
-    id: 5,
-    programId: 1,
-    semesterId: 3, // Caregiving Level 3
-    lecturerId: [lecturer_staff_id],
-    name: "Medical Terminology",
-    code: "CGP301",
-    credits: 3.0,
-    description: "Basic medical terms and documentation"
-  },
-  {
-    id: 6,
-    programId: 1,
-    semesterId: 3,
-    lecturerId: [lecturer_staff_id],
-    name: "First Aid and Emergency Response",
-    code: "CGP302",
-    credits: 4.0,
-    description: "Emergency procedures and basic first aid"
-  },
-
-  // Continue this pattern for Levels 4, 5, and 6...
-]
-```
-
-### 4. Students Table (Example)
-```typescript
-// students table example
-{
-  id: 1,
-  userId: [user_id],
-  programId: 1, // Caregiving Program
-  departmentId: [department_id],
-  currentSemesterId: 4, // Student is currently in Caregiving Level 4
-  firstName: "John",
-  lastName: "Doe",
-  email: "john.doe@email.com",
-  registrationNumber: "CGP2024001",
-  studentNumber: "CG001"
-  // ... other fields
-}
-```
-
-## How This Works in Your Application:
-
-### For a Student in Level 4:
-- **Program View**: Can access materials from Levels 1, 2, 3, and 4
-- **Course View**: Can access materials only from their currently enrolled Level 4 courses
-
-### Benefits of This Structure:
-
-1. **Clear Progression**: The semester IDs (1-6) create a natural progression order
-2. **Flexible Access**: Students can review previous levels while focusing on current work
-3. **Organized UI**: Materials will be grouped as:
-   - "Caregiving Level 4" (current)
-   - "Caregiving Level 3" (previous)
-   - "Caregiving Level 2" (previous)
-   - "Caregiving Level 1" (previous)
-
-4. **Scalable**: Easy to add more levels or specialized tracks later
-
-### Enrollment Example:
-When a student progresses to Level 5, you simply update:
-```typescript
-// Update student's current semester
-await db.update(students)
-  .set({ currentSemesterId: 5 })
-  .where(eq(students.id, studentId));
-```
-
-This automatically grants them access to materials from Levels 1-5 when in "Program View" mode.
-
-The naming convention (`Caregiving Level X`) makes it immediately clear to students which materials belong to which stage of their education, while the numeric semester IDs ensure proper ordering in the UI.
+        // 🔑 fetch signed avatar URL
+        if (data?.id) {
+          const url = await getClientImageUrl(data.id, 'lecturer-passport');
+          setAvatarUrl(url || null);
+        }
+      } catch (error) {
+        console.error('Failed to load lecturer data:', error);
+        setLecturerData(null);
+        setAvatarUrl(null);
+      } finally {
+        setLoading(false);
+        setAvatarLoading(false);
+      }
+    };
+    loadData();
+  }, []);", 

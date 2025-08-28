@@ -1,7 +1,7 @@
 // app/dashboard/admin/staff-salaries/page.tsx
-import BursarDashboardHeader from '@/components/bursar/bursar.dashboard.client';
 import AdminStaffSalariesClient from '@/components/admin/admin.staff.salaries.client';
 import ErrorMessage from '@/components/ui/error-message';
+import BursarDashboardHeader from '@/components/bursar/bursarDashboardHeader';
 
 export default async function AdminStaffSalariesPage() {
   try {

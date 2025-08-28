@@ -1,13 +1,13 @@
 // app/dashboard/admin/courses/page.tsx
-import LecturerDashBoardHeader from '@/components/lecturerDashboardHeader';
 import AdminCoursesClient from '@/components/admin/admin.courses.client';
 import ErrorMessage from '@/components/ui/error-message';
+import RegistrarDashboardHeader from '@/components/registrar-dashboard-header';
 
 export default async function AdminCoursesPage() {
   try {
     return (
       <>
-        <LecturerDashBoardHeader />
+        <RegistrarDashboardHeader />
 
         <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
           <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -29,7 +29,7 @@ export default async function AdminCoursesPage() {
     console.error('Error rendering AdminCoursesPage:', error);
     return (
       <>
-        <LecturerDashBoardHeader />
+        <RegistrarDashboardHeader />
         <main className="md:pl-64 pt-16 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
           <div className="p-6 max-w-7xl mx-auto">
             <ErrorMessage
