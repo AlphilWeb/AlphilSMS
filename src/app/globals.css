@@ -48,7 +48,7 @@ body {
 
 /* Set default text color to black for all elements without explicit text color */
 *:not([class*="text-"]):not(script):not(style):not(meta):not(link) {
-  color: #000000;
+  color: #323232;
 }
 
 /* Override for form elements to ensure they're included */
@@ -56,7 +56,7 @@ input:not([class*="text-"]),
 select:not([class*="text-"]),
 textarea:not([class*="text-"]),
 button:not([class*="text-"]) {
-  color: #000000;
+  color: #323232;
 }
 
 /* Placeholder styling */
