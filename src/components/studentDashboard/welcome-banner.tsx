@@ -1,5 +1,10 @@
-// components/dashboard/welcome-banner.tsx
+'use client';
+
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import { FiUser } from 'react-icons/fi';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getClientImageUrl } from '@/lib/image-client';
 
 interface WelcomeBannerProps {
   firstName: string;
@@ -7,7 +12,7 @@ interface WelcomeBannerProps {
   currentSemester: string;
   registrationNumber: string;
   studentNumber: string;
-  passportPhotoUrl: string | null;
+  id: number; // 🔑 student id
   cgpa: number | null;
 }
 
@@ -17,24 +22,52 @@ export default function WelcomeBanner({
   currentSemester,
   registrationNumber,
   studentNumber,
-  passportPhotoUrl,
+  id,
   cgpa
 }: WelcomeBannerProps) {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      try {
+        const url = await getClientImageUrl(id, 'student-passport');
+        if (url) {
+          setAvatarUrl(url);
+        } else {
+          setAvatarUrl(null);
+        }
+      } catch (error) {
+        console.error("Error fetching welcome banner photo:", error);
+        setAvatarUrl(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchAvatar();
+    }
+  }, [id]);
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex flex-col md:flex-row md:items-center gap-6">
         {/* Student Photo */}
-        <div className="relative w-24 h-24 rounded-full bg-gray-100 overflow-hidden border-2 border-emerald-100">
-          {passportPhotoUrl ? (
-            <Image 
-              src={`/$passportPhotoUrl`}
+        <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-emerald-100">
+          {loading ? (
+            <Skeleton className="w-full h-full rounded-full" />
+          ) : avatarUrl ? (
+            <Image
+              src={avatarUrl}
               alt="Student photo"
               fill
               className="object-cover"
+              sizes="96px" // helps with optimization
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
-              No photo
+              <FiUser className="w-10 h-10" />
             </div>
           )}
         </div>

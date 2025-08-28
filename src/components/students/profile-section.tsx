@@ -1,10 +1,16 @@
 'use client';
 
-import { FiUser, FiMail, FiBook, FiHash, FiCalendar, FiLock, FiX, FiCheck } from 'react-icons/fi';
-import { useState } from 'react';
+import { 
+  FiUser, FiMail, FiBook, FiHash, FiCalendar, 
+  FiLock, FiX, FiCheck 
+} from 'react-icons/fi';
+import { useState, useEffect } from 'react';
 import { updateStudentPassword } from '@/lib/actions/studentProfile.action';
 import { useFormState, useFormStatus } from 'react-dom';
 import Image from 'next/image';
+// import { getClientImageUrl } from '@/lib/client/image-client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getClientImageUrl } from '@/lib/image-client';
 
 export default function ProfileSection({ profileData }: {
   profileData: {
@@ -19,27 +25,63 @@ export default function ProfileSection({ profileData }: {
     programCode: string;
     departmentName: string;
     createdAt: string;
-    passportPhotoUrl: string;
   }
 }) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordState, passwordAction] = useFormState(updateStudentPassword, null);
   const { pending } = useFormStatus();
 
+  // 🔑 States for avatar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      try {
+        const url = await getClientImageUrl(profileData.id, 'student-passport');
+        if (url) {
+          setAvatarUrl(url);
+        } else {
+          setAvatarUrl(null);
+        }
+      } catch (error) {
+        console.error("Error fetching profile image:", error);
+        setAvatarUrl(null);
+      } finally {
+        setImageLoading(false);
+      }
+    };
+
+    if (profileData?.id) {
+      fetchAvatar();
+    }
+  }, [profileData.id]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-6">
+        {/* Profile Image + Change Password Toggle */}
         <div className="w-full md:w-1/3">
           <div className="bg-gray-50 rounded-lg p-4 flex flex-col items-center">
             <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4">
-              <Image
-                src={profileData.passportPhotoUrl}
-                alt="Profile photo"
-                fill
-                className="object-cover"
-              />
+              {imageLoading ? (
+                <Skeleton className="w-full h-full rounded-full" />
+              ) : avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile photo"
+                  fill
+                  className="object-cover"
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => setImageLoading(false)}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <FiUser className="w-10 h-10 text-gray-400" />
+                </div>
+              )}
             </div>
-            
+
             <button
               type="button"
               onClick={() => setIsChangingPassword(!isChangingPassword)}
@@ -51,6 +93,7 @@ export default function ProfileSection({ profileData }: {
           </div>
         </div>
 
+        {/* Right side: Profile Info + Password Change Form */}
         <div className="w-full md:w-2/3">
           {/* Password Change Form */}
           {isChangingPassword && (

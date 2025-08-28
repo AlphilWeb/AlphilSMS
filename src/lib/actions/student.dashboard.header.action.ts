@@ -8,9 +8,10 @@ import { getAuthUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export type StudentHeaderData = {
+  id: number; // ← Added this for image lookup
   name: string;
   program: string;
-  avatar: string;
+  avatar: string; // This should be the file path/key, not the full URL
   notificationCount: number;
 };
 
@@ -20,6 +21,7 @@ export async function getStudentHeaderData(): Promise<StudentHeaderData> {
   const student = await db.query.students.findFirst({
     where: eq(students.userId, authUser.userId),
     columns: {
+      id: true, // ← Added this
       firstName: true,
       lastName: true,
       passportPhotoUrl: true
@@ -45,9 +47,10 @@ export async function getStudentHeaderData(): Promise<StudentHeaderData> {
     .then(res => res.length);
 
   return {
+    id: student.id, // ← This is crucial for image lookup
     name: `${student.firstName} ${student.lastName}`,
     program: student.program.name,
-    avatar: student.passportPhotoUrl || '/default-avatar.jpg',
+    avatar: student.passportPhotoUrl || '/default-avatar.jpg', // This should be the file key/path
     notificationCount
   };
 }

@@ -64,15 +64,15 @@ export default async function StudentDashboard() {
         <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800">
           <div className="p-6 space-y-6 max-w-7xl mx-auto">
             {/* Welcome Banner - Full Width */}
-            <WelcomeBanner
-              firstName={data.student.firstName}
-              program={data.student.program}
-              currentSemester={data.student.currentSemester}
-              registrationNumber={data.student.registrationNumber}
-              studentNumber={data.student.studentNumber}
-              passportPhotoUrl={`/${data.student.passportPhotoUrl}`}
-              cgpa={data.student.cgpa}
-            />
+<WelcomeBanner
+  firstName={data.student.firstName}
+  program={data.student.program}
+  currentSemester={data.student.currentSemester}
+  registrationNumber={data.student.registrationNumber}
+  studentNumber={data.student.studentNumber}
+  id={data.student.id}
+  cgpa={data.student.cgpa}
+/>
 
             {/* Financial Summary Cards - 3 in a row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

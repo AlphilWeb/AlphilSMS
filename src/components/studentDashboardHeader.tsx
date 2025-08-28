@@ -16,31 +16,47 @@ import {
   FiDollarSign,
   FiUser,
   FiUserPlus,
-  FiMenu, // Import hamburger menu icon
-  FiX // Import close icon
+  FiMenu,
+  FiX
 } from 'react-icons/fi';
 import { HiOutlineDocumentReport } from 'react-icons/hi';
 import { useState, useEffect } from 'react';
 import { getStudentHeaderData, StudentHeaderData } from '@/lib/actions/student.dashboard.header.action';
 import { logoutStudent } from '@/lib/actions/student.dashboard.header.action';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getClientImageUrl } from '@/lib/image-client';
+// import { getClientImageUrl } from '@/lib/client/image-client';
 
 export default function StudentDashboardHeader() {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [studentData, setStudentData] = useState<StudentHeaderData | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const data = await getStudentHeaderData();
         setStudentData(data);
+        
+        // Fetch signed URL for the avatar
+        if (data?.id) {
+          const url = await getClientImageUrl(data.id, 'student-passport');
+          // Check if the URL is not undefined before setting the state
+          if (url !== undefined) {
+            setAvatarUrl(url);
+          } else {
+            setAvatarUrl(null); // Explicitly set to null if undefined
+          }
+        }
       } catch (error) {
         console.error('Failed to load student data:', error);
       } finally {
         setLoading(false);
+        setImageLoading(false);
       }
     };
     loadData();
@@ -114,7 +130,7 @@ export default function StudentDashboardHeader() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            {/* Hamburger menu button for mobile screens */}
+            {/* Hamburger menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
@@ -152,13 +168,23 @@ export default function StudentDashboardHeader() {
                 className="flex items-center space-x-2 focus:outline-none"
               >
                 <div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
-                  <Image
-                    src={`/${studentData.avatar}`}
-                    alt="User avatar"
-                    width={32}
-                    height={32}
-                    className="h-full w-full object-cover"
-                  />
+                  {imageLoading ? (
+                    <Skeleton className="h-full w-full" />
+                  ) : avatarUrl ? (
+                    <Image
+                      src={avatarUrl}
+                      alt="User avatar"
+                      width={32}
+                      height={32}
+                      className="h-full w-full object-cover"
+                      onLoad={() => setImageLoading(false)}
+                      onError={() => setImageLoading(false)}
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-gray-200">
+                      <FiUser className="w-4 h-4 text-gray-400" />
+                    </div>
+                  )}
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-gray-800">{studentData.name}</p>
@@ -219,7 +245,7 @@ export default function StudentDashboardHeader() {
         ></div>
       )}
 
-      {/* Sidebar for all screens */}
+      {/* Sidebar */}
       <aside className={`fixed top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] transition-transform border-r border-gray-200 bg-white overflow-y-auto ${
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       } md:translate-x-0`}>

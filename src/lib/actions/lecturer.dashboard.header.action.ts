@@ -8,6 +8,7 @@ import { getAuthUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export type LecturerHeaderData = {
+  id: number; // ← Added this for image lookup
   name: string;
   role: string;
   department: string;
@@ -21,6 +22,7 @@ export async function getLecturerHeaderData(): Promise<LecturerHeaderData> {
   const lecturer = await db.query.staff.findFirst({
     where: eq(staff.userId, authUser.userId),
     columns: {
+      id: true, 
       firstName: true,
       lastName: true,
       position: true,
@@ -47,6 +49,7 @@ export async function getLecturerHeaderData(): Promise<LecturerHeaderData> {
     .then(res => res.length);
 
   return {
+    id: lecturer.id, // ← This is crucial for image lookup
     name: `${lecturer.firstName} ${lecturer.lastName}`,
     role: lecturer.position,
     department: lecturer.department.name,

@@ -26,6 +26,7 @@ import { useState, useEffect } from 'react';
 import { getLecturerHeaderData, LecturerHeaderData } from '@/lib/actions/lecturer.dashboard.header.action';
 import { logout } from '@/lib/actions/lecturer.dashboard.header.action';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getClientImageUrl } from '@/lib/image-client';
 
 export default function LecturerDashboardHeader() {
   const pathname = usePathname();
@@ -34,6 +35,32 @@ export default function LecturerDashboardHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lecturerData, setLecturerData] = useState<LecturerHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await getLecturerHeaderData();
+        setLecturerData(data);
+
+        // 🔑 fetch signed avatar URL
+        if (data?.id) {
+          const url = await getClientImageUrl(data.id, 'lecturer-passport');
+          setAvatarUrl(url || null);
+        }
+      } catch (error) {
+        console.error('Failed to load lecturer data:', error);
+        setLecturerData(null);
+        setAvatarUrl(null);
+      } finally {
+        setLoading(false);
+        setAvatarLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -136,14 +163,24 @@ export default function LecturerDashboardHeader() {
                 <FiMenu className="w-6 h-6" />
               )}
             </button>
-            <Image
-              src="/icon.jpg"
-              alt="College Logo"
-              width={50}
-              height={50}
-              className="h-16 w-auto"
-              priority
-            />
+<div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
+  {avatarLoading ? (
+    <Skeleton className="h-full w-full rounded-full" />
+  ) : avatarUrl ? (
+    <Image
+      src={avatarUrl}
+      alt="User avatar"
+      width={32}
+      height={32}
+      className="h-full w-full object-cover"
+    />
+  ) : (
+    <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
+      N/A
+    </div>
+  )}
+</div>
+
             <h1 className="text-[1rem] font-bold text-pink-500 mt-8 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
