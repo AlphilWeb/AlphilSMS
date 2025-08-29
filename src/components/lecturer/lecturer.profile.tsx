@@ -1,10 +1,12 @@
 'use client';
 
 import { FiEdit, FiSave, FiUser, FiMail, FiBriefcase, FiCalendar, FiFileText } from 'react-icons/fi';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { updateLecturerProfile, updateLecturerDocuments } from '@/lib/actions/lecturer.profile.actions';
 import { useFormState, useFormStatus } from 'react-dom';
 import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getClientImageUrl } from '@/lib/image-client';
 
 type ProfileState = {
   success?: string;
@@ -52,6 +54,34 @@ export default function LecturerProfileSection({ profileData }: {
   
   const { pending: isProfilePending } = useFormStatus();
 
+  // 🔑 States for avatar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      try {
+        const url = await getClientImageUrl(profileData.id, 'lecturer-passport');
+        if (url) {
+          setAvatarUrl(url);
+        } else {
+          // Fallback to the URL from profileData if available
+          setAvatarUrl(profileData.passportPhotoUrl || null);
+        }
+      } catch (error) {
+        console.error("Error fetching profile image:", error);
+        // Fallback to the URL from profileData
+        setAvatarUrl(profileData.passportPhotoUrl || null);
+      } finally {
+        setImageLoading(false);
+      }
+    };
+
+    if (profileData?.id) {
+      fetchAvatar();
+    }
+  }, [profileData.id, profileData.passportPhotoUrl]);
+
   return (
     <div className="space-y-8">
       {/* Profile Section */}
@@ -59,12 +89,25 @@ export default function LecturerProfileSection({ profileData }: {
         <div className="w-full md:w-1/3">
           <div className="bg-gray-50 rounded-lg p-4 flex flex-col items-center">
             <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4">
-              <Image
-                src={profileData.passportPhotoUrl}
-                alt="Profile photo"
-                fill
-                className="object-cover"
-              />
+              {imageLoading ? (
+                <Skeleton className="w-full h-full rounded-full" />
+              ) : avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile photo"
+                  fill
+                  className="object-cover"
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    console.error("Image failed to load");
+                    setImageLoading(false);
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <FiUser className="w-10 h-10 text-gray-400" />
+                </div>
+              )}
             </div>
             <button 
               onClick={() => setIsEditingDocuments(true)}
@@ -77,6 +120,8 @@ export default function LecturerProfileSection({ profileData }: {
 
         <div className="w-full md:w-2/3">
           <form action={profileAction}>
+            <input type="hidden" name="id" value={profileData.id} />
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">First Name</label>
@@ -205,6 +250,8 @@ export default function LecturerProfileSection({ profileData }: {
           </h3>
           
           <form action={documentsAction}>
+            <input type="hidden" name="id" value={profileData.id} />
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">Passport Photo URL</label>
