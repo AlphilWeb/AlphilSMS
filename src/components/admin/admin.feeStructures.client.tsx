@@ -18,9 +18,13 @@ import {
 import { getAllPrograms } from '@/lib/actions/admin/programs.action';
 import { getAllSemesters } from '@/lib/actions/admin/semesters.action';
 
+// Add PDF generation import
+import { generateFeeStructurePdf } from '@/lib/actions/pdf-generataion/pdf-generation.actions';
+
 import {
   FiDollarSign, FiPlus, FiEdit2, FiTrash2, 
-  FiLoader, FiX, FiSearch, FiInfo, FiCheck
+  FiLoader, FiX, FiSearch, FiInfo, FiCheck,
+  FiDownload // Add PDF-related icons
 } from 'react-icons/fi';
 import { ActionError } from '@/lib/utils';
 
@@ -40,7 +44,8 @@ export default function AdminFeeStructuresClient() {
     create: false,
     update: false,
     programs: false,
-    semesters: false
+    semesters: false,
+    generatingPdf: false // Add PDF generation loading state
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -309,21 +314,68 @@ export default function AdminFeeStructuresClient() {
   };
 
   // Delete a fee structure
-  const handleDeleteFeeStructure = async () => {
-    if (!selectedFeeStructure) return;
+// Delete a fee structure by ID
+const handleDeleteFeeStructure = async (feeStructureId?: number) => {
+  const idToDelete = feeStructureId || selectedFeeStructure?.id;
+  
+  if (!idToDelete) return;
+  
+  if (!confirm('Are you sure you want to delete this fee structure?')) return;
 
-    if (!confirm('Are you sure you want to delete this fee structure?')) return;
-
-    try {
-      setError(null);
-      await deleteFeeStructure(selectedFeeStructure.id);
-      
-      setFeeStructures(prev => prev.filter(fs => fs.id !== selectedFeeStructure.id));
+  try {
+    setError(null);
+    await deleteFeeStructure(idToDelete);
+    
+    setFeeStructures(prev => prev.filter(fs => fs.id !== idToDelete));
+    
+    // Only clear selectedFeeStructure if it's the one being deleted
+    if (selectedFeeStructure?.id === idToDelete) {
       setSelectedFeeStructure(null);
+    }
+    
+    // Only close modal if it's open for the deleted structure
+    if (isViewModalOpen && selectedFeeStructure?.id === idToDelete) {
       setIsViewModalOpen(false);
-      setSuccess('Fee structure deleted successfully!');
+    }
+    
+    setSuccess('Fee structure deleted successfully!');
+  } catch (err) {
+    setError(err instanceof ActionError ? err.message : 'Failed to delete fee structure');
+  }
+};
+
+  // Generate PDF for a fee structure
+  const handleGeneratePdf = async (feeStructureId: number) => {
+    try {
+      setLoading(prev => ({ ...prev, generatingPdf: true }));
+      setError(null);
+      setSuccess(null);
+
+      const pdfBuffer = await generateFeeStructurePdf(feeStructureId);
+      
+      // Create a blob and download the PDF
+      const uint8Array = new Uint8Array(pdfBuffer);
+      const blob = new Blob([uint8Array], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Get the fee structure for filename
+      const feeStructure = feeStructures.find(fs => fs.id === feeStructureId);
+      const programCode = feeStructure?.program.code || 'fee-structure';
+      const semesterName = feeStructure?.semester.name || '';
+      
+      a.download = `${programCode}-${semesterName}-fee-structure.pdf`.replace(/\s+/g, '-').toLowerCase();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setSuccess('Fee structure PDF generated successfully!');
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to delete fee structure');
+      setError(err instanceof ActionError ? err.message : 'Failed to generate PDF');
+    } finally {
+      setLoading(prev => ({ ...prev, generatingPdf: false }));
     }
   };
 
@@ -337,12 +389,12 @@ export default function AdminFeeStructuresClient() {
   };
 
   // Format currency
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES'
-  }).format(amount);
-};
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES'
+    }).format(amount);
+  };
 
   // Get paginated data
   const paginatedFeeStructures = feeStructures.slice(
@@ -476,6 +528,14 @@ const formatCurrency = (amount: number) => {
                           <FiInfo />
                         </button>
                         <button
+                          onClick={() => handleGeneratePdf(feeStructure.id)}
+                          disabled={loading.generatingPdf}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                          title="Download PDF"
+                        >
+                          {loading.generatingPdf ? <FiLoader className="animate-spin" /> : <FiDownload />}
+                        </button>
+                        <button
                           onClick={() => {
                             handleSelectFeeStructure(feeStructure.id);
                             setIsViewModalOpen(false);
@@ -486,16 +546,13 @@ const formatCurrency = (amount: number) => {
                         >
                           <FiEdit2 />
                         </button>
-                        <button
-                          onClick={() => {
-                            setSelectedFeeStructure(feeStructure);
-                            handleDeleteFeeStructure();
-                          }}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete"
-                        >
-                          <FiTrash2 />
-                        </button>
+<button
+  onClick={() => handleDeleteFeeStructure(feeStructure.id)}
+  className="text-red-600 hover:text-red-900"
+  title="Delete"
+>
+  <FiTrash2 />
+</button>
                       </td>
                     </tr>
                   ))}
@@ -708,6 +765,18 @@ const formatCurrency = (amount: number) => {
             
             <div className="flex justify-end gap-3 p-6 border-t">
               <button
+                onClick={() => handleGeneratePdf(selectedFeeStructure.id)}
+                disabled={loading.generatingPdf}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"
+              >
+                {loading.generatingPdf ? (
+                  <FiLoader className="animate-spin" size={16} />
+                ) : (
+                  <FiDownload size={16} />
+                )}
+                Download PDF
+              </button>
+              <button
                 onClick={() => {
                   setIsViewModalOpen(false);
                   setIsEditModalOpen(true);
@@ -717,13 +786,13 @@ const formatCurrency = (amount: number) => {
                 <FiEdit2 size={16} />
                 Edit Fee Structure
               </button>
-              <button
-                onClick={handleDeleteFeeStructure}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
-              >
-                <FiTrash2 size={16} />
-                Delete Fee Structure
-              </button>
+<button
+  onClick={() => handleDeleteFeeStructure()}
+  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
+>
+  <FiTrash2 size={16} />
+  Delete Fee Structure
+</button>
               <button
                 onClick={() => setIsViewModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
