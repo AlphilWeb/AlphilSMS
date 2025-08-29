@@ -1,4 +1,3 @@
-
 // components/admin/admin.invoices.client.tsx
 'use client';
 
@@ -23,11 +22,16 @@ import { getAllStudents } from '@/lib/actions/admin/students.action';
 import { getAllSemesters } from '@/lib/actions/admin/semesters.action';
 import { getAllFeeStructures } from '@/lib/actions/admin/fee-structures.actions';
 
+// Add PDF generation imports
+import { generateReceiptPdf, generateInvoiceListPdf, generatePaymentListPdf } from '@/lib/actions/pdf-generataion/pdf-generation.actions';
+import { ActionError } from '@/lib/utils';
+
 import {
   FiDollarSign, FiUser, FiPlus, 
   FiEdit2, FiLoader, FiX,
   FiSearch, FiInfo, FiCheck, FiCreditCard,
-  FiAlertTriangle, FiTrendingUp, FiTrendingDown
+  FiAlertTriangle, FiTrendingUp, FiTrendingDown,
+  FiFileText // Added document icons
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 
@@ -84,7 +88,8 @@ export default function AdminInvoicesClient() {
     payment: false,
     students: false,
     semesters: false,
-    feeStructures: false
+    feeStructures: false,
+    generating: false // Added for document generation
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +105,8 @@ export default function AdminInvoicesClient() {
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const [selectedStudentName, setSelectedStudentName] = useState('');
   const studentDropdownRef = useRef<HTMLDivElement>(null);
-// Close dropdown when clicking outside
+
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
@@ -128,15 +134,14 @@ export default function AdminInvoicesClient() {
     }
   }, [isCreateModalOpen]);
 
-const [invoiceFormData, setInvoiceFormData] = useState<Partial<InvoiceData>>({
-  studentId: 0,
-  semesterId: 0,
-  feeStructureId: 0,
-  amountDue: '',
-  dueDate: '',
-  status: 'unpaid'
-});
-
+  const [invoiceFormData, setInvoiceFormData] = useState<Partial<InvoiceData>>({
+    studentId: 0,
+    semesterId: 0,
+    feeStructureId: 0,
+    amountDue: '',
+    dueDate: '',
+    status: 'unpaid'
+  });
 
   const [paymentFormData, setPaymentFormData] = useState<Partial<PaymentData>>({
     invoiceId: 0,
@@ -325,55 +330,53 @@ const [invoiceFormData, setInvoiceFormData] = useState<Partial<InvoiceData>>({
         feeStructureId: invoiceFormData.feeStructureId || null
       });
       
-setInvoices(prev => [
-  ...prev,
-  {
-    ...newInvoice,
-    student:
-      students.find(s => s.id === invoiceFormData.studentId) || {
-        id: invoiceFormData.studentId!,
-        firstName: '',
-        lastName: '',
-        registrationNumber: ''
-      },
-    semester:
-      semesters.find(s => s.id === invoiceFormData.semesterId) || {
-        id: invoiceFormData.semesterId!,
-        name: ''
-      },
-    feeStructure: invoiceFormData.feeStructureId
-      ? (() => {
-          const found = feeStructures.find(
-            fs => fs.id === invoiceFormData.feeStructureId
-          );
-          if (found) {
-            return {
-              ...found,
-              totalAmount: String(found.totalAmount ?? '0'),
-              // Force program to be an object even if it's undefined in `found`
-              program: found.program || { id: 0, name: '' }
-            };
-          }
-          return {
-            id: invoiceFormData.feeStructureId,
-            totalAmount: String(invoiceFormData.amountDue ?? '0'),
-            description: null,
-            program: {
-              id: 0,
+      setInvoices(prev => [
+        ...prev,
+        {
+          ...newInvoice,
+          student:
+            students.find(s => s.id === invoiceFormData.studentId) || {
+              id: invoiceFormData.studentId!,
+              firstName: '',
+              lastName: '',
+              registrationNumber: ''
+            },
+          semester:
+            semesters.find(s => s.id === invoiceFormData.semesterId) || {
+              id: invoiceFormData.semesterId!,
               name: ''
-            }
-          };
-        })()
-      : null,
-    payments: [],
-    amountDue: String(invoiceFormData.amountDue ?? '0'),
-    amountPaid: '0',
-    balance: String(invoiceFormData.amountDue ?? '0'),
-    issuedDate: new Date(),
-    dueDate: new Date(invoiceFormData.dueDate!)
-  }
-]);
-
+            },
+          feeStructure: invoiceFormData.feeStructureId
+            ? (() => {
+                const found = feeStructures.find(
+                  fs => fs.id === invoiceFormData.feeStructureId
+                );
+                if (found) {
+                  return {
+                    ...found,
+                    totalAmount: String(found.totalAmount ?? '0'),
+                    program: found.program || { id: 0, name: '' }
+                  };
+                }
+                return {
+                  id: invoiceFormData.feeStructureId,
+                  totalAmount: String(invoiceFormData.amountDue ?? '0'),
+                  description: null,
+                  program: {
+                    id: 0,
+                    name: ''
+                  }
+                };
+              })()
+            : null,
+          payments: [],
+          amountDue: String(invoiceFormData.amountDue ?? '0'),
+          amountPaid: '0',
+          balance: String(invoiceFormData.amountDue ?? '0'),
+          issuedDate: new Date(),
+          dueDate: new Date(invoiceFormData.dueDate!)
+        }
+      ]);
       
       setIsCreateModalOpen(false);
       setInvoiceFormData({
@@ -442,67 +445,145 @@ setInvoices(prev => [
   };
 
   // Record payment
-// Record payment
-const handleRecordPayment = async () => {
-  if (!paymentFormData.invoiceId || !paymentFormData.amount || !paymentFormData.paymentMethod) {
-    setError('Amount and payment method are required');
-    return;
-  }
-
-  try {
-    setLoading(prev => ({ ...prev, payment: true }));
-    setError(null);
-
-    // UNCOMMENT AND IMPLEMENT THIS - you need to create a recordPayment function
-    const newPayment = await recordPayment({
-      invoiceId: paymentFormData.invoiceId!,
-      studentId: paymentFormData.studentId!,
-      amount: paymentFormData.amount,
-      paymentMethod: paymentFormData.paymentMethod,
-      referenceNumber: paymentFormData.referenceNumber ?? '',
-    });
-    
-    // Update payments list immediately
-    if (newPayment) {
-      setPayments(prev => [...prev, newPayment]);
+  const handleRecordPayment = async () => {
+    if (!paymentFormData.invoiceId || !paymentFormData.amount || !paymentFormData.paymentMethod) {
+      setError('Amount and payment method are required');
+      return;
     }
 
-    // Update invoices list
-    const updatedInvoices = await getAllInvoices();
-    setInvoices(updatedInvoices);
+    try {
+      setLoading(prev => ({ ...prev, payment: true }));
+      setError(null);
 
-    // Update overdue invoices
-    const updatedOverdue = await getOverdueInvoices();
-    setOverdueInvoices(updatedOverdue);
+      const newPayment = await recordPayment({
+        invoiceId: paymentFormData.invoiceId!,
+        studentId: paymentFormData.studentId!,
+        amount: paymentFormData.amount,
+        paymentMethod: paymentFormData.paymentMethod,
+        referenceNumber: paymentFormData.referenceNumber ?? '',
+      });
+      
+      // Update payments list immediately
+      if (newPayment) {
+        setPayments(prev => [...prev, newPayment]);
+      }
 
-    // Update financial summary
-    const updatedSummary = await getFinancialSummary();
-    setFinancialSummary(updatedSummary);
+      // Update invoices list
+      const updatedInvoices = await getAllInvoices();
+      setInvoices(updatedInvoices);
 
-    setIsPaymentModalOpen(false);
-    setPaymentFormData({
-      invoiceId: 0,
-      studentId: 0,
-      amount: '',
-      paymentMethod: 'credit_card',
-      referenceNumber: ''
-    });
-    setSuccess('Payment recorded successfully!');
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Failed to record payment');
-  } finally {
-    setLoading(prev => ({ ...prev, payment: false }));
-  }
-};
+      // Update overdue invoices
+      const updatedOverdue = await getOverdueInvoices();
+      setOverdueInvoices(updatedOverdue);
+
+      // Update financial summary
+      const updatedSummary = await getFinancialSummary();
+      setFinancialSummary(updatedSummary);
+
+      setIsPaymentModalOpen(false);
+      setPaymentFormData({
+        invoiceId: 0,
+        studentId: 0,
+        amount: '',
+        paymentMethod: 'credit_card',
+        referenceNumber: ''
+      });
+      setSuccess('Payment recorded successfully!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to record payment');
+    } finally {
+      setLoading(prev => ({ ...prev, payment: false }));
+    }
+  };
+
+  // NEW: Generate PDF based on active tab
+  const generatePdf = async (type: 'receipt' | 'invoice' | 'payment', id?: number) => {
+    try {
+      setLoading(prev => ({ ...prev, generating: true }));
+      setError(null);
+      setSuccess(null);
+
+      let pdfBuffer: Buffer;
+      
+      switch (type) {
+        case 'receipt':
+          if (!id) {
+            throw new ActionError('Payment ID is required for receipt generation');
+          }
+          pdfBuffer = await generateReceiptPdf(id);
+          break;
+          
+        case 'invoice':
+          if (id) {
+            // Generate single invoice
+            const invoice = await getInvoiceById(id);
+            if (!invoice) {
+              throw new ActionError('Invoice not found');
+            }
+            pdfBuffer = await generateInvoiceListPdf({
+              // invoiceId: id,
+              studentName: `${invoice.student.firstName} ${invoice.student.lastName}`,
+            });
+          } else {
+            // Generate all invoices based on current filters
+            pdfBuffer = await generateInvoiceListPdf({
+              studentName: searchQuery || undefined,
+            });
+          }
+          break;
+          
+        case 'payment':
+          if (id) {
+            // Generate single payment receipt
+            pdfBuffer = await generateReceiptPdf(id);
+          } else {
+            // Generate payment list
+            pdfBuffer = await generatePaymentListPdf({
+              studentName: searchQuery || undefined,
+            });
+          }
+          break;
+          
+        default:
+          throw new ActionError('Invalid document type');
+      }
+      
+      // Create a blob and download the PDF
+      const uint8Array = new Uint8Array(pdfBuffer);
+      const blob = new Blob([uint8Array], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Set appropriate filename
+      if (type === 'receipt') {
+        a.download = `payment_receipt_${id}.pdf`;
+      } else if (type === 'invoice') {
+        a.download = id ? `invoice_${id}.pdf` : 'invoices_report.pdf';
+      } else if (type === 'payment') {
+        a.download = id ? `payment_receipt_${id}.pdf` : 'payments_report.pdf';
+      }
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setSuccess('Document generated successfully!');
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to generate document');
+    } finally {
+      setLoading(prev => ({ ...prev, generating: false }));
+    }
+  };
 
   // Format currency
-const formatCurrency = (amount: string | number) => {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES'
-  }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
-};
-
+  const formatCurrency = (amount: string | number) => {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES'
+    }).format(typeof amount === 'string' ? parseFloat(amount) : amount);
+  };
 
   // Format date
   const formatDate = (date: Date) => {
@@ -536,6 +617,26 @@ const formatCurrency = (amount: string | number) => {
             className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 flex items-center gap-2"
           >
             <FiPlus size={16} /> New Invoice
+          </button>
+          {/* Add Generate Report Button */}
+          <button
+            onClick={() => generatePdf(activeTab === 'payments' ? 'payment' : 'invoice')}
+            disabled={loading.generating}
+            className={`px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center gap-2 ${
+              loading.generating ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {loading.generating ? (
+              <>
+                <FiLoader className="animate-spin" size={16} />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FiFileText size={16} />
+                Generate {activeTab === 'payments' ? 'Payments' : 'Invoices'} Report
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -765,6 +866,13 @@ const formatCurrency = (amount: string | number) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
+                        onClick={() => generatePdf('invoice', invoice.id)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        title="Generate Invoice PDF"
+                      >
+                        <FiFileText />
+                      </button>
+                      <button
                         onClick={() => handleSelectInvoice(invoice.id)}
                         className="text-emerald-600 hover:text-emerald-900 mr-4"
                         title="View Details"
@@ -802,57 +910,64 @@ const formatCurrency = (amount: string | number) => {
                     </td>
                   </tr>
                 ))}
-{activeTab === 'payments' && payments.map((payment) => (
-  <tr key={payment.id} className="hover:bg-gray-50">
-    <td className="px-6 py-4 whitespace-nowrap">
-      <div className="flex items-center">
-        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-          <FiUser className="text-emerald-600" />
-        </div>
-        <div className="ml-4">
-          <div className="text-sm font-medium text-gray-900">
-            {payment.student.firstName} {payment.student.lastName}
-          </div>
-          <div className="text-sm text-gray-500">
-            Invoice #{payment.invoice.id}
-          </div>
-        </div>
-      </div>
-    </td>
-    <td className="px-6 py-4 whitespace-nowrap">
-      <div className="text-sm text-gray-900">
-        {formatCurrency(payment.amount)}
-      </div>
-    </td>
-    <td className="px-6 py-4 whitespace-nowrap">
-      <div className="text-sm text-gray-900 capitalize">
-        {payment.paymentMethod.replace('_', ' ')}
-      </div>
-      {payment.referenceNumber && (
-        <div className="text-sm text-gray-500">
-          Ref: {payment.referenceNumber}
-        </div>
-      )}
-    </td>
-    <td className="px-6 py-4 whitespace-nowrap">
-      <div className="text-sm text-gray-900">
-        {formatDate(new Date(payment.transactionDate))}
-      </div>
-    </td>
-    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-      <button
-        onClick={() => {
-          setSelectedPayment(payment);
-          setIsViewModalOpen(true);
-        }}
-        className="text-emerald-600 hover:text-emerald-900 mr-4"
-        title="View Details"
-      >
-        <FiInfo />
-      </button>
-    </td>
-  </tr>
-))}
+                {activeTab === 'payments' && payments.map((payment) => (
+                  <tr key={payment.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                          <FiUser className="text-emerald-600" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {payment.student.firstName} {payment.student.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Invoice #{payment.invoice.id}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {formatCurrency(payment.amount)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 capitalize">
+                        {payment.paymentMethod.replace('_', ' ')}
+                      </div>
+                      {payment.referenceNumber && (
+                        <div className="text-sm text-gray-500">
+                          Ref: {payment.referenceNumber}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {formatDate(new Date(payment.transactionDate))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => generatePdf('receipt', payment.id)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        title="Generate Receipt"
+                      >
+                        <FiFileText />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedPayment(payment);
+                          setIsViewModalOpen(true);
+                        }}
+                        className="text-emerald-600 hover:text-emerald-900 mr-4"
+                        title="View Details"
+                      >
+                        <FiInfo />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
                 {activeTab === 'overdue' && overdueInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -889,6 +1004,13 @@ const formatCurrency = (amount: string | number) => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => generatePdf('invoice', invoice.id)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        title="Generate Invoice PDF"
+                      >
+                        <FiFileText />
+                      </button>
                       <button
                         onClick={() => {
                           setSelectedInvoice(invoice);
