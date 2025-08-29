@@ -6,8 +6,9 @@ import puppeteer from "puppeteer";
 import puppeteerCore from "puppeteer-core";
 import { 
   db, documentLogs, payments, students, invoices, programs, departments, 
-  enrollments, courses, grades, semesters, staff, feeStructures 
+  enrollments, courses, grades, semesters, staff, feeStructures
 } from "@/lib/db";
+import { getAuthUser } from "@/lib/auth";
 
 async function getBrowser() {
   if (process.env.NODE_ENV === "production") {
@@ -89,11 +90,13 @@ async function generatePdfFromHtml(html: string, landscape: boolean = false): Pr
  */
 export async function generateReceiptPdf(
   paymentId: number, 
-  userId: number,
+  // userId: number,
   ipAddress?: string,
   userAgent?: string
 ): Promise<Buffer> {
   try {
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
     const paymentData = await db
       .select({
         payment: payments,
@@ -112,82 +115,216 @@ export async function generateReceiptPdf(
 
     const { payment, student, invoice } = paymentData;
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Payment Receipt</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 15px; color: #333; font-size: 12px; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-          .school-name { font-size: 18px; font-weight: bold; }
-          .receipt-title { font-size: 16px; margin: 10px 0; }
-          .details { margin: 15px 0; }
-          .detail-row { display: flex; margin-bottom: 6px; }
-          .detail-label { width: 120px; font-weight: bold; }
-          .detail-value { flex: 1; }
-          .amount { font-size: 14px; font-weight: bold; margin: 10px 0; }
-          .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #666; }
-          table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
-          th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-          th { background-color: #f2f2f2; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="school-name">SCHOOL NAME</div>
-          <div>School Address, City, Country</div>
-          <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-        </div>
-        
-        <div class="receipt-title">PAYMENT RECEIPT</div>
-        
-        <div class="details">
-          <div class="detail-row">
-            <div class="detail-label">Receipt Number:</div>
-            <div class="detail-value">${payment.id}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Date:</div>
-            <div class="detail-value">${new Date(payment.transactionDate).toLocaleDateString()}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Student Name:</div>
-            <div class="detail-value">${student.firstName} ${student.lastName}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Student ID:</div>
-            <div class="detail-value">${student.studentNumber}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Invoice Reference:</div>
-            <div class="detail-value">${invoice.id}</div>
-          </div>
-        </div>
-        
-        <div class="amount">
-          Amount Paid: $${payment.amount}
-        </div>
-        
-        <div class="details">
-          <div class="detail-row">
-            <div class="detail-label">Payment Method:</div>
-            <div class="detail-value">${payment.paymentMethod}</div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-label">Reference Number:</div>
-            <div class="detail-value">${payment.referenceNumber || 'N/A'}</div>
-          </div>
-        </div>
-        
-        <div class="footer">
-          This is an official receipt from School Name. Thank you for your payment.
-          <br>Generated on: ${new Date().toLocaleDateString()}
-        </div>
-      </body>
-      </html>
-    `;
+const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Receipt</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .receipt-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 700px;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 15px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 22px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 13px;
+    }
+
+    .receipt-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 25px 0 15px;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .details {
+      margin: 15px 0;
+    }
+
+    .detail-row {
+      display: flex;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .detail-label {
+      width: 160px;
+      font-weight: bold;
+      color: #1a4f8c;
+    }
+
+    .detail-value {
+      flex: 1;
+      color: #333;
+    }
+
+    .amount-box {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #eaf3ff;
+      border: 1px solid #1a4f8c;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      color: #1a4f8c;
+    }
+
+    .footer {
+      margin-top: 25px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 15px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 80px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.04;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .receipt-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="receipt-title">PAYMENT RECEIPT</div>
+
+    <div class="details">
+      <div class="detail-row">
+        <div class="detail-label">Receipt Number:</div>
+        <div class="detail-value">${payment.id}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Date:</div>
+        <div class="detail-value">${new Date(payment.transactionDate).toLocaleDateString()}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Student Name:</div>
+        <div class="detail-value">${student.firstName} ${student.lastName}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Student ID:</div>
+        <div class="detail-value">${student.studentNumber}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Invoice Reference:</div>
+        <div class="detail-value">${invoice.id}</div>
+      </div>
+    </div>
+
+    <div class="amount-box">
+      Amount Paid: $${payment.amount}
+    </div>
+
+    <div class="details">
+      <div class="detail-row">
+        <div class="detail-label">Payment Method:</div>
+        <div class="detail-value">${payment.paymentMethod}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Reference Number:</div>
+        <div class="detail-value">${payment.referenceNumber || 'N/A'}</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      This is an official receipt from Alphil Training College. Thank you for your payment.
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
+
 
     const pdfBuffer = await generatePdfFromHtml(html);
     
@@ -220,11 +357,15 @@ export async function generateStudentListPdf(
     semesterId?: number;
     programAndSemester?: { programId: number; semesterId: number };
   },
-  userId: number,
+  // userId: number,
   ipAddress?: string,
   userAgent?: string
 ): Promise<Buffer> {
   try {
+
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
+
     const whereConditions = [];
 
     if (filters.programId) {
@@ -297,67 +438,202 @@ export async function generateStudentListPdf(
       filterDescription += filterDescription !== "All Students" ? `, Course: ${course?.name || 'Unknown'}` : `Course: ${course?.name || 'Unknown'}`;
     }
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Student List</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 15px; color: #333; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .school-name { font-size: 20px; font-weight: bold; }
-          .report-title { font-size: 18px; margin: 12px 0; text-align: center; }
-          .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .footer { margin-top: 25px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="school-name">SCHOOL NAME</div>
-          <div>School Address, City, Country</div>
-          <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-        </div>
-        
-        <div class="report-title">STUDENT LIST</div>
-        
-        <div class="filter-info">${filterDescription}</div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Student ID</th>
-              <th>Name</th>
-              <th>Program</th>
-              <th>Department</th>
-              <th>Current Semester</th>
-              <th>Email</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${studentData.map(student => `
-              <tr>
-                <td>${student.student.studentNumber}</td>
-                <td>${student.student.firstName} ${student.student.lastName}</td>
-                <td>${student.program.name}</td>
-                <td>${student.department.name}</td>
-                <td>${student.semester.name}</td>
-                <td>${student.student.email}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        
-        <div class="footer">
-          Total students: ${studentData.length}
-          <br>Generated on: ${new Date().toLocaleDateString()}
-        </div>
-      </body>
-      </html>
-    `;
+const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Student List</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .report-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 900px;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .report-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .filter-info {
+      margin: 10px 0 20px;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f0f5ff;
+      color: #1a4f8c;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 20px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .report-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="report-title">STUDENT LIST</div>
+
+    <div class="filter-info">${filterDescription}</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Name</th>
+          <th>Program</th>
+          <th>Department</th>
+          <th>Current Semester</th>
+          <th>Email</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${studentData.map(student => `
+          <tr>
+            <td>${student.student.studentNumber}</td>
+            <td>${student.student.firstName} ${student.student.lastName}</td>
+            <td>${student.program.name}</td>
+            <td>${student.department.name}</td>
+            <td>${student.semester.name}</td>
+            <td>${student.student.email}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Total students: ${studentData.length}
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
+
 
     const pdfBuffer = await generatePdfFromHtml(html, true);
     
@@ -388,12 +664,14 @@ export async function generateStaffListPdf(
     programId?: number;
     position?: string;
   },
-  userId: number,
+  // userId: number,
   ipAddress?: string,
   userAgent?: string
 ): Promise<Buffer> {
   try {
     const whereConditions = [];
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
 
     if (filters.position) {
       whereConditions.push(eq(staff.position, filters.position));
@@ -442,65 +720,199 @@ export async function generateStaffListPdf(
       filterDescription += filterDescription !== "All Staff" ? `, Position: ${filters.position}` : `Position: ${filters.position}`;
     }
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Staff Directory</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 15px; color: #333; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .school-name { font-size: 20px; font-weight: bold; }
-          .report-title { font-size: 18px; margin: 12px 0; text-align: center; }
-          .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .footer { margin-top: 25px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="school-name">SCHOOL NAME</div>
-          <div>School Address, City, Country</div>
-          <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-        </div>
-        
-        <div class="report-title">STAFF DIRECTORY</div>
-        
-        <div class="filter-info">${filterDescription}</div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Position</th>
-              <th>Department</th>
-              <th>Email</th>
-              ${filters.programId ? '<th>Program</th>' : ''}
-            </tr>
-          </thead>
-<tbody>
-  ${staffData.map(person => `
-    <tr>
-      <td>${person.staff.firstName} ${person.staff.lastName}</td>
-      <td>${person.staff.position}</td>
-      <td>${person.department.name}</td>
-      <td>${person.staff.email}</td>
-      ${filters.programId ? `<td>${'program' in person ? (person as {program: {name: string}}).program.name : 'N/A'}</td>` : ''}
-    </tr>
-  `).join('')}
-</tbody>
-        </table>
-        
-        <div class="footer">
-          Total staff: ${staffData.length}
-          <br>Generated on: ${new Date().toLocaleDateString()}
-        </div>
-      </body>
-      </html>
-    `;
+const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Staff Directory</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .report-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 900px;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .report-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .filter-info {
+      margin: 10px 0 20px;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f0f5ff;
+      color: #1a4f8c;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 20px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .report-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="report-title">STAFF DIRECTORY</div>
+
+    <div class="filter-info">${filterDescription}</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Department</th>
+          <th>Email</th>
+          ${filters.programId ? '<th>Program</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${staffData.map(person => `
+          <tr>
+            <td>${person.staff.firstName} ${person.staff.lastName}</td>
+            <td>${person.staff.position}</td>
+            <td>${person.department.name}</td>
+            <td>${person.staff.email}</td>
+            ${filters.programId ? `<td>${'program' in person ? (person as {program: {name: string}}).program.name : 'N/A'}</td>` : ''}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Total staff: ${staffData.length}
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
 
     const pdfBuffer = await generatePdfFromHtml(html, true);
     
@@ -533,11 +945,14 @@ export async function generateInvoiceListPdf(
     dueDateRange?: { start: Date; end: Date };
     status?: string;
   },
-  userId: number,
+  // userId: number,
   ipAddress?: string,
   userAgent?: string
 ): Promise<Buffer> {
   try {
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
+
     const whereConditions = [];
 
     if (filters.studentName) {
@@ -613,71 +1028,210 @@ export async function generateInvoiceListPdf(
     }
 
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Invoice List</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 15px; color: #333; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .school-name { font-size: 20px; font-weight: bold; }
-          .report-title { font-size: 18px; margin: 12px 0; text-align: center; }
-          .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .footer { margin-top: 25px; text-align: center; font-size: 12px; color: #666; }
-          .negative { color: red; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="school-name">SCHOOL NAME</div>
-          <div>School Address, City, Country</div>
-          <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-        </div>
-        
-        <div class="report-title">INVOICE LIST</div>
-        
-        <div class="filter-info">${filterDescription}</div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Invoice ID</th>
-              <th>Student</th>
-              <th>Semester</th>
-              <th>Amount Due</th>
-              <th>Amount Paid</th>
-              <th>Balance</th>
-              <th>Due Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoiceData.map(inv => `
-              <tr>
-                <td>${inv.invoice.id}</td>
-                <td>${inv.student.firstName} ${inv.student.lastName}</td>
-                <td>${inv.semester.name}</td>
-                <td>$${inv.invoice.amountDue}</td>
-                <td>$${inv.invoice.amountPaid}</td>
-                <td class="${Number(inv.invoice.balance) > 0 ? 'negative' : ''}">$${inv.invoice.balance}</td>
-                <td>${new Date(inv.invoice.dueDate).toLocaleDateString()}</td>
-                <td>${inv.invoice.status}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        
-        <div class="footer">
-          Total invoices: ${invoiceData.length}
-          <br>Generated on: ${new Date().toLocaleDateString()}
-        </div>
-      </body>
-      </html>
-    `;
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice List</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .report-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 1000px;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .report-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .filter-info {
+      margin: 10px 0 20px;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f0f5ff;
+      color: #1a4f8c;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .negative {
+      color: red;
+      font-weight: bold;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 20px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .report-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="report-title">INVOICE LIST</div>
+
+    <div class="filter-info">${filterDescription}</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice ID</th>
+          <th>Student</th>
+          <th>Semester</th>
+          <th>Amount Due</th>
+          <th>Amount Paid</th>
+          <th>Balance</th>
+          <th>Due Date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${invoiceData.map(inv => `
+          <tr>
+            <td>${inv.invoice.id}</td>
+            <td>${inv.student.firstName} ${inv.student.lastName}</td>
+            <td>${inv.semester.name}</td>
+            <td>$${inv.invoice.amountDue}</td>
+            <td>$${inv.invoice.amountPaid}</td>
+            <td class="${Number(inv.invoice.balance) > 0 ? 'negative' : ''}">$${inv.invoice.balance}</td>
+            <td>${new Date(inv.invoice.dueDate).toLocaleDateString()}</td>
+            <td>${inv.invoice.status}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Total invoices: ${invoiceData.length}
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
+
 
     const pdfBuffer = await generatePdfFromHtml(html, true);
     
@@ -709,11 +1263,13 @@ export async function generatePaymentListPdf(
     studentName?: string;
     dateRange?: { start: Date; end: Date };
   },
-  userId: number,
+  // userId: number,
   ipAddress?: string,
   userAgent?: string
 ): Promise<Buffer> {
   try {
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
     const whereConditions = [];
 
     if (filters.paymentMethod) {
@@ -780,69 +1336,204 @@ export async function generatePaymentListPdf(
     }
 
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Payment List</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 15px; color: #333; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .school-name { font-size: 20px; font-weight: bold; }
-          .report-title { font-size: 18px; margin: 12px 0; text-align: center; }
-          .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
-          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .footer { margin-top: 25px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="school-name">SCHOOL NAME</div>
-          <div>School Address, City, Country</div>
-          <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
-        </div>
-        
-        <div class="report-title">PAYMENT LIST</div>
-        
-        <div class="filter-info">${filterDescription}</div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Payment ID</th>
-              <th>Student</th>
-              <th>Invoice ID</th>
-              <th>Amount</th>
-              <th>Method</th>
-              <th>Reference</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${paymentData.map(pay => `
-              <tr>
-                <td>${pay.payment.id}</td>
-                <td>${pay.student.firstName} ${pay.student.lastName}</td>
-                <td>${pay.invoice.id}</td>
-                <td>$${pay.payment.amount}</td>
-                <td>${pay.payment.paymentMethod}</td>
-                <td>${pay.payment.referenceNumber || 'N/A'}</td>
-                <td>${new Date(pay.payment.transactionDate).toLocaleDateString()}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        
-        <div class="footer">
-          Total payments: ${paymentData.length}
-          <br>Total amount: $${paymentData.reduce((sum, pay) => sum + Number(pay.payment.amount), 0).toFixed(2)}
-          <br>Generated on: ${new Date().toLocaleDateString()}
-        </div>
-      </body>
-      </html>
-    `;
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payment List</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .report-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 1000px;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .report-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .filter-info {
+      margin: 10px 0 20px;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f0f5ff;
+      color: #1a4f8c;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 20px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .report-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="report-title">PAYMENT LIST</div>
+
+    <div class="filter-info">${filterDescription}</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Payment ID</th>
+          <th>Student</th>
+          <th>Invoice ID</th>
+          <th>Amount</th>
+          <th>Method</th>
+          <th>Reference</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${paymentData.map(pay => `
+          <tr>
+            <td>${pay.payment.id}</td>
+            <td>${pay.student.firstName} ${pay.student.lastName}</td>
+            <td>${pay.invoice.id}</td>
+            <td>$${pay.payment.amount}</td>
+            <td>${pay.payment.paymentMethod}</td>
+            <td>${pay.payment.referenceNumber || 'N/A'}</td>
+            <td>${new Date(pay.payment.transactionDate).toLocaleDateString()}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Total payments: ${paymentData.length}
+      <br>Total amount: $${paymentData.reduce((sum, pay) => sum + Number(pay.payment.amount), 0).toFixed(2)}
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
+
 
     const pdfBuffer = await generatePdfFromHtml(html, true);
     
@@ -874,11 +1565,13 @@ export async function generateTranscriptPdf(
     courseId?: number;
     studentName?: string;
   },
-  userId: number,
+  // userId: number,
   ipAddress?: string,
   userAgent?: string
 ): Promise<Buffer> {
   try {
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
     let studentIds: number[] = [];
     
     // If filtering by student name, get matching student IDs
@@ -1006,122 +1699,288 @@ export async function generateTranscriptPdf(
     }
 
     // Generate HTML for the transcripts
-    let html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Academic Transcripts</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 15px; color: #333; }
-          .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-          .school-name { font-size: 20px; font-weight: bold; }
-          .report-title { font-size: 18px; margin: 12px 0; text-align: center; }
-          .filter-info { margin: 10px 0; text-align: center; font-style: italic; }
-          .student-info { margin: 20px 0; }
-          .info-row { display: flex; margin-bottom: 8px; }
-          .info-label { width: 150px; font-weight: bold; }
-          .info-value { flex: 1; }
-          .semester-section { margin: 25px 0; }
-          .semester-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-          table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .summary { margin-top: 30px; }
-          .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
-          .page-break { page-break-after: always; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="school-name">SCHOOL NAME</div>
-          <div>School Address, City, Country</div>
-          <div>Phone: (123) 456-7890 | Email: info@school.edu</div>
+let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Academic Transcripts</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+    }
+
+    .report-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 1000px;
+      margin: auto;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .report-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .filter-info {
+      margin: 10px 0 20px;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+
+    .student-info {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f9fbff;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+    }
+
+    .info-row {
+      display: flex;
+      margin-bottom: 8px;
+    }
+
+    .info-label {
+      width: 150px;
+      font-weight: bold;
+      color: #1a4f8c;
+    }
+
+    .info-value {
+      flex: 1;
+    }
+
+    .semester-section {
+      margin: 25px 0;
+    }
+
+    .semester-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 5px;
+      color: #1a4f8c;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f0f5ff;
+      color: #1a4f8c;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .summary {
+      margin-top: 20px;
+      padding: 12px;
+      background-color: #f0f5ff;
+      border-left: 4px solid #1a4f8c;
+      border-radius: 4px;
+      font-weight: bold;
+      color: #1a4f8c;
+    }
+
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 15px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .page-break {
+      page-break-after: always;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .report-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="report-title">ACADEMIC TRANSCRIPTS</div>
+
+    <div class="filter-info">${filterDescription}</div>
+`;
+
+transcripts.forEach((transcript, index) => {
+  html += `
+    <div class="student-section ${index > 0 ? 'page-break' : ''}">
+      <div class="student-info">
+        <div class="info-row">
+          <div class="info-label">Student Name:</div>
+          <div class="info-value">${transcript.student.firstName} ${transcript.student.lastName}</div>
         </div>
-        
-        <div class="report-title">ACADEMIC TRANSCRIPTS</div>
-        
-        <div class="filter-info">${filterDescription}</div>
-    `;
-
-    // Add each student's transcript
-    transcripts.forEach((transcript, index) => {
-      html += `
-        <div class="student-section ${index > 0 ? 'page-break' : ''}">
-          <div class="student-info">
-            <div class="info-row">
-              <div class="info-label">Student Name:</div>
-              <div class="info-value">${transcript.student.firstName} ${transcript.student.lastName}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Student ID:</div>
-              <div class="info-value">${transcript.student.studentNumber}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Program:</div>
-              <div class="info-value">${transcript.program.name}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Department:</div>
-              <div class="info-value">${transcript.department.name}</div>
-            </div>
-          </div>
-      `;
-
-      // Add semester sections
-      Object.entries(transcript.recordsBySemester).forEach(([semesterId, records]) => {
-        console.log(semesterId)
-        const semester = records[0].semester;
-        html += `
-          <div class="semester-section">
-            <div class="semester-title">${semester.name} (${new Date(semester.startDate).getFullYear()})</div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Course Code</th>
-                  <th>Course Name</th>
-                  <th>Credits</th>
-                  <th>Grade</th>
-                  <th>GPA</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${records.map(record => `
-                  <tr>
-                    <td>${record.course.code}</td>
-                    <td>${record.course.name}</td>
-                    <td>${record.course.credits}</td>
-                    <td>${record.grade?.letterGrade || 'Incomplete'}</td>
-                    <td>${record.grade?.gpa || '-'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
-      });
-
-      // Add summary
-      html += `
-          <div class="summary">
-            <div class="info-row">
-              <div class="info-label">Cumulative GPA:</div>
-              <div class="info-value">${transcript.cumulativeGPA.toFixed(2)}</div>
-            </div>
-          </div>
+        <div class="info-row">
+          <div class="info-label">Student ID:</div>
+          <div class="info-value">${transcript.student.studentNumber}</div>
         </div>
-      `;
-    });
+        <div class="info-row">
+          <div class="info-label">Program:</div>
+          <div class="info-value">${transcript.program.name}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Department:</div>
+          <div class="info-value">${transcript.department.name}</div>
+        </div>
+      </div>
+  `;
 
-    // Add footer
+  Object.entries(transcript.recordsBySemester).forEach(([semesterId, records]) => {
+    const semester = records[0].semester;
+    console.log(`Semester ID: ${semesterId}, Records Count: ${records.length}`);
     html += `
-        <div class="footer">
-          This is an official transcript from School Name.
-          <br>Generated on: ${new Date().toLocaleDateString()}
-        </div>
-      </body>
-      </html>
+      <div class="semester-section">
+        <div class="semester-title">${semester.name} (${new Date(semester.startDate).getFullYear()})</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Course Code</th>
+              <th>Course Name</th>
+              <th>Credits</th>
+              <th>Grade</th>
+              <th>GPA</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records.map(record => `
+              <tr>
+                <td>${record.course.code}</td>
+                <td>${record.course.name}</td>
+                <td>${record.course.credits}</td>
+                <td>${record.grade?.letterGrade || 'Incomplete'}</td>
+                <td>${record.grade?.gpa || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
     `;
+  });
+
+  html += `
+      <div class="summary">
+        Cumulative GPA: ${transcript.cumulativeGPA.toFixed(2)}
+      </div>
+    </div>
+  `;
+});
+
+html += `
+    <div class="footer">
+      This is an official transcript from Alphil Training College.
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
 
     const pdfBuffer = await generatePdfFromHtml(html);
     
