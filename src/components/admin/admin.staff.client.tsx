@@ -1,4 +1,3 @@
-// components/admin/admin.staff.client.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +6,7 @@ import {
   deleteStaff,
   type StaffWithDetails,
   type StaffDeletePayload,
+  searchStaff,
 } from '@/lib/actions/admin/staff.actions';
 
 import {
@@ -18,10 +18,12 @@ import { getStaffFormOptions, addStaff } from '@/lib/actions/users/users.actions
 import {
   FiUser, FiPlus, FiEdit2, FiTrash2,
   FiLoader, FiX, FiSearch, FiInfo,
-  FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera
+  FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera,
+  FiEye, FiEyeOff
 } from 'react-icons/fi';
 import { ActionError } from '@/lib/utils';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 interface Option {
   id: number;
@@ -60,13 +62,33 @@ interface SelectedStaffType {
   passportPhotoUrl?: string | null;
 }
 
+interface UpdateStaffPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber: string;
+  departmentId: number;
+  position: string;
+  roleId: number;
+  shouldDeleteFiles: {
+    employmentDocuments: boolean;
+    nationalIdPhoto: boolean;
+    academicCertificates: boolean;
+    passportPhoto: boolean;
+  };
+  password?: string;
+  employmentDocuments?: File;
+  nationalIdPhoto?: File;
+  academicCertificates?: File;
+  passportPhoto?: File;
+}
+
 export default function AdminStaffClient() {
   const [staff, setStaff] = useState<StaffWithDetails[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<SelectedStaffType | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  // const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [loading, setLoading] = useState({
     staff: true,
     details: false,
@@ -79,6 +101,7 @@ export default function AdminStaffClient() {
   const [success, setSuccess] = useState<string | null>(null);
   const [options, setOptions] = useState<StaffFormOptions>({ departments: [], roles: [] });
   const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -98,7 +121,40 @@ export default function AdminStaffClient() {
     passportPhoto: null as File | null
   });
 
-  // Fetch all staff on component mount and when search changes
+  // Format error messages for user display
+  const formatErrorMessage = (error: unknown): string => {
+    console.error('Raw error:', error);
+    
+    if (error instanceof ActionError) {
+      return error.message;
+    }
+    
+    if (typeof error === 'string') {
+      return error;
+    }
+    
+    if (error && typeof error === 'object') {
+      // Handle Zod validation errors
+      if ('issues' in error && Array.isArray(error.issues)) {
+        const issues = error.issues as Array<{path: string[], message: string}>;
+        if (issues.length > 0) {
+          return issues.map(issue => {
+            const field = issue.path[issue.path.length - 1];
+            return `${field ? field + ': ' : ''}${issue.message}`;
+          }).join(', ');
+        }
+      }
+      
+      // Handle other object errors
+      if ('message' in error && typeof error.message === 'string') {
+        return error.message;
+      }
+    }
+    
+    return 'An unexpected error occurred. Please try again.';
+  };
+
+  // Fetch all staff on component mount
   useEffect(() => {
     const loadStaff = async () => {
       try {
@@ -107,13 +163,52 @@ export default function AdminStaffClient() {
         const staffData = await getAllStaff();
         setStaff(staffData);
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load staff');
+        const errorMessage = formatErrorMessage(err);
+        setError(errorMessage);
       } finally {
         setLoading(prev => ({ ...prev, staff: false }));
       }
     };
 
     loadStaff();
+  }, []);
+
+  // Handle search with debouncing
+  useEffect(() => {
+    // If search query is empty, reload all staff immediately
+    if (!searchQuery.trim()) {
+      const loadAllStaff = async () => {
+        try {
+          setLoading(prev => ({ ...prev, staff: true }));
+          const staffData = await getAllStaff();
+          setStaff(staffData);
+        } catch (err) {
+          const errorMessage = formatErrorMessage(err);
+          setError(errorMessage);
+        } finally {
+          setLoading(prev => ({ ...prev, staff: false }));
+        }
+      };
+      
+      loadAllStaff();
+      return;
+    }
+
+    // If there's a search query, use the debounced search
+    const timer = setTimeout(async () => {
+      try {
+        setLoading(prev => ({ ...prev, staff: true }));
+        const results = await searchStaff(searchQuery);
+        setStaff(results);
+      } catch (err) {
+        const errorMessage = formatErrorMessage(err);
+        setError(errorMessage);
+      } finally {
+        setLoading(prev => ({ ...prev, staff: false }));
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   // Load form options
@@ -139,60 +234,60 @@ export default function AdminStaffClient() {
   }, []);
 
   // Load staff details when selected
-// Load staff details when selected
-const handleSelectStaff = async (staffId: number) => {
-  try {
-    setLoading(prev => ({ ...prev, details: true }));
-    setError(null);
-    
-    const [opts, staffRes] = await Promise.all([
-      getStaffFormOptions(),
-      getStaffForEdit(staffId)
-    ]);
+  const handleSelectStaff = async (staffId: number) => {
+    try {
+      setLoading(prev => ({ ...prev, details: true }));
+      setError(null);
+      
+      const [opts, staffRes] = await Promise.all([
+        getStaffFormOptions(),
+        getStaffForEdit(staffId)
+      ]);
 
-    setOptions(opts);
+      setOptions(opts);
 
-if (staffRes.success && staffRes.staff) {
-  const staffToSet = {
-    ...staffRes.staff,
-    user: staffRes.staff.user ?? undefined,
-  };
+      if (staffRes.success && staffRes.staff) {
+        const staffToSet = {
+          ...staffRes.staff,
+          user: staffRes.staff.user ?? undefined,
+        };
 
-  setSelectedStaff(staffToSet);
-  
-  const userRoleId = staffRes.staff.user?.role?.id || 
-                       (opts.roles ?? []).find(r => r.name.toLowerCase().includes('staff'))?.id || 
-                       (opts.roles ?? [])[0]?.id || 0;
-  
-  setFormData({
-    firstName: staffRes.staff.firstName,
-    lastName: staffRes.staff.lastName,
-    email: staffRes.staff.email,
-    idNumber: staffRes.staff.idNumber || '',
-    departmentId: staffRes.staff.departmentId,
-    position: staffRes.staff.position,
-    roleId: userRoleId, // Set the role ID from the user
-    password: '' // Empty password field for security
-  });
+        setSelectedStaff(staffToSet);
+        
+        const userRoleId = staffRes.staff.user?.role?.id || 
+                          (opts.roles ?? []).find(r => r.name.toLowerCase().includes('staff'))?.id || 
+                          (opts.roles ?? [])[0]?.id || 0;
+        
+        setFormData({
+          firstName: staffRes.staff.firstName,
+          lastName: staffRes.staff.lastName,
+          email: staffRes.staff.email,
+          idNumber: staffRes.staff.idNumber || '',
+          departmentId: staffRes.staff.departmentId,
+          position: staffRes.staff.position,
+          roleId: userRoleId,
+          password: ''
+        });
 
-  // Set file previews
-  const previews: Record<string, string> = {};
-  if (staffRes.staff.passportPhotoUrl) previews.passportPhoto = staffRes.staff.passportPhotoUrl;
-  if (staffRes.staff.nationalIdPhotoUrl) previews.nationalIdPhoto = staffRes.staff.nationalIdPhotoUrl;
-  if (staffRes.staff.academicCertificatesUrl) previews.academicCertificates = staffRes.staff.academicCertificatesUrl;
-  if (staffRes.staff.employmentDocumentsUrl) previews.employmentDocuments = staffRes.staff.employmentDocumentsUrl;
-  setFilePreviews(previews);
-  
-  setIsViewModalOpen(true);
-} else {
-      setError(staffRes.error || 'Failed to load staff details');
+        // Set file previews
+        const previews: Record<string, string> = {};
+        if (staffRes.staff.passportPhotoUrl) previews.passportPhoto = staffRes.staff.passportPhotoUrl;
+        if (staffRes.staff.nationalIdPhotoUrl) previews.nationalIdPhoto = staffRes.staff.nationalIdPhotoUrl;
+        if (staffRes.staff.academicCertificatesUrl) previews.academicCertificates = staffRes.staff.academicCertificatesUrl;
+        if (staffRes.staff.employmentDocumentsUrl) previews.employmentDocuments = staffRes.staff.employmentDocumentsUrl;
+        setFilePreviews(previews);
+        
+        setIsViewModalOpen(true);
+      } else {
+        setError(staffRes.error || 'Failed to load staff details');
+      }
+    } catch (err) {
+      const errorMessage = formatErrorMessage(err);
+      setError(errorMessage);
+    } finally {
+      setLoading(prev => ({ ...prev, details: false }));
     }
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to load staff details');
-  } finally {
-    setLoading(prev => ({ ...prev, details: false }));
-  }
-};
+  };
 
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -251,7 +346,6 @@ if (staffRes.success && staffRes.staff) {
       if (formData.password.length < 8) {
         throw new ActionError('Password must be at least 8 characters long');
       }
-
 
       const staffData = {
         firstName: formData.firstName,
@@ -316,127 +410,117 @@ if (staffRes.success && staffRes.staff) {
         throw new ActionError(newStaff.error || 'Failed to create staff');
       }
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to create staff member');
+      const errorMessage = formatErrorMessage(err);
+      setError(errorMessage);
     } finally {
       setLoading(prev => ({ ...prev, create: false }));
     }
   };
 
   // Update staff
-// Update staff
-const handleUpdateStaff = async () => {
-  if (!selectedStaff) return;
+  const handleUpdateStaff = async () => {
+    if (!selectedStaff) return;
 
-  try {
-    setLoading(prev => ({ ...prev, update: true }));
-    setError(null);
+    try {
+      setLoading(prev => ({ ...prev, update: true }));
+      setError(null);
 
-    const shouldDeleteFiles = {
-      employmentDocuments: !documentsFormData.employmentDocuments && !filePreviews.employmentDocuments,
-      nationalIdPhoto: !documentsFormData.nationalIdPhoto && !filePreviews.nationalIdPhoto,
-      academicCertificates: !documentsFormData.academicCertificates && !filePreviews.academicCertificates,
-      passportPhoto: !documentsFormData.passportPhoto && !filePreviews.passportPhoto,
-    };
+      // Only validate password if it's being changed (not empty)
+      if (formData.password && formData.password.length > 0 && formData.password.length < 8) {
+        throw new ActionError('Password must be at least 8 characters long');
+      }
 
-    // Create update payload with password and roleId
-const updatePayload: {
-  firstName: string;
-  lastName: string;
-  email: string;
-  idNumber: string;
-  departmentId: number;
-  position: string;
-  roleId: number;
-  password: string;
-  shouldDeleteFiles: {
-    employmentDocuments: boolean;
-    nationalIdPhoto: boolean;
-    academicCertificates: boolean;
-    passportPhoto: boolean;
+      const shouldDeleteFiles = {
+        employmentDocuments: !documentsFormData.employmentDocuments && !filePreviews.employmentDocuments,
+        nationalIdPhoto: !documentsFormData.nationalIdPhoto && !filePreviews.nationalIdPhoto,
+        academicCertificates: !documentsFormData.academicCertificates && !filePreviews.academicCertificates,
+        passportPhoto: !documentsFormData.passportPhoto && !filePreviews.passportPhoto,
+      };
+
+      // Create update payload with password and roleId
+      const updatePayload: UpdateStaffPayload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        idNumber: formData.idNumber,
+        departmentId: formData.departmentId,
+        position: formData.position,
+        roleId: formData.roleId,
+        shouldDeleteFiles,
+      };
+      
+      // Only include password if it's not empty
+      if (formData.password.trim() !== "") {
+        updatePayload.password = formData.password;
+      }
+      
+      // Add file uploads if they exist
+      if (documentsFormData.employmentDocuments) updatePayload.employmentDocuments = documentsFormData.employmentDocuments;
+      if (documentsFormData.nationalIdPhoto) updatePayload.nationalIdPhoto = documentsFormData.nationalIdPhoto;
+      if (documentsFormData.academicCertificates) updatePayload.academicCertificates = documentsFormData.academicCertificates;
+      if (documentsFormData.passportPhoto) updatePayload.passportPhoto = documentsFormData.passportPhoto;
+
+      const updatedStaff = await updateStaff(selectedStaff.id, updatePayload);
+      
+      if (updatedStaff.success && updatedStaff.staff) {
+        setStaff(prev => prev.map(staff => 
+          staff.id === selectedStaff.id 
+            ? { 
+                ...staff, 
+                firstName: updatedStaff.staff!.firstName,
+                lastName: updatedStaff.staff!.lastName,
+                email: updatedStaff.staff!.email,
+                idNumber: updatedStaff.staff!.idNumber,
+                position: updatedStaff.staff!.position,
+                department: {
+                  id: formData.departmentId,
+                  name: options.departments.find(d => d.id === formData.departmentId)?.name || staff.department.name
+                },
+                user: {
+                  id: staff.user.id,
+                  role: {
+                    id: formData.roleId,
+                    name: options.roles.find(r => r.id === formData.roleId)?.name || staff.user.role.name
+                  }
+                },
+                updatedAt: new Date()
+              } 
+            : staff
+        ));
+        
+        setSelectedStaff((prev: SelectedStaffType | null): SelectedStaffType | null => prev ? { 
+          ...prev, 
+          firstName: updatedStaff.staff!.firstName,
+          lastName: updatedStaff.staff!.lastName,
+          email: updatedStaff.staff!.email,
+          idNumber: updatedStaff.staff!.idNumber,
+          position: updatedStaff.staff!.position,
+          department: {
+            id: formData.departmentId,
+            name: options.departments.find((d: Option) => d.id === formData.departmentId)?.name || prev.department.name
+          },
+          user: {
+            id: prev?.user?.id ?? 0,
+            role: {
+              id: formData.roleId,
+              name: options.roles.find((r: Option) => r.id === formData.roleId)?.name || (prev?.user?.role?.name ?? '')
+            }
+          },
+          updatedAt: new Date()
+        } : null);
+        
+        setIsEditModalOpen(false);
+        setSuccess('Staff member updated successfully!');
+      } else {
+        throw new ActionError(updatedStaff.error || 'Failed to update staff');
+      }
+    } catch (err) {
+      const errorMessage = formatErrorMessage(err);
+      setError(errorMessage);
+    } finally {
+      setLoading(prev => ({ ...prev, update: false }));
+    }
   };
-  employmentDocuments?: File;
-  nationalIdPhoto?: File;
-  academicCertificates?: File;
-  passportPhoto?: File;
-} = {
-  ...formData,
-  shouldDeleteFiles,
-};
-    
-    // Only include password if it's not empty
-    if (formData.password.trim() !== "") {
-      updatePayload.password = formData.password;
-    }
-    
-    // Always include roleId
-    updatePayload.roleId = formData.roleId;
-    
-    // Add file uploads if they exist
-    if (documentsFormData.employmentDocuments) updatePayload.employmentDocuments = documentsFormData.employmentDocuments;
-    if (documentsFormData.nationalIdPhoto) updatePayload.nationalIdPhoto = documentsFormData.nationalIdPhoto;
-    if (documentsFormData.academicCertificates) updatePayload.academicCertificates = documentsFormData.academicCertificates;
-    if (documentsFormData.passportPhoto) updatePayload.passportPhoto = documentsFormData.passportPhoto;
-
-    const updatedStaff = await updateStaff(selectedStaff.id, updatePayload);
-    
-    if (updatedStaff.success && updatedStaff.staff) {
-      setStaff(prev => prev.map(staff => 
-        staff.id === selectedStaff.id 
-          ? { 
-              ...staff, 
-              firstName: updatedStaff.staff!.firstName,
-              lastName: updatedStaff.staff!.lastName,
-              email: updatedStaff.staff!.email,
-              idNumber: updatedStaff.staff!.idNumber,
-              position: updatedStaff.staff!.position,
-              department: {
-                id: formData.departmentId,
-                name: options.departments.find(d => d.id === formData.departmentId)?.name || staff.department.name
-              },
-              user: {
-                id: staff.user.id,
-                role: {
-                  id: formData.roleId,
-                  name: options.roles.find(r => r.id === formData.roleId)?.name || staff.user.role.name
-                }
-              },
-              updatedAt: new Date()
-            } 
-          : staff
-      ));
-      
-      setSelectedStaff((prev: SelectedStaffType | null): SelectedStaffType | null => prev ? { 
-        ...prev, 
-        firstName: updatedStaff.staff!.firstName,
-        lastName: updatedStaff.staff!.lastName,
-        email: updatedStaff.staff!.email,
-        idNumber: updatedStaff.staff!.idNumber,
-        position: updatedStaff.staff!.position,
-        department: {
-          id: formData.departmentId,
-          name: options.departments.find((d: Option) => d.id === formData.departmentId)?.name || prev.department.name
-        },
-        user: {
-          id: prev?.user?.id ?? 0,
-          role: {
-            id: formData.roleId,
-            name: options.roles.find((r: Option) => r.id === formData.roleId)?.name || (prev?.user?.role?.name ?? '')
-          }
-        },
-        updatedAt: new Date()
-      } : null);
-      
-      setIsEditModalOpen(false);
-      setSuccess('Staff member updated successfully!');
-    } else {
-      throw new ActionError(updatedStaff.error || 'Failed to update staff');
-    }
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to update staff member');
-  } finally {
-    setLoading(prev => ({ ...prev, update: false }));
-  }
-};
 
   // Delete staff
   const handleDeleteStaff = async (staffMember?: StaffDeletePayload) => {
@@ -459,7 +543,8 @@ const updatePayload: {
 
       setSuccess('Staff member deleted successfully!');
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to delete staff member');
+      const errorMessage = formatErrorMessage(err);
+      setError(errorMessage);
     }
   };
 
@@ -553,7 +638,11 @@ const updatePayload: {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {staff.map((staffMember) => (
-                    <tr key={staffMember.id} className="hover:bg-gray-50">
+                    <tr 
+                      key={staffMember.id} 
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleSelectStaff(staffMember.id)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -583,14 +672,18 @@ const updatePayload: {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => handleSelectStaff(staffMember.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectStaff(staffMember.id);
+                          }}
                           className="text-emerald-600 hover:text-emerald-900 mr-4"
                           title="View Details"
                         >
                           <FiInfo />
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleSelectStaff(staffMember.id);
                             setIsViewModalOpen(false);
                             setIsEditModalOpen(true);
@@ -601,7 +694,10 @@ const updatePayload: {
                           <FiEdit2 />
                         </button>
                         <button
-                          onClick={() => handleDeleteStaff(staffMember)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteStaff(staffMember);
+                          }}
                           className="text-red-600 hover:text-red-900"
                           title="Delete"
                         >
@@ -694,67 +790,75 @@ const updatePayload: {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Position *
-                </label>
-                <input
-                  type="text"
-                  name="position"
-                  value={formData.position}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="Professor"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department *
                   </label>
-                  <select
-                    name="departmentId"
-                    value={formData.departmentId}
+                  <input
+                    type="text"
+                    name="position"
+                    value={formData.position}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    placeholder="Professor"
                     required
-                  >
-                    <option value="">Select Department</option>
-                    {options.departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role *
-                  </label>
-                  <select
-                    name="roleId"
-                    value={formData.roleId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    {options.roles.map((role) => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department *
+                    </label>
+                    <select
+                      name="departmentId"
+                      value={formData.departmentId}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      required
+                    >
+                      <option value="">Select Department</option>
+                      {options.departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Role *
+                    </label>
+                    <select
+                      name="roleId"
+                      value={formData.roleId}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {options.roles.map((role) => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-
-              </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Password *
                   </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="Enter password"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800 pr-10"
+                      placeholder="Enter password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Must be at least 8 characters
                   </p>
@@ -774,7 +878,13 @@ const updatePayload: {
                   />
                   {filePreviews.passportPhoto && (
                     <div className="mt-2">
-                      <image href={filePreviews.passportPhoto} className="h-20 w-20 object-cover rounded" />
+                      <Image
+                        src={filePreviews.passportPhoto}
+                        width={80}
+                        height={80}
+                        className="h-20 w-20 object-cover rounded"
+                        alt="Passport preview"
+                      />
                       <button
                         type="button"
                         onClick={() => removeFile('passportPhoto')}
@@ -797,7 +907,13 @@ const updatePayload: {
                   />
                   {filePreviews.nationalIdPhoto && (
                     <div className="mt-2">
-                      <image href={filePreviews.nationalIdPhoto} className="h-20 w-20 object-cover rounded" />
+<Image
+  src={filePreviews.nationalIdPhoto}
+  width={80}
+  height={80}
+  className="h-20 w-20 object-cover rounded"
+  alt="National ID preview"
+/>
                       <button
                         type="button"
                         onClick={() => removeFile('nationalIdPhoto')}
@@ -894,167 +1010,166 @@ const updatePayload: {
       )}
 
       {/* View Staff Details Modal */}
-{/* View Staff Details Modal */}
-{isViewModalOpen && selectedStaff && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-    <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-      <div className="flex justify-between items-center border-b p-6">
-        <h2 className="text-xl font-bold text-gray-800">Staff Details</h2>
-        <button
-          onClick={() => setIsViewModalOpen(false)}
-          className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-        >
-          <FiX size={20} />
-        </button>
-      </div>
-      
-      <div className="p-6">
-        <div className="flex items-start gap-6">
-          <div className="flex-shrink-0 h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
-            <FiUser className="text-emerald-600 text-2xl" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-800">
-              {selectedStaff.firstName} {selectedStaff.lastName}
-            </h2>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStaff.email}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedStaff.idNumber || 'Not provided'}
-                </p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Position</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStaff.position}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Department</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedStaff.department?.name || 'Unknown'}
-                </p>
-              </div>
-              
-              {/* User Account Information */}
-              {selectedStaff.user && (
-                <>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">User ID</h3>
-                    <p className="mt-1 text-sm text-gray-900">{selectedStaff.user.id}</p>
+      {isViewModalOpen && selectedStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-auto">
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-6">
+              <h2 className="text-xl font-bold text-gray-800">Staff Details</h2>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-start gap-6">
+                <div className="flex-shrink-0 h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <FiUser className="text-emerald-600 text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-gray-800">
+                    {selectedStaff.firstName} {selectedStaff.lastName}
+                  </h2>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStaff.email}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedStaff.idNumber || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Position</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStaff.position}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Department</h3>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedStaff.department?.name || 'Unknown'}
+                      </p>
+                    </div>
+                    
+                    {/* User Account Information */}
+                    {selectedStaff.user && (
+                      <>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">User ID</h3>
+                          <p className="mt-1 text-sm text-gray-900">{selectedStaff.user.id}</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">User Role</h3>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {selectedStaff.user.role?.name || 'Unknown'}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Date Joined</h3>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {formatDate(selectedStaff.createdAt)}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {formatDate(selectedStaff.updatedAt)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">User Role</h3>
-                    <p className="mt-1 text-sm text-gray-900">
-                      {selectedStaff.user.role?.name || 'Unknown'}
-                    </p>
+
+                  {/* Documents Section */}
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                          <FiFileText /> Employment Documents
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {selectedStaff.employmentDocumentsUrl ? (
+                            <a href={selectedStaff.employmentDocumentsUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                              View Document
+                            </a>
+                          ) : 'Not uploaded'}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                          <FiCreditCard /> National ID
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {selectedStaff.nationalIdPhotoUrl ? (
+                            <a href={selectedStaff.nationalIdPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                              View Document
+                            </a>
+                          ) : 'Not uploaded'}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                          <FiAward /> Academic Certificates
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {selectedStaff.academicCertificatesUrl ? (
+                            <a href={selectedStaff.academicCertificatesUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                              View Document
+                            </a>
+                          ) : 'Not uploaded'}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                          <FiCamera /> Passport Photo
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {selectedStaff.passportPhotoUrl ? (
+                            <a href={selectedStaff.passportPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                              View Photo
+                            </a>
+                          ) : 'Not uploaded'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </>
-              )}
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Date Joined</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {formatDate(selectedStaff.createdAt)}
-                </p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {formatDate(selectedStaff.updatedAt)}
-                </p>
+                </div>
               </div>
             </div>
-
-            {/* Documents Section */}
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiFileText /> Employment Documents
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStaff.employmentDocumentsUrl ? (
-                      <a href={selectedStaff.employmentDocumentsUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                        View Document
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiCreditCard /> National ID
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStaff.nationalIdPhotoUrl ? (
-                      <a href={selectedStaff.nationalIdPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                        View Document
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiAward /> Academic Certificates
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStaff.academicCertificatesUrl ? (
-                      <a href={selectedStaff.academicCertificatesUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                        View Document
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiCamera /> Passport Photo
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStaff.passportPhotoUrl ? (
-                      <a href={selectedStaff.passportPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
-                        View Photo
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
-              </div>
+            
+            <div className="flex justify-end gap-3 p-6 border-t">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setIsEditModalOpen(true);
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 rounded-md flex items-center gap-2"
+              >
+                <FiEdit2 size={16} />
+                Edit Staff
+              </button>
+              <button
+                onClick={() => handleDeleteStaff()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
+              >
+                <FiTrash2 size={16} />
+                Delete Staff
+              </button>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
-      </div>
-      
-      <div className="flex justify-end gap-3 p-6 border-t">
-        <button
-          onClick={() => {
-            setIsViewModalOpen(false);
-            setIsEditModalOpen(true);
-          }}
-          className="px-4 py-2 text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 rounded-md flex items-center gap-2"
-        >
-          <FiEdit2 size={16} />
-          Edit Staff
-        </button>
-        <button
-          onClick={() => handleDeleteStaff()}
-          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
-        >
-          <FiTrash2 size={16} />
-          Delete Staff
-        </button>
-        <button
-          onClick={() => setIsViewModalOpen(false)}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Edit Staff Modal */}
       {isEditModalOpen && selectedStaff && (
@@ -1207,7 +1322,13 @@ const updatePayload: {
                   />
                   {filePreviews.passportPhoto && (
                     <div className="mt-2">
-                      <image href={filePreviews.passportPhoto} className="h-20 w-20 object-cover rounded" />
+<Image
+  src={filePreviews.passportPhoto}
+  width={80}
+  height={80}
+  className="h-20 w-20 object-cover rounded"
+  alt="Passport preview"
+/>
                       <button
                         type="button"
                         onClick={() => removeFile('passportPhoto')}
@@ -1230,7 +1351,13 @@ const updatePayload: {
                   />
                   {filePreviews.nationalIdPhoto && (
                     <div className="mt-2">
-                      <image href={filePreviews.nationalIdPhoto} className="h-20 w-20 object-cover rounded" />
+<Image
+  src={filePreviews.nationalIdPhoto}
+  width={80}
+  height={80}
+  className="h-20 w-20 object-cover rounded"
+  alt="National ID preview"
+/>
                       <button
                         type="button"
                         onClick={() => removeFile('nationalIdPhoto')}
