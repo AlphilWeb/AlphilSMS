@@ -9,6 +9,10 @@ import {
   searchStaff,
 } from '@/lib/actions/admin/staff.actions';
 
+// Add PDF generation import
+import { generateStaffListPdf } from '@/lib/actions/pdf-generataion/pdf-generation.actions';
+import { ActionError } from '@/lib/utils';
+
 import {
   getStaffForEdit,
   updateStaff,
@@ -19,9 +23,9 @@ import {
   FiUser, FiPlus, FiEdit2, FiTrash2,
   FiLoader, FiX, FiSearch, FiInfo,
   FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera,
-  FiEye, FiEyeOff
+  FiEye, FiEyeOff,
+  FiDownload // Added download icon
 } from 'react-icons/fi';
-import { ActionError } from '@/lib/utils';
 import { format } from 'date-fns';
 import Image from 'next/image';
 
@@ -94,7 +98,8 @@ export default function AdminStaffClient() {
     details: false,
     create: false,
     update: false,
-    documents: false
+    documents: false,
+    generating: false // Added for PDF generation
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -203,6 +208,15 @@ export default function AdminStaffClient() {
       } catch (err) {
         const errorMessage = formatErrorMessage(err);
         setError(errorMessage);
+        // Fallback to client-side filtering if search fails
+        const filtered = staff.filter(staffMember => 
+          staffMember.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          staffMember.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          staffMember.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          staffMember.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (staffMember.idNumber && staffMember.idNumber.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+        setStaff(filtered);
       } finally {
         setLoading(prev => ({ ...prev, staff: false }));
       }
@@ -210,6 +224,38 @@ export default function AdminStaffClient() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // NEW: Generate Staff List PDF
+  const generateStaffListPdfHandler = async () => {
+    try {
+      setLoading(prev => ({ ...prev, generating: true }));
+      setError(null);
+      setSuccess(null);
+
+      // Generate PDF based on current filters (search query)
+      const pdfBuffer = await generateStaffListPdf({
+        staffName: searchQuery || undefined,
+      });
+      
+      // Create a blob and download the PDF
+      const uint8Array = new Uint8Array(pdfBuffer);
+      const blob = new Blob([uint8Array], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `staff_list_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setSuccess('Staff list generated successfully!');
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to generate staff list');
+    } finally {
+      setLoading(prev => ({ ...prev, generating: false }));
+    }
+  };
 
   // Load form options
   useEffect(() => {
@@ -556,14 +602,36 @@ export default function AdminStaffClient() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Staff Management</h1>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 flex items-center gap-2"
-        >
-          <FiPlus size={16} /> New Staff
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 flex items-center gap-2"
+          >
+            <FiPlus size={16} /> New Staff
+          </button>
+          {/* NEW: Generate Staff List Button */}
+          <button
+            onClick={generateStaffListPdfHandler}
+            disabled={loading.generating || staff.length === 0}
+            className={`px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 flex items-center gap-2 ${
+              loading.generating || staff.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {loading.generating ? (
+              <>
+                <FiLoader className="animate-spin" size={16} />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FiDownload size={16} />
+                Generate Staff List
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Error Message */}
