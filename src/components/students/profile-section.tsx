@@ -8,7 +8,6 @@ import { useState, useEffect } from 'react';
 import { updateStudentPassword } from '@/lib/actions/studentProfile.action';
 import { useFormState, useFormStatus } from 'react-dom';
 import Image from 'next/image';
-// import { getClientImageUrl } from '@/lib/client/image-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getClientImageUrl } from '@/lib/image-client';
 
