@@ -11,6 +11,10 @@ import {
   type StudentEnrollment,
 } from '@/lib/actions/admin/students.action';
 
+// Add PDF generation import
+import { generateStudentListPdf } from '@/lib/actions/pdf-generataion/pdf-generation.actions';
+import { ActionError } from '@/lib/utils';
+
 import BulkStudentsModal from '@/components/admin/bulk-students-modal.client';
 
 import {
@@ -24,9 +28,9 @@ import {
   FiLoader, FiX, FiSearch, FiInfo, FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera,
   FiExternalLink,
   FiEye,
-  FiEyeOff
+  FiEyeOff,
+  FiDownload // Added download icon
 } from 'react-icons/fi';
-import { ActionError } from '@/lib/utils';
 
 interface Option {
   id: number;
@@ -92,20 +96,6 @@ interface StudentData {
   roleId: number;
 }
 
-interface StudentData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  idNumber: string;
-  registrationNumber: string;
-  studentNumber: string;
-  programId: number;
-  departmentId: number;
-  currentSemesterId: number;
-  password: string;
-  roleId: number;
-}
-
 export default function AdminStudentsClient() {
   const [students, setStudents] = useState<StudentWithDetails[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<SelectedStudentType | null>(null);
@@ -118,14 +108,15 @@ export default function AdminStudentsClient() {
     details: false,
     enrollments: false,
     create: false,
-    update: false
+    update: false,
+    generating: false // Added for PDF generation
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [options, setOptions] = useState<StudentFormOptions>({ programs: [], departments: [], semesters: [], roles: [] });
   const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
-const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -179,15 +170,15 @@ const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
           roles: opts.roles ?? [],
         });
         // Set default values
-if (opts.programs.length > 0 && opts.departments.length > 0 && opts.semesters.length > 0 && opts.roles && opts.roles.length > 0) {
-  setFormData(prev => ({
-    ...prev,
-    programId: opts.programs[0].id,
-    departmentId: opts.departments[0].id,
-    currentSemesterId: opts.semesters[0].id,
-    roleId: opts.roles.find(r => r.name.toLowerCase().includes('student'))?.id || opts.roles[0]?.id || 0 // ADD THIS
-  }));
-}
+        if (opts.programs.length > 0 && opts.departments.length > 0 && opts.semesters.length > 0 && opts.roles && opts.roles.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            programId: opts.programs[0].id,
+            departmentId: opts.departments[0].id,
+            currentSemesterId: opts.semesters[0].id,
+            roleId: opts.roles.find(r => r.name.toLowerCase().includes('student'))?.id || opts.roles[0]?.id || 0
+          }));
+        }
       } catch (err) {
         console.error('Failed to load form options:', err);
       }
@@ -196,41 +187,73 @@ if (opts.programs.length > 0 && opts.departments.length > 0 && opts.semesters.le
     loadOptions();
   }, []);
 
-// Handle search
-useEffect(() => {
-  // If search query is empty, reload all students immediately
-  if (!searchQuery.trim()) {
-    const loadAllStudents = async () => {
+  // Handle search
+  useEffect(() => {
+    // If search query is empty, reload all students immediately
+    if (!searchQuery.trim()) {
+      const loadAllStudents = async () => {
+        try {
+          setLoading(prev => ({ ...prev, students: true }));
+          const studentsData = await getAllStudents();
+          setStudents(studentsData);
+        } catch (err) {
+          setError(err instanceof ActionError ? err.message : 'Failed to load students');
+        } finally {
+          setLoading(prev => ({ ...prev, students: false }));
+        }
+      };
+      
+      loadAllStudents();
+      return;
+    }
+
+    // If there's a search query, use the debounced search
+    const timer = setTimeout(async () => {
       try {
         setLoading(prev => ({ ...prev, students: true }));
-        const studentsData = await getAllStudents();
-        setStudents(studentsData);
+        const results = await searchStudents(searchQuery);
+        setStudents(results);
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load students');
+        setError(err instanceof ActionError ? err.message : 'Search failed');
       } finally {
         setLoading(prev => ({ ...prev, students: false }));
       }
-    };
-    
-    loadAllStudents();
-    return;
-  }
+    }, 500);
 
-  // If there's a search query, use the debounced search
-  const timer = setTimeout(async () => {
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // NEW: Generate Student List PDF
+  const generateStudentListPdfHandler = async () => {
     try {
-      setLoading(prev => ({ ...prev, students: true }));
-      const results = await searchStudents(searchQuery);
-      setStudents(results);
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Search failed');
-    } finally {
-      setLoading(prev => ({ ...prev, students: false }));
-    }
-  }, 500);
+      setLoading(prev => ({ ...prev, generating: true }));
+      setError(null);
+      setSuccess(null);
 
-  return () => clearTimeout(timer);
-}, [searchQuery]);
+      // Generate PDF based on current filters (search query)
+      const pdfBuffer = await generateStudentListPdf({
+        studentName: searchQuery || undefined,
+      });
+      
+      // Create a blob and download the PDF
+      const uint8Array = new Uint8Array(pdfBuffer);
+      const blob = new Blob([uint8Array], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `student_list_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setSuccess('Student list generated successfully!');
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to generate student list');
+    } finally {
+      setLoading(prev => ({ ...prev, generating: false }));
+    }
+  };
 
   // Load student details when selected
   const handleSelectStudent = async (studentId: number) => {
@@ -246,41 +269,41 @@ useEffect(() => {
 
       setOptions(opts);
 
-if (studentRes.success && studentRes.student) {
-  // Create a new object that conforms to the expected type
-const studentToSet = {
-  ...studentRes.student,
-  // Convert currentSemester from `... | null` to `... | undefined`
-  currentSemester: studentRes.student.currentSemester ?? undefined,
-  // Convert user from `... | null` to `... | undefined`
-  user: studentRes.student.user ?? undefined,
-};
+      if (studentRes.success && studentRes.student) {
+        // Create a new object that conforms to the expected type
+        const studentToSet = {
+          ...studentRes.student,
+          // Convert currentSemester from `... | null` to `... | undefined`
+          currentSemester: studentRes.student.currentSemester ?? undefined,
+          // Convert user from `... | null` to `... | undefined`
+          user: studentRes.student.user ?? undefined,
+        };
 
-  setSelectedStudent(studentToSet);
-  setEnrollments(studentEnrollments);
-  setFormData({
-    firstName: studentRes.student.firstName,
-    lastName: studentRes.student.lastName,
-    email: studentRes.student.email,
-    idNumber: studentRes.student.idNumber || '',
-    registrationNumber: studentRes.student.registrationNumber,
-    studentNumber: studentRes.student.studentNumber,
-    programId: studentRes.student.programId,
-    departmentId: studentRes.student.departmentId,
-    currentSemesterId: studentRes.student.currentSemesterId ?? 0,
-    password: '',
-    roleId: (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0 
-  });
+        setSelectedStudent(studentToSet);
+        setEnrollments(studentEnrollments);
+        setFormData({
+          firstName: studentRes.student.firstName,
+          lastName: studentRes.student.lastName,
+          email: studentRes.student.email,
+          idNumber: studentRes.student.idNumber || '',
+          registrationNumber: studentRes.student.registrationNumber,
+          studentNumber: studentRes.student.studentNumber,
+          programId: studentRes.student.programId,
+          departmentId: studentRes.student.departmentId,
+          currentSemesterId: studentRes.student.currentSemesterId ?? 0,
+          password: '',
+          roleId: (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0 
+        });
 
-  // Set file previews
-  const previews: Record<string, string> = {};
-  if (studentRes.student.passportPhotoUrl) previews.passportPhoto = studentRes.student.passportPhotoUrl;
-  if (studentRes.student.idPhotoUrl) previews.idPhoto = studentRes.student.idPhotoUrl;
-  if (studentRes.student.certificateUrl) previews.certificate = studentRes.student.certificateUrl;
-  setFilePreviews(previews);
-  
-  setIsViewModalOpen(true);
-} else {
+        // Set file previews
+        const previews: Record<string, string> = {};
+        if (studentRes.student.passportPhotoUrl) previews.passportPhoto = studentRes.student.passportPhotoUrl;
+        if (studentRes.student.idPhotoUrl) previews.idPhoto = studentRes.student.idPhotoUrl;
+        if (studentRes.student.certificateUrl) previews.certificate = studentRes.student.certificateUrl;
+        setFilePreviews(previews);
+        
+        setIsViewModalOpen(true);
+      } else {
         setError(studentRes.error || 'Failed to load student details');
       }
     } catch (err) {
@@ -298,38 +321,6 @@ const studentToSet = {
       [name]: name.endsWith('Id') ? Number(value) : value,
     }));
   };
-
-  //   const formatErrorMessage = (error: unknown): string => {
-  //   console.error('Raw error:', error);
-    
-  //   if (error instanceof ActionError) {
-  //     return error.message;
-  //   }
-    
-  //   if (typeof error === 'string') {
-  //     return error;
-  //   }
-    
-  //   if (error && typeof error === 'object') {
-  //     // Handle Zod validation errors
-  //     if ('issues' in error && Array.isArray(error.issues)) {
-  //       const issues = error.issues as Array<{path: string[], message: string}>;
-  //       if (issues.length > 0) {
-  //         return issues.map(issue => {
-  //           const field = issue.path[issue.path.length - 1];
-  //           return `${field ? field + ': ' : ''}${issue.message}`;
-  //         }).join(', ');
-  //       }
-  //     }
-      
-  //     // Handle other object errors
-  //     if ('message' in error && typeof error.message === 'string') {
-  //       return error.message;
-  //     }
-  //   }
-    
-  //   return 'An unexpected error occurred. Please try again.';
-  // };
 
   // Handle file input changes
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
@@ -362,234 +353,235 @@ const studentToSet = {
   };
 
   // Create new student
-const handleCreateStudent = async () => {
-  try {
-    setLoading(prev => ({ ...prev, create: true }));
-    setError(null);
+  const handleCreateStudent = async () => {
+    try {
+      setLoading(prev => ({ ...prev, create: true }));
+      setError(null);
 
-    // Add password and roleId validation
-    if (!formData.firstName || !formData.lastName || !formData.email || 
-        !formData.registrationNumber || !formData.studentNumber || 
-        !formData.programId || !formData.departmentId || !formData.currentSemesterId ||
-        !formData.password || !formData.roleId) { // ADD THIS
-      throw new ActionError('All required fields must be filled');
-    }
+      // Add password and roleId validation
+      if (!formData.firstName || !formData.lastName || !formData.email || 
+          !formData.registrationNumber || !formData.studentNumber || 
+          !formData.programId || !formData.departmentId || !formData.currentSemesterId ||
+          !formData.password || !formData.roleId) {
+        throw new ActionError('All required fields must be filled');
+      }
 
-const studentData: {
-  firstName: string;
-  lastName: string;
-  email: string;
-  idNumber: string;
-  registrationNumber: string;
-  studentNumber: string;
-  programId: number;
-  departmentId: number;
-  currentSemesterId: number;
-  password: string;
-  roleId: number;
-  passportPhoto?: File;
-  idPhoto?: File;
-  certificate?: File;
-} = {
-  firstName: formData.firstName,
-  lastName: formData.lastName,
-  email: formData.email,
-  idNumber: formData.idNumber,
-  registrationNumber: formData.registrationNumber,
-  studentNumber: formData.studentNumber,
-  programId: formData.programId,
-  departmentId: formData.departmentId,
-  currentSemesterId: formData.currentSemesterId,
-  password: formData.password,
-  roleId: formData.roleId,
-};
-    if (documentsFormData.passportPhoto) studentData.passportPhoto = documentsFormData.passportPhoto;
-    if (documentsFormData.idPhoto) studentData.idPhoto = documentsFormData.idPhoto;
-    if (documentsFormData.certificate) studentData.certificate = documentsFormData.certificate;
+      const studentData: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        idNumber: string;
+        registrationNumber: string;
+        studentNumber: string;
+        programId: number;
+        departmentId: number;
+        currentSemesterId: number;
+        password: string;
+        roleId: number;
+        passportPhoto?: File;
+        idPhoto?: File;
+        certificate?: File;
+      } = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        idNumber: formData.idNumber,
+        registrationNumber: formData.registrationNumber,
+        studentNumber: formData.studentNumber,
+        programId: formData.programId,
+        departmentId: formData.departmentId,
+        currentSemesterId: formData.currentSemesterId,
+        password: formData.password,
+        roleId: formData.roleId,
+      };
+      if (documentsFormData.passportPhoto) studentData.passportPhoto = documentsFormData.passportPhoto;
+      if (documentsFormData.idPhoto) studentData.idPhoto = documentsFormData.idPhoto;
+      if (documentsFormData.certificate) studentData.certificate = documentsFormData.certificate;
 
-    const newStudent = await addStudent(studentData);
-    
-    if (newStudent.success && newStudent.student) {
-      setStudents(prev => [...prev, {
-        id: newStudent.student!.id,
-        firstName: newStudent.student!.firstName,
-        lastName: newStudent.student!.lastName,
-        email: newStudent.student!.email,
-        registrationNumber: newStudent.student!.registrationNumber,
-        studentNumber: newStudent.student!.studentNumber,
-        program: {
-          id: formData.programId,
-          name: options.programs.find(p => p.id === formData.programId)?.name || ''
-        },
-        department: {
-          id: formData.departmentId,
-          name: options.departments.find(d => d.id === formData.departmentId)?.name || ''
-        },
-        currentSemester: {
-          id: formData.currentSemesterId,
-          name: options.semesters.find(s => s.id === formData.currentSemesterId)?.name || ''
-        },
-        user: { // ADD THIS
-          id: newStudent.student!.userId || 0,
-          role: {
-            id: formData.roleId,
-            name: (options.roles ?? []).find(r => r.id === formData.roleId)?.name || ''
-          }
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }]);
+      const newStudent = await addStudent(studentData);
       
-      setIsCreateModalOpen(false);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        idNumber: '',
-        registrationNumber: '',
-        studentNumber: '',
-        programId: options.programs[0]?.id || 0,
-        departmentId: options.departments[0]?.id || 0,
-        currentSemesterId: options.semesters[0]?.id || 0,
-        password: '', // ADD THIS
-        roleId: (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0 // ADD THIS
-      });
-      setDocumentsFormData({
-        passportPhoto: null,
-        idPhoto: null,
-        certificate: null
-      });
-      setFilePreviews({});
-      setSuccess('Student created successfully!');
-    } else {
-      throw new ActionError(newStudent.error || 'Failed to create student');
+      if (newStudent.success && newStudent.student) {
+        setStudents(prev => [...prev, {
+          id: newStudent.student!.id,
+          firstName: newStudent.student!.firstName,
+          lastName: newStudent.student!.lastName,
+          email: newStudent.student!.email,
+          registrationNumber: newStudent.student!.registrationNumber,
+          studentNumber: newStudent.student!.studentNumber,
+          program: {
+            id: formData.programId,
+            name: options.programs.find(p => p.id === formData.programId)?.name || ''
+          },
+          department: {
+            id: formData.departmentId,
+            name: options.departments.find(d => d.id === formData.departmentId)?.name || ''
+          },
+          currentSemester: {
+            id: formData.currentSemesterId,
+            name: options.semesters.find(s => s.id === formData.currentSemesterId)?.name || ''
+          },
+          user: {
+            id: newStudent.student!.userId || 0,
+            role: {
+              id: formData.roleId,
+              name: (options.roles ?? []).find(r => r.id === formData.roleId)?.name || ''
+            }
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }]);
+        
+        setIsCreateModalOpen(false);
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          idNumber: '',
+          registrationNumber: '',
+          studentNumber: '',
+          programId: options.programs[0]?.id || 0,
+          departmentId: options.departments[0]?.id || 0,
+          currentSemesterId: options.semesters[0]?.id || 0,
+          password: '',
+          roleId: (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0
+        });
+        setDocumentsFormData({
+          passportPhoto: null,
+          idPhoto: null,
+          certificate: null
+        });
+        setFilePreviews({});
+        setSuccess('Student created successfully!');
+      } else {
+        throw new ActionError(newStudent.error || 'Failed to create student');
+      }
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to create student');
+    } finally {
+      setLoading(prev => ({ ...prev, create: false }));
     }
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to create student');
-  } finally {
-    setLoading(prev => ({ ...prev, create: false }));
-  }
-};
-  // Update student
-// Update student
-const handleUpdateStudent = async () => {
-  if (!selectedStudent) return;
+  };
 
-  try {
-    setLoading(prev => ({ ...prev, update: true }));
-    setError(null);
+  // Update student
+  const handleUpdateStudent = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      setLoading(prev => ({ ...prev, update: true }));
+      setError(null);
 
       if (formData.password && formData.password.length > 0 && formData.password.length < 8) {
         throw new ActionError('Password must be at least 8 characters long');
       }
 
-    const shouldDeleteFiles = {
-      certificate: !documentsFormData.certificate && !filePreviews.certificate,
-      idPhoto: !documentsFormData.idPhoto && !filePreviews.idPhoto,
-      passportPhoto: !documentsFormData.passportPhoto && !filePreviews.passportPhoto,
-    };
+      const shouldDeleteFiles = {
+        certificate: !documentsFormData.certificate && !filePreviews.certificate,
+        idPhoto: !documentsFormData.idPhoto && !filePreviews.idPhoto,
+        passportPhoto: !documentsFormData.passportPhoto && !filePreviews.passportPhoto,
+      };
 
-const updatePayload: {
-  firstName: string;
-  lastName: string;
-  email: string;
-  idNumber: string;
-  registrationNumber: string;
-  studentNumber: string;
-  programId: number;
-  departmentId: number;
-  currentSemesterId: number;
-  password?: string;
-  roleId: number;
-  shouldDeleteFiles: {
-    certificate: boolean;
-    idPhoto: boolean;
-    passportPhoto: boolean;
+      const updatePayload: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        idNumber: string;
+        registrationNumber: string;
+        studentNumber: string;
+        programId: number;
+        departmentId: number;
+        currentSemesterId: number;
+        password?: string;
+        roleId: number;
+        shouldDeleteFiles: {
+          certificate: boolean;
+          idPhoto: boolean;
+          passportPhoto: boolean;
+        };
+        passportPhoto?: File;
+        idPhoto?: File;
+        certificate?: File;
+      } = {
+        ...formData,
+        shouldDeleteFiles,
+      };
+      
+      // Only include password if it's not empty
+      if (formData.password.trim() !== "") {
+        updatePayload.password = formData.password;
+      }
+      
+      // Include roleId
+      updatePayload.roleId = formData.roleId;
+      
+      if (documentsFormData.passportPhoto) updatePayload.passportPhoto = documentsFormData.passportPhoto;
+      if (documentsFormData.idPhoto) updatePayload.idPhoto = documentsFormData.idPhoto;
+      if (documentsFormData.certificate) updatePayload.certificate = documentsFormData.certificate;
+
+      const updatedStudent = await updateStudent(selectedStudent.id, {
+        ...updatePayload,
+        password: updatePayload.password ?? "",
+      });    
+      
+      if (updatedStudent.success && updatedStudent.student) {
+        setStudents(prev => prev.map(student => 
+          student.id === selectedStudent.id 
+            ? { 
+                ...student, 
+                firstName: updatedStudent.student!.firstName,
+                lastName: updatedStudent.student!.lastName,
+                email: updatedStudent.student!.email,
+                registrationNumber: updatedStudent.student!.registrationNumber,
+                studentNumber: updatedStudent.student!.studentNumber,
+                program: {
+                  id: formData.programId,
+                  name: options.programs.find(p => p.id === formData.programId)?.name || student.program.name
+                },
+                department: {
+                  id: formData.departmentId,
+                  name: options.departments.find(d => d.id === formData.departmentId)?.name || student.department.name
+                },
+                currentSemester: {
+                  id: formData.currentSemesterId,
+                  name: options.semesters.find(s => s.id === formData.currentSemesterId)?.name || student.currentSemester.name
+                },
+                updatedAt: new Date()
+              } 
+            : student
+        ));
+        
+        setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | null => prev ? { 
+          ...prev, 
+          firstName: updatedStudent.student!.firstName,
+          lastName: updatedStudent.student!.lastName,
+          email: updatedStudent.student!.email,
+          registrationNumber: updatedStudent.student!.registrationNumber,
+          studentNumber: updatedStudent.student!.studentNumber,
+          program: {
+            id: formData.programId,
+            name: options.programs.find((p: Option) => p.id === formData.programId)?.name || prev.program?.name
+          },
+          department: {
+            id: formData.departmentId,
+            name: options.departments.find((d: Option) => d.id === formData.departmentId)?.name || prev.department?.name
+          },
+          currentSemester: {
+            id: formData.currentSemesterId,
+            name: options.semesters.find((s: Option) => s.id === formData.currentSemesterId)?.name || prev.currentSemester?.name
+          },
+          updatedAt: new Date()
+        } as SelectedStudentType : null);
+        
+        setIsEditModalOpen(false);
+        setSuccess('Student updated successfully!');
+      } else {
+        throw new ActionError(updatedStudent.error || 'Failed to update student');
+      }
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to update student');
+    } finally {
+      setLoading(prev => ({ ...prev, update: false }));
+    }
   };
-  passportPhoto?: File;
-  idPhoto?: File;
-  certificate?: File;
-} = {
-  ...formData,
-  shouldDeleteFiles,
-};
-    
-    // Only include password if it's not empty
-    if (formData.password.trim() !== "") {
-      updatePayload.password = formData.password;
-    }
-    
-    // Include roleId
-    updatePayload.roleId = formData.roleId;
-    
-    if (documentsFormData.passportPhoto) updatePayload.passportPhoto = documentsFormData.passportPhoto;
-    if (documentsFormData.idPhoto) updatePayload.idPhoto = documentsFormData.idPhoto;
-    if (documentsFormData.certificate) updatePayload.certificate = documentsFormData.certificate;
-
-const updatedStudent = await updateStudent(selectedStudent.id, {
-  ...updatePayload,
-  password: updatePayload.password ?? "", // Provide an empty string as a default
-});    
-    if (updatedStudent.success && updatedStudent.student) {
-      setStudents(prev => prev.map(student => 
-        student.id === selectedStudent.id 
-          ? { 
-              ...student, 
-              firstName: updatedStudent.student!.firstName,
-              lastName: updatedStudent.student!.lastName,
-              email: updatedStudent.student!.email,
-              registrationNumber: updatedStudent.student!.registrationNumber,
-              studentNumber: updatedStudent.student!.studentNumber,
-              program: {
-                id: formData.programId,
-                name: options.programs.find(p => p.id === formData.programId)?.name || student.program.name
-              },
-              department: {
-                id: formData.departmentId,
-                name: options.departments.find(d => d.id === formData.departmentId)?.name || student.department.name
-              },
-              currentSemester: {
-                id: formData.currentSemesterId,
-                name: options.semesters.find(s => s.id === formData.currentSemesterId)?.name || student.currentSemester.name
-              },
-              updatedAt: new Date()
-            } 
-          : student
-      ));
-      
-setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | null => prev ? { 
-  ...prev, 
-  firstName: updatedStudent.student!.firstName,
-  lastName: updatedStudent.student!.lastName,
-  email: updatedStudent.student!.email,
-  registrationNumber: updatedStudent.student!.registrationNumber,
-  studentNumber: updatedStudent.student!.studentNumber,
-  program: {
-    id: formData.programId,
-    name: options.programs.find((p: Option) => p.id === formData.programId)?.name || prev.program?.name
-  },
-  department: {
-    id: formData.departmentId,
-    name: options.departments.find((d: Option) => d.id === formData.departmentId)?.name || prev.department?.name
-  },
-  currentSemester: {
-    id: formData.currentSemesterId,
-    name: options.semesters.find((s: Option) => s.id === formData.currentSemesterId)?.name || prev.currentSemester?.name
-  },
-  updatedAt: new Date()
-} as SelectedStudentType : null);
-      
-      setIsEditModalOpen(false);
-      setSuccess('Student updated successfully!');
-    } else {
-      throw new ActionError(updatedStudent.error || 'Failed to update student');
-    }
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to update student');
-  } finally {
-    setLoading(prev => ({ ...prev, update: false }));
-  }
-};
 
   const handleBulkCreateStudents = async (students: StudentData[]) => {
     try {
@@ -700,23 +692,43 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-  <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Student Management</h1>
-  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-    <button
-      onClick={() => setIsCreateModalOpen(true)}
-      className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-    >
-      <FiPlus size={16} /> New Student
-    </button>
-    <button
-      onClick={() => setIsBulkModalOpen(true)}
-      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-    >
-      <FiPlus size={16} /> Bulk Entry
-    </button>
-  </div>
-</div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Student Management</h1>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <FiPlus size={16} /> New Student
+          </button>
+          <button
+            onClick={() => setIsBulkModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:blue-emerald-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <FiPlus size={16} /> Bulk Entry
+          </button>
+          {/* NEW: Generate Student List Button */}
+          <button
+            onClick={generateStudentListPdfHandler}
+            disabled={loading.generating || students.length === 0}
+            className={`px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${
+              loading.generating || students.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {loading.generating ? (
+              <>
+                <FiLoader className="animate-spin" size={16} />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FiDownload size={16} />
+                Generate Student List
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Error Message */}
       {error && (
@@ -842,22 +854,22 @@ setSelectedStudent((prev: SelectedStudentType | null): SelectedStudentType | nul
                         >
                           <FiEdit2 />
                         </button>
-<button
-  onClick={() => {
-    // Create a new object that conforms to SelectedStudentType
-    const selectedStudent = {
-      ...student,
-      programId: student.program.id,
-      departmentId: student.department.id,
-    };
-    setSelectedStudent(selectedStudent);
-    handleDeleteStudent();
-  }}
-  className="text-red-600 hover:text-red-900"
-  title="Delete"
->
-  <FiTrash2 />
-</button>
+                        <button
+                          onClick={() => {
+                            // Create a new object that conforms to SelectedStudentType
+                            const selectedStudent = {
+                              ...student,
+                              programId: student.program.id,
+                              departmentId: student.department.id,
+                            };
+                            setSelectedStudent(selectedStudent);
+                            handleDeleteStudent();
+                          }}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                        >
+                          <FiTrash2 />
+                        </button>
                       </td>
                     </tr>
                   ))}
