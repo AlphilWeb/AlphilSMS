@@ -356,6 +356,7 @@ export async function generateStudentListPdf(
     courseId?: number;
     semesterId?: number;
     programAndSemester?: { programId: number; semesterId: number };
+    studentName?: string;
   },
   // userId: number,
   ipAddress?: string,
@@ -663,6 +664,7 @@ export async function generateStaffListPdf(
   filters: {
     programId?: number;
     position?: string;
+    staffName?: string;
   },
   // userId: number,
   ipAddress?: string,
@@ -1999,6 +2001,307 @@ html += `
       error instanceof Error 
         ? error.message 
         : "Failed to generate transcript PDF"
+    );
+  }
+}
+
+
+/**
+ * Generates a fee structure PDF for a specific fee structure
+ */
+export async function generateFeeStructurePdf(
+  feeStructureId: number,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<Buffer> {
+  try {
+    const authUser = await getAuthUser();
+    const userId = authUser.userId;
+
+    // Fetch fee structure details with related data
+    const feeStructureData = await db
+      .select({
+        feeStructure: feeStructures,
+        program: programs,
+        semester: semesters,
+      })
+      .from(feeStructures)
+      .where(eq(feeStructures.id, feeStructureId))
+      .innerJoin(programs, eq(feeStructures.programId, programs.id))
+      .innerJoin(semesters, eq(feeStructures.semesterId, semesters.id))
+      .then(rows => rows[0]);
+
+    if (!feeStructureData) {
+      throw new Error("Fee structure not found");
+    }
+
+    const { feeStructure, program, semester } = feeStructureData;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fee Structure - ${program.name} - ${semester.name}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f5f7f9;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .report-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 800px;
+      padding: 30px;
+      position: relative;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #1a4f8c;
+      padding-bottom: 20px;
+    }
+
+    .logo-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+    }
+
+    .school-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .school-address {
+      color: #555;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+
+    .school-contact {
+      color: #555;
+      font-size: 14px;
+    }
+
+    .report-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f5ff;
+      border-radius: 5px;
+    }
+
+    .fee-details {
+      margin: 20px 0;
+      padding: 20px;
+      background-color: #f9fbff;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+    }
+
+    .detail-row {
+      display: flex;
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+
+    .detail-label {
+      width: 180px;
+      font-weight: bold;
+      color: #1a4f8c;
+    }
+
+    .detail-value {
+      flex: 1;
+      color: #333;
+    }
+
+    .total-amount {
+      margin: 25px 0;
+      padding: 20px;
+      background-color: #eaf3ff;
+      border: 2px solid #1a4f8c;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .amount-label {
+      font-size: 16px;
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .amount-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #1a4f8c;
+    }
+
+    .description {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-left: 4px solid #1a4f8c;
+      border-radius: 4px;
+    }
+
+    .description-label {
+      font-weight: bold;
+      color: #1a4f8c;
+      margin-bottom: 8px;
+    }
+
+    .description-content {
+      color: #555;
+      line-height: 1.5;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 20px;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      font-weight: bold;
+      color: #1a4f8c;
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .report-container {
+        box-shadow: none;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="watermark">ALPHIL</div>
+
+    <div class="header">
+      <div class="logo-container">
+        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+      </div>
+      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+    </div>
+
+    <div class="report-title">FEE STRUCTURE</div>
+
+    <div class="fee-details">
+      <div class="detail-row">
+        <div class="detail-label">Program:</div>
+        <div class="detail-value">${program.name} (${program.code})</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Semester:</div>
+        <div class="detail-value">${semester.name}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Academic Year:</div>
+        <div class="detail-value">${new Date().getFullYear()}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Fee Structure ID:</div>
+        <div class="detail-value">#${feeStructure.id}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Created Date:</div>
+        <div class="detail-value">${new Date(feeStructure.createdAt).toLocaleDateString()}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Last Updated:</div>
+        <div class="detail-value">${new Date(feeStructure.updatedAt).toLocaleDateString()}</div>
+      </div>
+    </div>
+
+    <div class="total-amount">
+      <div class="amount-label">TOTAL AMOUNT PAYABLE</div>
+<div class="amount-value">${new Intl.NumberFormat('en-KE', {
+  style: 'currency',
+  currency: 'KES'
+}).format(Number(feeStructure.totalAmount))}</div>
+    </div>
+
+    ${feeStructure.description ? `
+    <div class="description">
+      <div class="description-label">Description:</div>
+      <div class="description-content">${feeStructure.description}</div>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+      This is an official fee structure document from Alphil Training College.
+      <br>For any queries regarding fees, please contact the accounts office.
+      <br>Generated on: ${new Date().toLocaleDateString()}
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+    const pdfBuffer = await generatePdfFromHtml(html);
+    
+    await logDocumentGeneration(
+      userId, 
+      "fee_structure", 
+      feeStructureId,
+      ipAddress,
+      userAgent
+    );
+    
+    return pdfBuffer;
+  } catch (error) {
+    console.error("Error generating fee structure PDF:", error);
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : "Failed to generate fee structure PDF"
     );
   }
 }
