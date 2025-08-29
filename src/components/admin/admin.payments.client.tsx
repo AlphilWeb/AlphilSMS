@@ -34,15 +34,6 @@ interface Student {
   email?: string;
 }
 
-// interface Invoice {
-//   id: number;
-//   invoiceNumber: string;
-//   studentId: number;
-//   amountDue: string;
-//   status: string;
-//   student?: Student;
-// }
-
 export default function AdminPaymentsClient() {
   const [payments, setPayments] = useState<PaymentWithDetails[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
