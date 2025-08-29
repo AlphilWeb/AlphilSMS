@@ -1,23 +1,38 @@
 // components/admin/documents.client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ActionError } from '@/lib/utils';
-
 import {
   FiFileText, FiDownload, FiLoader, FiX, FiCheck, FiUsers, FiUser, 
   FiCreditCard, FiBook, FiFilter
 } from 'react-icons/fi';
 import { getAllSemesters } from '@/lib/actions/academic-calendar.actions';
 import { getAllPrograms } from '@/lib/actions/admin/courses.actions';
-import { generateReceiptPdf, generateStudentListPdf, generateStaffListPdf, generateInvoiceListPdf, generatePaymentListPdf, generateTranscriptPdf } from '@/lib/actions/pdf-generataion/pdf-generation.actions';
+import { 
+  generateReceiptPdf, 
+  generateStudentListPdf, 
+  generateStaffListPdf, 
+  generateInvoiceListPdf, 
+  generatePaymentListPdf, 
+  generateTranscriptPdf 
+} from '@/lib/actions/pdf-generataion/pdf-generation.actions';
 import { getAllCourses } from '@/lib/actions/registrar.courses.action';
 import { getAllDepartments } from '@/lib/actions/registrar.department.actions';
+import { getAllStudents } from '@/lib/actions/admin/students.action'; // Add this import
 
 interface Option {
   id: number;
   name: string;
   code?: string;
+}
+
+interface Student {
+  id: number;
+  firstName: string;
+  lastName: string;
+  studentNumber: string;
+  email?: string;
 }
 
 interface DocumentFilters {
@@ -56,7 +71,8 @@ export default function DocumentsClient() {
   const [activeTab, setActiveTab] = useState('receipt');
   const [loading, setLoading] = useState({
     generating: false,
-    options: true
+    options: true,
+    students: false
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -70,44 +86,122 @@ export default function DocumentsClient() {
   const [courses, setCourses] = useState<Option[]>([]);
   const [positions, setPositions] = useState<string[]>([]);
 
+  // Student search functionality
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+  const [selectedStudentName, setSelectedStudentName] = useState('');
+  const studentDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
+        setShowStudentDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Load options on component mount
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        setLoading(prev => ({ ...prev, options: true }));
+        setLoading(prev => ({ ...prev, options: true, students: true }));
         setError(null);
         
-        const [programsData, departmentsData, semestersData, coursesData] = await Promise.all([
+        const [programsData, departmentsData, semestersData, coursesData, studentsData] = await Promise.all([
           getAllPrograms(),
           getAllDepartments(),
           getAllSemesters(),
-          getAllCourses()
+          getAllCourses(),
+          getAllStudents()
         ]);
         
         setPrograms(programsData);
         setDepartments(departmentsData);
         setSemesters(semestersData);
         setCourses(coursesData);
+        setStudents(studentsData);
+        setFilteredStudents(studentsData);
         
         // Mock positions - in a real app, these would come from the database
         setPositions(['Professor', 'Lecturer', 'Administrator', 'Support Staff', 'Department Head']);
       } catch (err) {
         setError(err instanceof ActionError ? err.message : 'Failed to load options');
       } finally {
-        setLoading(prev => ({ ...prev, options: false }));
+        setLoading(prev => ({ ...prev, options: false, students: false }));
       }
     };
 
     loadOptions();
   }, []);
 
+  // Filter students based on search
+  useEffect(() => {
+    if (!studentSearch.trim()) {
+      setFilteredStudents(students);
+      return;
+    }
+
+    const filtered = students.filter(student => 
+      student.firstName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.lastName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.studentNumber.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      (student.email && student.email.toLowerCase().includes(studentSearch.toLowerCase()))
+    );
+    setFilteredStudents(filtered);
+  }, [studentSearch, students]);
+
   // Handle filter changes
-const handleFilterChange = (key: keyof DocumentFilters, value: string | number | boolean | undefined) => {
-  setFilters(prev => ({
-    ...prev,
-    [key]: value
-  }));
-};
+  const handleFilterChange = (key: keyof DocumentFilters, value: string | number | boolean | undefined) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // Handle student selection for transcript search
+  const handleStudentSelect = (student: Student) => {
+    setStudentSearch('');
+    setSelectedStudentName(`${student.firstName} ${student.lastName} (${student.studentNumber})`);
+    handleFilterChange('transcriptStudentName', `${student.firstName} ${student.lastName}`);
+    setShowStudentDropdown(false);
+  };
+
+  // Handle student selection for invoice search
+  const handleInvoiceStudentSelect = (student: Student) => {
+    setStudentSearch('');
+    setSelectedStudentName(`${student.firstName} ${student.lastName} (${student.studentNumber})`);
+    handleFilterChange('invoiceStudentName', `${student.firstName} ${student.lastName}`);
+    setShowStudentDropdown(false);
+  };
+
+  // Handle student selection for payment search
+  const handlePaymentStudentSelect = (student: Student) => {
+    setStudentSearch('');
+    setSelectedStudentName(`${student.firstName} ${student.lastName} (${student.studentNumber})`);
+    handleFilterChange('paymentStudentName', `${student.firstName} ${student.lastName}`);
+    setShowStudentDropdown(false);
+  };
+
+  // Clear student selection
+  const clearStudentSelection = () => {
+    setStudentSearch('');
+    setSelectedStudentName('');
+    
+    // Clear the appropriate filter based on active tab
+    if (activeTab === 'transcripts') {
+      handleFilterChange('transcriptStudentName', undefined);
+    } else if (activeTab === 'invoices') {
+      handleFilterChange('invoiceStudentName', undefined);
+    } else if (activeTab === 'payments') {
+      handleFilterChange('paymentStudentName', undefined);
+    }
+  };
 
   // Generate PDF based on active tab
   const generatePdf = async () => {
@@ -123,71 +217,53 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
           if (!filters.paymentId) {
             throw new ActionError('Payment ID is required');
           }
-          pdfBuffer = await generateReceiptPdf(
-            parseInt(filters.paymentId),
-            1 // User ID - in a real app, this would come from auth
-          );
+          pdfBuffer = await generateReceiptPdf(parseInt(filters.paymentId));
           break;
           
         case 'students':
-          pdfBuffer = await generateStudentListPdf(
-            {
-              programId: filters.studentListProgramId,
-              courseId: filters.studentListCourseId,
-              semesterId: filters.studentListSemesterId,
-            },
-            1
-          );
+          pdfBuffer = await generateStudentListPdf({
+            programId: filters.studentListProgramId,
+            courseId: filters.studentListCourseId,
+            semesterId: filters.studentListSemesterId,
+          });
           break;
           
         case 'staff':
-          pdfBuffer = await generateStaffListPdf(
-            {
-              programId: filters.staffListProgramId,
-              position: filters.staffListPosition,
-            },
-            1
-          );
+          pdfBuffer = await generateStaffListPdf({
+            programId: filters.staffListProgramId,
+            position: filters.staffListPosition,
+          });
           break;
           
         case 'invoices':
-          pdfBuffer = await generateInvoiceListPdf(
-            {
-              studentName: filters.invoiceStudentName,
-              balanceGreaterThanZero: filters.invoiceBalanceOnly,
-              dueDateRange: filters.invoiceStartDate && filters.invoiceEndDate ? {
-                start: new Date(filters.invoiceStartDate),
-                end: new Date(filters.invoiceEndDate)
-              } : undefined,
-              status: filters.invoiceStatus,
-            },
-            1
-          );
+          pdfBuffer = await generateInvoiceListPdf({
+            studentName: filters.invoiceStudentName,
+            balanceGreaterThanZero: filters.invoiceBalanceOnly,
+            dueDateRange: filters.invoiceStartDate && filters.invoiceEndDate ? {
+              start: new Date(filters.invoiceStartDate),
+              end: new Date(filters.invoiceEndDate)
+            } : undefined,
+            status: filters.invoiceStatus,
+          });
           break;
           
         case 'payments':
-          pdfBuffer = await generatePaymentListPdf(
-            {
-              paymentMethod: filters.paymentMethod,
-              studentName: filters.paymentStudentName,
-              dateRange: filters.paymentStartDate && filters.paymentEndDate ? {
-                start: new Date(filters.paymentStartDate),
-                end: new Date(filters.paymentEndDate)
-              } : undefined,
-            },
-            1
-          );
+          pdfBuffer = await generatePaymentListPdf({
+            paymentMethod: filters.paymentMethod,
+            studentName: filters.paymentStudentName,
+            dateRange: filters.paymentStartDate && filters.paymentEndDate ? {
+              start: new Date(filters.paymentStartDate),
+              end: new Date(filters.paymentEndDate)
+            } : undefined,
+          });
           break;
           
         case 'transcripts':
-          pdfBuffer = await generateTranscriptPdf(
-            {
-              programId: filters.transcriptProgramId,
-              courseId: filters.transcriptCourseId,
-              studentName: filters.transcriptStudentName,
-            },
-            1
-          );
+          pdfBuffer = await generateTranscriptPdf({
+            programId: filters.transcriptProgramId,
+            courseId: filters.transcriptCourseId,
+            studentName: filters.transcriptStudentName,
+          });
           break;
           
         default:
@@ -233,7 +309,65 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
     });
     
     setFilters(newFilters);
+    setStudentSearch('');
+    setSelectedStudentName('');
   };
+
+  // Student search component
+  const renderStudentSearch = (onSelect: (student: Student) => void) => (
+    <div className="relative" ref={studentDropdownRef}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Student Search
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          placeholder={selectedStudentName || "Search students by name or ID..."}
+          value={studentSearch}
+          onChange={(e) => {
+            setStudentSearch(e.target.value);
+            setShowStudentDropdown(true);
+          }}
+          onFocus={() => setShowStudentDropdown(true)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+        />
+        {selectedStudentName && (
+          <button
+            type="button"
+            onClick={clearStudentSelection}
+            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+          >
+            <FiX size={16} />
+          </button>
+        )}
+      </div>
+      
+      {/* Student Dropdown */}
+      {showStudentDropdown && filteredStudents.length > 0 && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+          {filteredStudents.map(student => (
+            <div
+              key={student.id}
+              className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0"
+              onClick={() => onSelect(student)}
+            >
+              <div className="font-medium">{student.firstName} {student.lastName}</div>
+              <div className="text-gray-500 text-xs">{student.studentNumber}</div>
+              {student.email && <div className="text-gray-500 text-xs">{student.email}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Show selected student */}
+      {selectedStudentName && (
+        <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-md">
+          <div className="text-sm font-medium text-emerald-800">Selected:</div>
+          <div className="text-sm text-emerald-600">{selectedStudentName}</div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -272,7 +406,11 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setStudentSearch('');
+                  setSelectedStudentName('');
+                }}
                 className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-emerald-500 text-emerald-600'
@@ -426,18 +564,7 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
                 {/* Invoice List Filters */}
                 {activeTab === 'invoices' && (
                   <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student Name
-                      </label>
-                      <input
-                        type="text"
-                        value={filters.invoiceStudentName || ''}
-                        onChange={(e) => handleFilterChange('invoiceStudentName', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                        placeholder="Search by student name"
-                      />
-                    </div>
+                    {renderStudentSearch(handleInvoiceStudentSelect)}
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -492,6 +619,7 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
                 {/* Payment List Filters */}
                 {activeTab === 'payments' && (
                   <>
+                    {renderStudentSearch(handlePaymentStudentSelect)}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Payment Method
@@ -507,18 +635,6 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
                         <option value="credit_card">Credit Card</option>
                         <option value="mobile_money">Mobile Money</option>
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student Name
-                      </label>
-                      <input
-                        type="text"
-                        value={filters.paymentStudentName || ''}
-                        onChange={(e) => handleFilterChange('paymentStudentName', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                        placeholder="Search by student name"
-                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -547,6 +663,7 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
                 {/* Transcript Filters */}
                 {activeTab === 'transcripts' && (
                   <>
+                    {renderStudentSearch(handleStudentSelect)}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Program
@@ -580,18 +697,6 @@ const handleFilterChange = (key: keyof DocumentFilters, value: string | number |
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student Name
-                      </label>
-                      <input
-                        type="text"
-                        value={filters.transcriptStudentName || ''}
-                        onChange={(e) => handleFilterChange('transcriptStudentName', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                        placeholder="Search by student name"
-                      />
                     </div>
                   </>
                 )}
