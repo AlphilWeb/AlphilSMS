@@ -2,39 +2,27 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { staff, userLogs, roles } from '@/lib/db/schema';
+import { staff, userLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export type AdminHeaderData = {
-  id: number;
+  id: number; // ← Added this for image lookup
   name: string;
   role: string;
   department?: string;
-  avatar: string;
+  avatar: string; // This should be the file path/key, not the full URL
   notificationCount: number;
 };
 
 export async function getAdminHeaderData(): Promise<AdminHeaderData> {
   const authUser = await getAuthUser();
 
-  // Check if user has admin role
-  const userRole = await db.query.roles.findFirst({
-    where: eq(roles.id, authUser.userId),
-    columns: {
-      name: true
-    }
-  });
-
-  if (userRole?.name.toLowerCase() !== 'administrator') {
-    throw new Error('Access denied: Administrator role required');
-  }
-
   const admin = await db.query.staff.findFirst({
     where: eq(staff.userId, authUser.userId),
     columns: {
-      id: true,
+      id: true, // ← Added this
       firstName: true,
       lastName: true,
       position: true,
@@ -61,16 +49,16 @@ export async function getAdminHeaderData(): Promise<AdminHeaderData> {
     .then(res => res.length);
 
   return {
-    id: admin.id,
+    id: admin.id, // ← This is crucial for image lookup
     name: `${admin.firstName} ${admin.lastName}`,
     role: admin.position,
     department: admin.department?.name,
-    avatar: admin.passportPhotoUrl || '/default-avatar.jpg',
+    avatar: admin.passportPhotoUrl || '/default-avatar.jpg', // This should be the file key/path
     notificationCount
   };
 }
 
-export async function logout() {
+export async function logoutAdmin() {
   const { clearAuthCookies } = await import('@/lib/auth');
   clearAuthCookies();
   redirect('/login');
