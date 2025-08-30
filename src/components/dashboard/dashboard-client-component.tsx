@@ -41,7 +41,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiUsers,
       href: "/dashboard/users",
       category: "management",
-      trend: "+12%",
+      trend: "",
       description: "System users"
     },
     {
@@ -50,7 +50,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiUser,
       href: "/dashboard/students",
       category: "academic",
-      trend: "+8%",
+      trend: "",
       description: "Active students"
     },
     {
@@ -59,7 +59,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiBriefcase,
       href: "/dashboard/staff",
       category: "academic",
-      trend: "+5%",
+      trend: "",
       description: "Teaching staff"
     },
     {
@@ -68,7 +68,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiHome,
       href: "/dashboard/departments",
       category: "academic",
-      trend: "+2%",
+      trend: "",
       description: "Academic departments"
     },
     {
@@ -77,7 +77,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiBookOpen,
       href: "/dashboard/programs",
       category: "academic",
-      trend: "+3%",
+      trend: "",
       description: "Degree programs"
     },
     {
@@ -95,7 +95,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiBook,
       href: "/dashboard/courses",
       category: "academic",
-      trend: "+15%",
+      trend: "",
       description: "Available courses"
     },
     {
@@ -104,7 +104,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiList,
       href: "/dashboard/enrollments",
       category: "academic",
-      trend: "+20%",
+      trend: "",
       description: "Current enrollments"
     },
     {
@@ -122,7 +122,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiClipboard,
       href: "/dashboard/transcripts",
       category: "academic",
-      trend: "+10%",
+      trend: "",
       description: "Student transcripts"
     },
     {
@@ -149,7 +149,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiFileText,
       href: "/dashboard/invoices",
       category: "financial",
-      trend: "+25%",
+      trend: "",
       description: "Generated invoices"
     },
     {
@@ -158,7 +158,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       icon: FiCreditCard,
       href: "/dashboard/payments",
       category: "financial",
-      trend: "+18%",
+      trend: "",
       description: "Processed payments"
     },
     {
@@ -223,7 +223,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
               <p className="text-2xl font-bold text-gray-800">{counts.studentCount}</p>
               <p className="text-sm text-emerald-600 flex items-center gap-1 mt-1">
                 <FiTrendingUp size={14} />
-                +8% from last month
+                {/* +8% from last month */}
               </p>
             </div>
             <div className="p-3 bg-emerald-100 rounded-xl">
@@ -237,11 +237,11 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
             <div>
               <p className="text-sm font-medium text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-800">
-                ${(counts.paymentCount * 500).toLocaleString()}
+                KSH{(counts.paymentCount * 500).toLocaleString()}
               </p>
               <p className="text-sm text-blue-600 flex items-center gap-1 mt-1">
                 <FiBarChart2 size={14} />
-                +18% from last month
+                {/* +18% from last month */}
               </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-xl">
@@ -257,7 +257,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
               <p className="text-2xl font-bold text-gray-800">{counts.courseCount}</p>
               <p className="text-sm text-purple-600 flex items-center gap-1 mt-1">
                 <FiActivity size={14} />
-                +15% new courses
+                {/* +15% new courses */}
               </p>
             </div>
             <div className="p-3 bg-purple-100 rounded-xl">
