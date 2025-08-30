@@ -19,7 +19,7 @@ export type RegistrarHeaderData = {
 export async function getRegistrarHeaderData(): Promise<RegistrarHeaderData> {
   const authUser = await getAuthUser();
 
-  // Check if user has registrar role
+  // Check if user has registrar 
   const userRole = await db.query.roles.findFirst({
     where: eq(roles.id, authUser.userId),
     columns: {
