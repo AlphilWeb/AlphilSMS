@@ -143,7 +143,7 @@ export default function RegistrarDashboardHeader() {
             
             {/* College logo */}
               <Image
-                src="/logo.png"
+                src="/icon.jpg"
                 alt="College Logo"
                 width={50}
                 height={50}
