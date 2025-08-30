@@ -24,7 +24,7 @@ import {
   FiLoader, FiX, FiSearch, FiInfo,
   FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera,
   FiEye, FiEyeOff,
-  FiDownload // Added download icon
+  FiDownload
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -178,52 +178,43 @@ export default function AdminStaffClient() {
     loadStaff();
   }, []);
 
-  // Handle search with debouncing
-  useEffect(() => {
+// Handle search with debouncing
+useEffect(() => {
+  const searchStaffHandler = async () => {
     // If search query is empty, reload all staff immediately
     if (!searchQuery.trim()) {
-      const loadAllStaff = async () => {
-        try {
-          setLoading(prev => ({ ...prev, staff: true }));
-          const staffData = await getAllStaff();
-          setStaff(staffData);
-        } catch (err) {
-          const errorMessage = formatErrorMessage(err);
-          setError(errorMessage);
-        } finally {
-          setLoading(prev => ({ ...prev, staff: false }));
-        }
-      };
-      
-      loadAllStaff();
+      try {
+        setLoading(prev => ({ ...prev, staff: true }));
+        const staffData = await getAllStaff();
+        setStaff(staffData);
+      } catch (err) {
+        const errorMessage = formatErrorMessage(err);
+        setError(errorMessage);
+      } finally {
+        setLoading(prev => ({ ...prev, staff: false }));
+      }
       return;
     }
 
     // If there's a search query, use the debounced search
-    const timer = setTimeout(async () => {
-      try {
-        setLoading(prev => ({ ...prev, staff: true }));
-        const results = await searchStaff(searchQuery);
-        setStaff(results);
-      } catch (err) {
-        const errorMessage = formatErrorMessage(err);
-        setError(errorMessage);
-        // Fallback to client-side filtering if search fails
-        const filtered = staff.filter(staffMember => 
-          staffMember.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          staffMember.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          staffMember.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          staffMember.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (staffMember.idNumber && staffMember.idNumber.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-        setStaff(filtered);
-      } finally {
-        setLoading(prev => ({ ...prev, staff: false }));
-      }
-    }, 500);
+    try {
+      setLoading(prev => ({ ...prev, staff: true }));
+      const results = await searchStaff(searchQuery);
+      setStaff(results);
+    } catch (err) {
+      const errorMessage = formatErrorMessage(err);
+      setError(errorMessage);
+      // Remove the fallback to client-side filtering since it causes the dependency issue
+      // Just show the error and keep existing staff data
+    } finally {
+      setLoading(prev => ({ ...prev, staff: false }));
+    }
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const timer = setTimeout(searchStaffHandler, 500);
+
+  return () => clearTimeout(timer);
+}, [searchQuery]); // Only depend on searchQuery
 
   // NEW: Generate Staff List PDF
   const generateStaffListPdfHandler = async () => {
