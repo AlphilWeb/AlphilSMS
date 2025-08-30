@@ -29,7 +29,7 @@ import { useState, useEffect } from 'react';
 // import { getAdminHeaderData, AdminHeaderData, logout } from '@/lib/actions/admin.dashboard.header.action';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getClientImageUrl } from '@/lib/image-client';
-import { AdminHeaderData, getAdminHeaderData, logout } from '@/lib/actions/admin/header.actions';
+import { AdminHeaderData, getAdminHeaderData, logoutAdmin } from '@/lib/actions/admin/header.actions';
 
 export default function AdminDashboardHeader() {
   const pathname = usePathname();
@@ -168,15 +168,13 @@ export default function AdminDashboardHeader() {
             </button>
             
             {/* College logo */}
-            <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden">
               <Image
                 src="/icon.jpg"
                 alt="Alphil Training College"
-                width={40}
-                height={40}
-                className="h-full w-full object-cover"
+                width={50}
+                height={50}
+                className="h-16 w-auto object-cover"
               />
-            </div>
             
             <h1 className="text-[1rem] font-bold text-pink-500 mt-8 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
@@ -244,7 +242,7 @@ export default function AdminDashboardHeader() {
                     <button
                       onClick={() => {
                         setIsDropdownOpen(false);
-                        logout();
+                        logoutAdmin();
                       }}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
