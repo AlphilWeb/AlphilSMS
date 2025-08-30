@@ -142,15 +142,13 @@ export default function RegistrarDashboardHeader() {
             </button>
             
             {/* College logo */}
-            <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden">
               <Image
                 src="/logo.png"
                 alt="College Logo"
-                width={40}
-                height={40}
-                className="h-full w-full object-cover"
+                width={50}
+                height={50}
+                className="h-16 w-auto object-cover"
               />
-            </div>
             
             <h1 className="text-[1rem] font-bold text-pink-500 mt-8 hidden md:block">REGISTRAR OFFICE</h1>
           </div>
