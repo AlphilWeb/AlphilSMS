@@ -18,7 +18,7 @@ export default function RecentPaymentsCard({ payments, totalCount }: RecentPayme
     <div className="bg-white rounded-lg shadow p-6 h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Recent Payments</h3>
-        <Link href="/dashboard/bursar/payments" className="text-sm text-blue-600 hover:underline">
+        <Link href="/dashboard/finance/payments" className="text-sm text-blue-600 hover:underline">
           View All ({totalCount})
         </Link>
       </div>
@@ -32,7 +32,7 @@ export default function RecentPaymentsCard({ payments, totalCount }: RecentPayme
                 <p className="text-sm text-gray-500">{payment.date.toString()}</p>
               </div>
               <div className="text-right">
-                <p className="font-bold">${payment.amount.toLocaleString()}</p>
+                <p className="font-bold">KSH{payment.amount.toLocaleString()}</p>
                 <p className="text-sm text-gray-500 capitalize">{payment.method}</p>
               </div>
             </div>

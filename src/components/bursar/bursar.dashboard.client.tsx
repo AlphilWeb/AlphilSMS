@@ -8,8 +8,6 @@ import { FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
 import { MdOutlineAttachMoney } from 'react-icons/md';
 import { toast } from 'sonner';
 
-
-
 export default function BursarDashboard() {
   const [data, setData] = useState<BursarDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,33 +19,32 @@ export default function BursarDashboard() {
   const [reportData, setReportData] = useState<FinancialReportData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const result = await getBursarDashboardData();
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const result = await getBursarDashboardData();
 
-      // Create a new object to transform the 'email' property
-      const transformedResult = {
-        ...result,
-        bursar: {
-          ...result.bursar,
-          email: result.bursar.email ?? null,
-        },
-      };
+        // Create a new object to transform the 'email' property
+        const transformedResult = {
+          ...result,
+          bursar: {
+            ...result.bursar,
+            email: result.bursar.email ?? null,
+          },
+        };
 
-      setData(transformedResult);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
+        setData(transformedResult);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load data');
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchData();
-}, []);
-
+    fetchData();
+  }, []);
 
   const generateReport = async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -253,7 +250,7 @@ useEffect(() => {
           <div className="flex flex-row items-center justify-between p-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold">Ksh {data.financialSummary.totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">KES {data.financialSummary.totalRevenue.toLocaleString()}</p>
               <p className="text-xs text-gray-500 flex items-center mt-1">
                 {data.statistics.revenueChange >= 0 ? (
                   <FiTrendingUp className="text-emerald-500 mr-1" />
@@ -273,7 +270,7 @@ useEffect(() => {
           <div className="flex flex-row items-center justify-between p-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Outstanding Balances</p>
-              <p className="text-2xl font-bold">Ksh {data.financialSummary.totalOutstanding.toLocaleString()}</p>
+              <p className="text-2xl font-bold">KES {data.financialSummary.totalOutstanding.toLocaleString()}</p>
               <p className="text-xs text-gray-500">
                 {data.statistics.totalActiveInvoices} active invoices
               </p>
@@ -288,7 +285,7 @@ useEffect(() => {
           <div className="flex flex-row items-center justify-between p-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Salary Payments</p>
-              <p className="text-2xl font-bold">Ksh {data.financialSummary.totalSalaries.toLocaleString()}</p>
+              <p className="text-2xl font-bold">KES {data.financialSummary.totalSalaries.toLocaleString()}</p>
               <p className="text-xs text-gray-500">
                 {data.statistics.totalStaff} staff members
               </p>
@@ -303,7 +300,7 @@ useEffect(() => {
           <div className="flex flex-row items-center justify-between p-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Net Revenue</p>
-              <p className="text-2xl font-bold">Ksh {data.financialSummary.netRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">KES {data.financialSummary.netRevenue.toLocaleString()}</p>
               <p className="text-xs text-gray-500 flex items-center mt-1">
                 {data.statistics.netRevenueChange >= 0 ? (
                   <FiTrendingUp className="text-emerald-500 mr-1" />
@@ -369,7 +366,7 @@ useEffect(() => {
                 {data.recentPayments.map((payment: RecentPayment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">{payment.studentName}</TableCell>
-                    <TableCell>Ksh {payment.amount.toLocaleString()}</TableCell>
+                    <TableCell>KES {payment.amount.toLocaleString()}</TableCell>
                     <TableCell>{format(new Date(payment.date), 'MMM d, yyyy')}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="border-emerald-100 text-emerald-600">
@@ -410,7 +407,7 @@ useEffect(() => {
                     <TableCell className="font-medium">{invoice.studentName}</TableCell>
                     <TableCell>{invoice.programName}</TableCell>
                     <TableCell className="text-pink-500 font-medium">
-                      Ksh {invoice.amountDue.toLocaleString()}
+                      KES {invoice.amountDue.toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
@@ -447,7 +444,7 @@ useEffect(() => {
                 {data.recentSalaryPayments.map((payment: SalaryPayment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">{payment.staffName}</TableCell>
-                    <TableCell>Ksh {payment.amount.toLocaleString()}</TableCell>
+                    <TableCell>KES {payment.amount.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge 
                         variant={payment.status === 'Paid' ? 'default' : 'destructive'}
@@ -492,7 +489,7 @@ useEffect(() => {
                   <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
                     <p className="text-sm font-medium">Total Revenue</p>
                     <p className="text-2xl font-bold text-emerald-600">
-                      Ksh {reportData.summary.totalRevenue.toLocaleString()}
+                      KES {reportData.summary.totalRevenue.toLocaleString()}
                     </p>
                     <p className="text-xs text-emerald-500 mt-1">
                       {reportData.summary.paymentCount} payments
@@ -502,7 +499,7 @@ useEffect(() => {
                   <div className="bg-pink-50 border border-pink-100 rounded-lg p-4">
                     <p className="text-sm font-medium">Total Salaries</p>
                     <p className="text-2xl font-bold text-pink-600">
-                      Ksh {reportData.summary.totalSalaries.toLocaleString()}
+                      KES {reportData.summary.totalSalaries.toLocaleString()}
                     </p>
                     <p className="text-xs text-pink-500 mt-1">
                       {reportData.summary.salaryPaymentCount} payments
@@ -512,7 +509,7 @@ useEffect(() => {
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <p className="text-sm font-medium">Net Revenue</p>
                     <p className="text-2xl font-bold text-gray-800">
-                      Ksh {reportData.summary.netRevenue.toLocaleString()}
+                      KES {reportData.summary.netRevenue.toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Revenue - Salaries
@@ -541,7 +538,7 @@ useEffect(() => {
                             <TableRow key={payment.id}>
                               <TableCell>{format(new Date(payment.date || ''), 'MMM d')}</TableCell>
                               <TableCell className="font-medium">{payment.studentName}</TableCell>
-                              <TableCell>Ksh {payment.amount.toLocaleString()}</TableCell>
+                              <TableCell>KES {payment.amount.toLocaleString()}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="border-emerald-100 text-emerald-600">
                                   {payment.method}
@@ -574,7 +571,7 @@ useEffect(() => {
                             <TableRow key={salary.id}>
                               <TableCell>{format(new Date(salary.date || ''), 'MMM d')}</TableCell>
                               <TableCell className="font-medium">{salary.staffName}</TableCell>
-                              <TableCell>Ksh {salary.amount.toLocaleString()}</TableCell>
+                              <TableCell>KES {salary.amount.toLocaleString()}</TableCell>
                               <TableCell>
                                 <Badge 
                                   variant={salary.status === 'Paid' ? 'default' : 'destructive'}

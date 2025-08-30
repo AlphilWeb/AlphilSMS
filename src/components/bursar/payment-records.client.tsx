@@ -491,7 +491,7 @@ export default function AdminPaymentsClient() {
               <button
                 onClick={handleCreatePayment}
                 disabled={!formData.invoiceId || !formData.studentId || formData.amount <= 0 || !formData.paymentMethod || loading.create}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 KSH{
                   loading.create ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
               >
@@ -576,7 +576,7 @@ export default function AdminPaymentsClient() {
                         </div>
                       </div>
                       <p className="mt-1 text-xs capitalize">
-                        Status: <span className={`font-medium ${
+                        Status: <span className={`font-medium KSH{
                           selectedPayment.invoice.status === 'paid' ? 'text-green-600' : 
                           selectedPayment.invoice.status === 'partially_paid' ? 'text-amber-600' : 
                           'text-red-600'
@@ -709,7 +709,7 @@ export default function AdminPaymentsClient() {
               <button
                 onClick={handleUpdatePayment}
                 disabled={loading.update}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 KSH{
                   loading.update ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
               >

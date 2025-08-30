@@ -100,7 +100,7 @@ export default function BursarDashboardHeader() {
               height={50}
               className="h-16 w-auto"
             />
-            <h1 className="text-xl font-bold text-gray-800 hidden md:block">BURSAR PORTAL</h1>
+            <h1 className="text-xl mt-8 font-bold text-pink-500 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           {/* User controls */}

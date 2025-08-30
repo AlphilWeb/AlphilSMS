@@ -14,6 +14,7 @@ export default function FinancialSummaryCard({
   outstandingAmount
 }: FinancialSummaryCardProps) {
   const profitColor = netProfit >= 0 ? 'text-green-600' : 'text-red-600';
+  console.log('Net Profit:', profitColor, netProfit);
   const profitIcon = netProfit >= 0 ? (
     <ArrowUpIcon className="h-5 w-5 text-green-500" />
   ) : (
@@ -27,25 +28,25 @@ export default function FinancialSummaryCard({
       <div className="grid grid-cols-2 gap-4">
         <div className="p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-gray-500">Total Revenue</p>
-          <p className="text-xl font-bold text-pink-400">${totalRevenue.toLocaleString()}</p>
+          <p className="text-xl font-bold text-pink-400">KSH{totalRevenue.toLocaleString()}</p>
         </div>
         
         <div className="p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-gray-500">Total Expenses</p>
-          <p className="text-xl font-bold text-red-500">${totalExpenses.toLocaleString()}</p>
+          <p className="text-xl font-bold text-red-500">KSH{totalExpenses.toLocaleString()}</p>
         </div>
         
         <div className="p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-gray-500">Outstanding Fees</p>
-          <p className="text-xl font-bold text-yellow-600">${outstandingAmount.toLocaleString()}</p>
+          <p className="text-xl font-bold text-yellow-600">KSH{outstandingAmount.toLocaleString()}</p>
         </div>
         
         <div className="p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-gray-500">Net Profit</p>
           <div className="flex items-center">
             {profitIcon}
-            <p className={`text-xl font-bold ml-1 ${profitColor}`}>
-              ${Math.abs(netProfit).toLocaleString()}
+            <p className={`text-xl font-bold ml-1 KSH{profitColor}`}>
+              KSH{Math.abs(netProfit).toLocaleString()}
             </p>
           </div>
         </div>

@@ -540,7 +540,7 @@ useEffect(() => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full KSH{
                         salary.status === 'paid' 
                           ? 'bg-green-100 text-green-800'
                           : salary.status === 'pending'
@@ -699,7 +699,7 @@ useEffect(() => {
               <button
                 onClick={handleCreateSalary}
                 disabled={!formData.staffId || formData.amount <= 0 || !formData.paymentDate || loading.create}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 KSH{
                   loading.create ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
               >
@@ -745,7 +745,7 @@ useEffect(() => {
                       <h2 className="text-xl font-bold text-gray-800">
                         {formatCurrency(selectedSalary.amount)}
                       </h2>
-                      <span className={`mt-1 inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${
+                      <span className={`mt-1 inline-flex px-2 text-xs font-semibold leading-5 rounded-full KSH{
                         selectedSalary.status === 'paid' 
                           ? 'bg-green-100 text-green-800'
                           : selectedSalary.status === 'pending'
@@ -912,7 +912,7 @@ useEffect(() => {
               <button
                 onClick={handleUpdateSalary}
                 disabled={loading.update}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 KSH{
                   loading.update ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
               >
