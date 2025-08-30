@@ -1,10 +1,10 @@
+// app/dashboard/lecturer/academic-calendar/page.tsx
 import { 
   getEventsForRange,
   getCurrentSemester,
   getKeyAcademicDates
 } from '@/lib/actions/academic-calendar.actions';
 import AcademicCalendarManager from '@/components/academic.calendar';
-import DashboardHeader from '@/components/lecturerDashboardHeader';
 import ErrorMessage from '@/components/ui/error-message';
 
 export default async function AcademicCalendarPage() {
@@ -24,43 +24,32 @@ export default async function AcademicCalendarPage() {
     ]);
 
     return (
-      <>
-        <DashboardHeader />
-        
-        <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-indigo-800 text-white">
-          <div className="p-6 space-y-6 max-w-7xl mx-auto">
-            {/* Welcome Banner */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h1 className="text-2xl font-bold text-gray-800">Academic Calendar</h1>
-              <p className="text-gray-600">View important dates and events for the academic year</p>
-            </div>
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Welcome Banner */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h1 className="text-2xl font-bold text-gray-800">Academic Calendar</h1>
+          <p className="text-gray-600">View important dates and events for the academic year</p>
+        </div>
 
-            {/* Main Content */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <AcademicCalendarManager 
-                initialEvents={initialEvents}
-                initialSemester={currentSemester}
-                initialKeyDates={initialKeyDates}
-              />
-            </div>
-          </div>
-        </main>
-      </>
+        {/* Main Content */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <AcademicCalendarManager 
+            initialEvents={initialEvents}
+            initialSemester={currentSemester}
+            initialKeyDates={initialKeyDates}
+          />
+        </div>
+      </div>
     );
   } catch (error) {
     console.error('Error rendering AcademicCalendarPage:', error);
     return (
-      <>
-        <DashboardHeader />
-        <main className="md:pl-64 pt-16 h-[calc(100vh-4rem)] overflow-y-auto bg-indigo-800 text-white">
-          <div className="p-6 max-w-7xl mx-auto">
-            <ErrorMessage
-              title="Failed to load academic calendar"
-              message="There was an error loading calendar data. Please try again later."
-            />
-          </div>
-        </main>
-      </>
+      <div className="p-6 max-w-7xl mx-auto">
+        <ErrorMessage
+          title="Failed to load academic calendar"
+          message="There was an error loading calendar data. Please try again later."
+        />
+      </div>
     );
   }
 }
