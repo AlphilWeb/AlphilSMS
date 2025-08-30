@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { staff, userLogs, roles } from '@/lib/db/schema';
+import { staff, userLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -19,17 +19,6 @@ export type RegistrarHeaderData = {
 export async function getRegistrarHeaderData(): Promise<RegistrarHeaderData> {
   const authUser = await getAuthUser();
 
-  // Check if user has registrar 
-  const userRole = await db.query.roles.findFirst({
-    where: eq(roles.id, authUser.userId),
-    columns: {
-      name: true
-    }
-  });
-
-  if (userRole?.name.toLowerCase() !== 'registrar') {
-    throw new Error('Access denied: Registrar role required');
-  }
 
   const registrar = await db.query.staff.findFirst({
     where: eq(staff.userId, authUser.userId),

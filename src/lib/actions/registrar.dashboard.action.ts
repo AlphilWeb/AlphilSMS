@@ -24,12 +24,6 @@ export async function getRegistrarDashboardData() {
       throw new Error('Unauthorized');
     }
 
-    // Verify user has registrar role
-    if (authUser.role.toLowerCase() !== 'registrar') {
-    throw new Error('Unauthorized access');
-    }
-
-
     // Get current semester
     const currentSemester = await db.query.semesters.findFirst({
       orderBy: (semesters, { desc }) => [desc(semesters.startDate)],
