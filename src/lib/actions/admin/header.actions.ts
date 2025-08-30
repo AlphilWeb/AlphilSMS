@@ -53,7 +53,7 @@ export async function getAdminHeaderData(): Promise<AdminHeaderData> {
     name: `${admin.firstName} ${admin.lastName}`,
     role: admin.position,
     department: admin.department?.name,
-    avatar: admin.passportPhotoUrl || '/default-avatar.jpg', // This should be the file key/path
+    avatar: admin.passportPhotoUrl || '/default-avatar.jpg',
     notificationCount
   };
 }
