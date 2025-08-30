@@ -38,6 +38,8 @@ export default function LecturerDashboardHeader() {
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(true);
+  console.log('Avatar URL:', avatarUrl);
+  console.log('Avatar Loading:', avatarLoading);
 
   useEffect(() => {
     const loadData = async () => {
@@ -152,7 +154,7 @@ export default function LecturerDashboardHeader() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-6 py-1 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            {/* Hamburger menu button for mobile screens */}
+            {/* Hamburger menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
@@ -163,25 +165,15 @@ export default function LecturerDashboardHeader() {
                 <FiMenu className="w-6 h-6" />
               )}
             </button>
-<div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
-  {avatarLoading ? (
-    <Skeleton className="h-full w-full rounded-full" />
-  ) : avatarUrl ? (
-    <Image
-      src={avatarUrl}
-      alt="User avatar"
-      width={32}
-      height={32}
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
-      N/A
-    </div>
-  )}
-</div>
-
-            <h1 className="text-[1rem] font-bold text-pink-500 mt-8 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
+            <Image
+              src="/icon.jpg"
+              alt="College Logo"
+              width={50}
+              height={50}
+              className="h-16 w-auto"
+              priority
+            />
+            <h1 className="text-l font-bold text-pink-500 mt-8 hidden md:block">ALPHIL TRAINING COLLEGE</h1>
           </div>
 
           <div className="flex items-center space-x-6">
