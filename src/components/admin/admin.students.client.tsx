@@ -487,7 +487,7 @@ const timer = setTimeout(async () => {
         firstName: string;
         lastName: string;
         email: string;
-        idNumber: string;
+        idNumber: string | null;
         registrationNumber: string;
         studentNumber: string;
         programId: number;
