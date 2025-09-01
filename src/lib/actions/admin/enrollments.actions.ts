@@ -105,12 +105,16 @@ export async function fetchFilteredEnrollments(
 .where(
   query
     ? or(
-        ilike(students.firstName, `%${query}%`),        // Changed from like to ilike
-        ilike(students.lastName, `%${query}%`),         // Changed from like to ilike
-        ilike(students.registrationNumber, `%${query}%`), // Changed from like to ilike
-        ilike(courses.name, `%${query}%`),              // Changed from like to ilike
-        ilike(courses.code, `%${query}%`),              // Changed from like to ilike
-        ilike(semesters.name, `%${query}%`)             // Changed from like to ilike
+        ilike(students.firstName, `%${query}%`),
+        ilike(students.lastName, `%${query}%`),
+        ilike(students.registrationNumber, `%${query}%`),
+        ilike(courses.name, `%${query}%`),
+        ilike(courses.code, `%${query}%`),
+        ilike(semesters.name, `%${query}%`),
+        // Add full name search (first + last)
+        ilike(sql`CONCAT(${students.firstName}, ' ', ${students.lastName})`, `%${query}%`),
+        // Also search last + first name
+        ilike(sql`CONCAT(${students.lastName}, ' ', ${students.firstName})`, `%${query}%`)
       )
     : undefined
 )
