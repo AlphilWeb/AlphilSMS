@@ -178,7 +178,11 @@ export async function searchStudents(query: string): Promise<StudentWithDetails[
         like(students.lastName, `%${query}%`),
         like(students.email, `%${query}%`),
         like(students.registrationNumber, `%${query}%`),
-        like(students.studentNumber, `%${query}%`)
+        like(students.studentNumber, `%${query}%`),
+        // Add full name search (first + last)
+        like(sql`CONCAT(${students.firstName}, ' ', ${students.lastName})`, `%${query}%`),
+        // Also search last + first name
+        like(sql`CONCAT(${students.lastName}, ' ', ${students.firstName})`, `%${query}%`)
       )
     )
     .orderBy(asc(students.lastName), asc(students.firstName));
