@@ -188,40 +188,43 @@ export default function AdminStudentsClient() {
   }, []);
 
   // Handle search
-  useEffect(() => {
-    // If search query is empty, reload all students immediately
-    if (!searchQuery.trim()) {
-      const loadAllStudents = async () => {
-        try {
-          setLoading(prev => ({ ...prev, students: true }));
-          const studentsData = await getAllStudents();
-          setStudents(studentsData);
-        } catch (err) {
-          setError(err instanceof ActionError ? err.message : 'Failed to load students');
-        } finally {
-          setLoading(prev => ({ ...prev, students: false }));
-        }
-      };
-      
-      loadAllStudents();
-      return;
-    }
-
-    // If there's a search query, use the debounced search
-    const timer = setTimeout(async () => {
+// Handle search
+useEffect(() => {
+  // If search query is empty, reload all students immediately
+  if (!searchQuery.trim()) {
+    const loadAllStudents = async () => {
       try {
         setLoading(prev => ({ ...prev, students: true }));
-        const results = await searchStudents(searchQuery);
-        setStudents(results);
+        const studentsData = await getAllStudents();
+        setStudents(studentsData);
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Search failed');
+        setError(err instanceof ActionError ? err.message : 'Failed to load students');
       } finally {
         setLoading(prev => ({ ...prev, students: false }));
       }
-    }, 500);
+    };
+    
+    loadAllStudents();
+    return;
+  }
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // If there's a search query, use the debounced search
+const timer = setTimeout(async () => {
+  try {
+    setLoading(prev => ({ ...prev, students: true }));
+    // Encode the search query to handle spaces and special characters
+    const encodedQuery = encodeURIComponent(searchQuery.trim());
+    const results = await searchStudents(encodedQuery);
+    setStudents(results);
+  } catch (err) {
+    setError(err instanceof ActionError ? err.message : 'Search failed');
+  } finally {
+    setLoading(prev => ({ ...prev, students: false }));
+  }
+}, 500);
+
+  return () => clearTimeout(timer);
+}, [searchQuery]);
 
   // NEW: Generate Student List PDF
   const generateStudentListPdfHandler = async () => {
