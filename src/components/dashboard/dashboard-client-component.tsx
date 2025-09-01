@@ -78,7 +78,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       href: "admin/dashboard/programs",
       category: "academic",
       trend: "",
-      description: "Degree programs"
+      description: "Certificate programs"
     },
     {
       title: "Semesters",
