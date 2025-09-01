@@ -11,7 +11,8 @@ import {
   type SelectUser,
   type SelectStaff,
   type SelectDepartment,
-  type NewUserLog
+  type NewUserLog,
+  SelectUserLog
 } from '@/lib/db/schema'; // Your schema file
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { hash, compare } from 'bcryptjs';
@@ -22,7 +23,7 @@ export interface AdminProfileData {
   user: SelectUser;
   staff: SelectStaff;
   department: SelectDepartment | null;
-  recentActivity: any[]; // Adjust type based on your needs
+  recentActivity: SelectUserLog[]; // Adjust type based on your needs
 }
 
 export interface UpdateAdminProfileParams {
@@ -221,6 +222,7 @@ export async function updateAdminProfilePhoto(
 export async function getAdminDashboardStats(userId: number) {
   try {
     // You'll need to import additional tables for these queries
+    console.log(userId)
     const [
       totalStudents,
       totalStaff,

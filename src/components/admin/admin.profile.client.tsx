@@ -244,7 +244,7 @@ export default function AdminProfileSection({ profileData }: {
               </p>
               <div className="space-y-2 mb-4">
                 <label className="block text-sm font-medium text-red-700">
-                  Type "DELETE MY ACCOUNT" to confirm
+                  Type <b className='to-blue-600'>DELETE MY ACCOUNT</b>  to confirm
                 </label>
                 <input
                   type="text"
