@@ -1,26 +1,21 @@
 'use client';
 
-import { FiEdit, FiSave, FiUser, FiMail, FiBriefcase, FiCalendar, FiFileText } from 'react-icons/fi';
+import { FiEdit, FiSave, FiUser, FiMail, FiBriefcase, FiCalendar, FiFileText, FiX, FiCamera } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
-import { updateLecturerProfile, updateLecturerDocuments } from '@/lib/actions/lecturer.profile.actions';
+import { updateLecturerProfile, updateLecturerProfilePhoto } from '@/lib/actions/lecturer.profile.actions';
 import { useFormState, useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getClientImageUrl } from '@/lib/image-client';
 
 type ProfileState = {
-  success?: string;
+  success?: boolean;
   error?: string;
   fieldErrors?: {
     firstName?: string[];
     lastName?: string[];
     position?: string[];
   };
-};
-
-type DocumentsState = {
-  success?: string;
-  error?: string;
 };
 
 export default function LecturerProfileSection({ profileData }: {
@@ -41,46 +36,118 @@ export default function LecturerProfileSection({ profileData }: {
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingDocuments, setIsEditingDocuments] = useState(false);
   
-  // Properly typed form states
+  // States for form fields
+  const [firstName, setFirstName] = useState(profileData.firstName);
+  const [lastName, setLastName] = useState(profileData.lastName);
+  const [position, setPosition] = useState(profileData.position);
+  
+  // Profile form state
   const [profileState, profileAction] = useFormState<ProfileState, FormData>(
     updateLecturerProfile, 
     {}
   );
   
-  const [documentsState, documentsAction] = useFormState<DocumentsState, FormData>(
-    updateLecturerDocuments, 
-    {}
-  );
-  
   const { pending: isProfilePending } = useFormStatus();
 
-  // 🔑 States for avatar
+  // States for images with loading and error handling
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [avatarLoading, setAvatarLoading] = useState(true);
+  
+  const [nationalIdUrl, setNationalIdUrl] = useState<string | null>(null);
+  const [nationalIdLoading, setNationalIdLoading] = useState(true);
+  
+  const [academicCertificatesUrl, setAcademicCertificatesUrl] = useState<string | null>(null);
+  const [academicCertificatesLoading, setAcademicCertificatesLoading] = useState(true);
+  
+  const [employmentDocumentsUrl, setEmploymentDocumentsUrl] = useState<string | null>(null);
+  const [employmentDocumentsLoading, setEmploymentDocumentsLoading] = useState(true);
 
+  // Reset form when editing is toggled
   useEffect(() => {
-    const fetchAvatar = async () => {
+    if (!isEditing) {
+      setFirstName(profileData.firstName);
+      setLastName(profileData.lastName);
+      setPosition(profileData.position);
+    }
+  }, [isEditing, profileData]);
+
+  // Fetch all images using the consistent pattern
+  useEffect(() => {
+    const fetchImages = async () => {
       try {
-        const url = await getClientImageUrl(profileData.id, 'lecturer-passport');
-        if (url) {
-          setAvatarUrl(url);
-        } else {
-          // Fallback to the URL from profileData if available
-          setAvatarUrl(profileData.passportPhotoUrl || null);
-        }
+        // Fetch passport photo
+        const passportUrl = await getClientImageUrl(profileData.id, 'lecturer-passport');
+        setAvatarUrl(passportUrl || profileData.passportPhotoUrl || null);
+        
+        // Fetch national ID photo
+        const nationalIdUrl = await getClientImageUrl(profileData.id, 'staff-national-id');
+        setNationalIdUrl(nationalIdUrl || profileData.nationalIdPhotoUrl || null);
+        
+        // Fetch academic certificates
+        const academicUrl = await getClientImageUrl(profileData.id, 'staff-academic-certificates');
+        setAcademicCertificatesUrl(academicUrl || profileData.academicCertificatesUrl || null);
+        
+        // Fetch employment documents
+        const employmentUrl = await getClientImageUrl(profileData.id, 'staff-academic-certificates');
+        setEmploymentDocumentsUrl(employmentUrl || profileData.employmentDocumentsUrl || null);
+        
       } catch (error) {
-        console.error("Error fetching profile image:", error);
-        // Fallback to the URL from profileData
+        console.error("Error fetching profile images:", error);
+        // Fallback to URLs from profileData
         setAvatarUrl(profileData.passportPhotoUrl || null);
+        setNationalIdUrl(profileData.nationalIdPhotoUrl || null);
+        setAcademicCertificatesUrl(profileData.academicCertificatesUrl || null);
+        setEmploymentDocumentsUrl(profileData.employmentDocumentsUrl || null);
       } finally {
-        setImageLoading(false);
+        setAvatarLoading(false);
+        setNationalIdLoading(false);
+        setAcademicCertificatesLoading(false);
+        setEmploymentDocumentsLoading(false);
       }
     };
 
     if (profileData?.id) {
-      fetchAvatar();
+      fetchImages();
     }
-  }, [profileData.id, profileData.passportPhotoUrl]);
+  }, [profileData]);
+
+  const handleFileUpload = async (fileType: 'passport' | 'nationalId' | 'academic' | 'employment', file: File) => {
+    try {
+      // Set loading state for the specific image type
+      if (fileType === 'passport') setAvatarLoading(true);
+      if (fileType === 'nationalId') setNationalIdLoading(true);
+      if (fileType === 'academic') setAcademicCertificatesLoading(true);
+      if (fileType === 'employment') setEmploymentDocumentsLoading(true);
+      
+      const result = await updateLecturerProfilePhoto(fileType, file);
+      
+      if (result.success && result.fileUrl) {
+        // Update the specific image URL
+        switch (fileType) {
+          case 'passport':
+            setAvatarUrl(result.fileUrl);
+            break;
+          case 'nationalId':
+            setNationalIdUrl(result.fileUrl);
+            break;
+          case 'academic':
+            setAcademicCertificatesUrl(result.fileUrl);
+            break;
+          case 'employment':
+            setEmploymentDocumentsUrl(result.fileUrl);
+            break;
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    } finally {
+      // Reset loading state for the specific image type
+      if (fileType === 'passport') setAvatarLoading(false);
+      if (fileType === 'nationalId') setNationalIdLoading(false);
+      if (fileType === 'academic') setAcademicCertificatesLoading(false);
+      if (fileType === 'employment') setEmploymentDocumentsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -89,7 +156,7 @@ export default function LecturerProfileSection({ profileData }: {
         <div className="w-full md:w-1/3">
           <div className="bg-gray-50 rounded-lg p-4 flex flex-col items-center">
             <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4">
-              {imageLoading ? (
+              {avatarLoading ? (
                 <Skeleton className="w-full h-full rounded-full" />
               ) : avatarUrl ? (
                 <Image
@@ -97,10 +164,10 @@ export default function LecturerProfileSection({ profileData }: {
                   alt="Profile photo"
                   fill
                   className="object-cover"
-                  onLoad={() => setImageLoading(false)}
+                  onLoad={() => setAvatarLoading(false)}
                   onError={() => {
-                    console.error("Image failed to load");
-                    setImageLoading(false);
+                    console.error("Profile image failed to load");
+                    setAvatarLoading(false);
                   }}
                 />
               ) : (
@@ -109,6 +176,25 @@ export default function LecturerProfileSection({ profileData }: {
                 </div>
               )}
             </div>
+            
+            {/* File upload for passport photo */}
+            <div className="mb-4">
+              <label className="text-sm text-emerald-600 hover:text-emerald-800 flex items-center cursor-pointer">
+                <FiCamera className="mr-1" /> Change Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleFileUpload('passport', file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            
             <button 
               onClick={() => setIsEditingDocuments(true)}
               className="text-sm text-emerald-600 hover:text-emerald-800 flex items-center"
@@ -128,7 +214,8 @@ export default function LecturerProfileSection({ profileData }: {
                 {isEditing ? (
                   <input
                     name="firstName"
-                    defaultValue={profileData.firstName}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 ) : (
@@ -144,7 +231,8 @@ export default function LecturerProfileSection({ profileData }: {
                 {isEditing ? (
                   <input
                     name="lastName"
-                    defaultValue={profileData.lastName}
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 ) : (
@@ -170,7 +258,8 @@ export default function LecturerProfileSection({ profileData }: {
                   <>
                     <input
                       name="position"
-                      defaultValue={profileData.position}
+                      value={position}
+                      onChange={(e) => setPosition(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                     {profileState?.fieldErrors?.position?.map((error, i) => (
@@ -213,6 +302,7 @@ export default function LecturerProfileSection({ profileData }: {
                     type="submit"
                     disabled={isProfilePending}
                     className="px-4 py-2 bg-pink-600 text-white rounded-md disabled:bg-pink-400"
+                    onClick={() => setIsEditing(false)}
                   >
                     {isProfilePending ? 'Saving...' : (
                       <>
@@ -245,74 +335,159 @@ export default function LecturerProfileSection({ profileData }: {
       {/* Documents Section - Only shown when editing documents */}
       {isEditingDocuments && (
         <div className="bg-gray-50 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <FiFileText className="mr-2" /> Manage Documents
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <FiFileText className="mr-2" /> Manage Documents
+            </h3>
+            <button
+              onClick={() => setIsEditingDocuments(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
           
-          <form action={documentsAction}>
-            <input type="hidden" name="id" value={profileData.id} />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Passport Photo URL</label>
-                <input
-                  name="passportPhotoUrl"
-                  defaultValue={profileData.passportPhotoUrl}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Passport Photo */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Passport Photo</label>
+              <div className="relative w-full h-48 border border-gray-300 rounded-md overflow-hidden bg-gray-100">
+                {avatarLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt="Passport photo"
+                    fill
+                    className="object-contain"
+                    onLoad={() => setAvatarLoading(false)}
+                    onError={() => setAvatarLoading(false)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                    <FiCamera className="w-8 h-8 mb-2" />
+                    <span className="text-sm">No passport photo</span>
+                  </div>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">National ID Photo URL</label>
-                <input
-                  name="nationalIdPhotoUrl"
-                  defaultValue={profileData.nationalIdPhotoUrl}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Academic Certificates URL</label>
-                <input
-                  name="academicCertificatesUrl"
-                  defaultValue={profileData.academicCertificatesUrl}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Employment Documents URL</label>
-                <input
-                  name="employmentDocumentsUrl"
-                  defaultValue={profileData.employmentDocumentsUrl}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload('passport', file);
+                  }
+                }}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
             </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setIsEditingDocuments(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-pink-600 text-white rounded-md"
-              >
-                <FiSave className="inline mr-1" /> Save Documents
-              </button>
+            {/* National ID Photo */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">National ID Photo</label>
+              <div className="relative w-full h-48 border border-gray-300 rounded-md overflow-hidden bg-gray-100">
+                {nationalIdLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : nationalIdUrl ? (
+                  <Image
+                    src={nationalIdUrl}
+                    alt="National ID photo"
+                    fill
+                    className="object-contain"
+                    onLoad={() => setNationalIdLoading(false)}
+                    onError={() => setNationalIdLoading(false)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                    <FiCamera className="w-8 h-8 mb-2" />
+                    <span className="text-sm">No national ID photo</span>
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload('nationalId', file);
+                  }
+                }}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
             </div>
 
-            {documentsState?.success && (
-              <p className="mt-4 text-sm text-emerald-600">{documentsState.success}</p>
-            )}
-            {documentsState?.error && (
-              <p className="mt-4 text-sm text-red-600">{documentsState.error}</p>
-            )}
-          </form>
+            {/* Academic Certificates */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Academic Certificates</label>
+              <div className="relative w-full h-48 border border-gray-300 rounded-md overflow-hidden bg-gray-100">
+                {academicCertificatesLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : academicCertificatesUrl ? (
+                  <Image
+                    src={academicCertificatesUrl}
+                    alt="Academic certificates"
+                    fill
+                    className="object-contain"
+                    onLoad={() => setAcademicCertificatesLoading(false)}
+                    onError={() => setAcademicCertificatesLoading(false)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                    <FiFileText className="w-8 h-8 mb-2" />
+                    <span className="text-sm">No academic certificates</span>
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload('academic', file);
+                  }
+                }}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+
+            {/* Employment Documents */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Employment Documents</label>
+              <div className="relative w-full h-48 border border-gray-300 rounded-md overflow-hidden bg-gray-100">
+                {employmentDocumentsLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : employmentDocumentsUrl ? (
+                  <Image
+                    src={employmentDocumentsUrl}
+                    alt="Employment documents"
+                    fill
+                    className="object-contain"
+                    onLoad={() => setEmploymentDocumentsLoading(false)}
+                    onError={() => setEmploymentDocumentsLoading(false)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                    <FiFileText className="w-8 h-8 mb-2" />
+                    <span className="text-sm">No employment documents</span>
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload('employment', file);
+                  }
+                }}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
