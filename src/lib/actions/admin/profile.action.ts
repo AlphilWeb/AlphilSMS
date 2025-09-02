@@ -2,41 +2,75 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { courses, db, students } from '@/lib/db'; // Your Drizzle database connection
+import { db } from '@/lib/db';
 import { 
   users, 
   staff, 
   departments, 
   userLogs,
+  students,
+  courses,
   type SelectUser,
   type SelectStaff,
   type SelectDepartment,
   type NewUserLog,
-  SelectUserLog
-} from '@/lib/db/schema'; // Your schema file
-import { eq, and, desc, sql } from 'drizzle-orm';
+  type SelectUserLog
+} from '@/lib/db/schema';
+import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { hash, compare } from 'bcryptjs';
 import { redirect } from 'next/navigation';
+import { getAuthUser } from '@/lib/auth';
+import { s3Client, bucketName } from '@/lib/s3-client';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { v4 as uuidv4 } from 'uuid';
 
 // Types for admin profile data
 export interface AdminProfileData {
   user: SelectUser;
   staff: SelectStaff;
   department: SelectDepartment | null;
-  recentActivity: SelectUserLog[]; // Adjust type based on your needs
+  recentActivity: SelectUserLog[];
 }
 
 export interface UpdateAdminProfileParams {
   firstName: string;
   lastName: string;
   email: string;
+  idNumber?: string;
+  position?: string;
   currentPassword?: string;
   newPassword?: string;
+  employmentDocuments?: File;
+  nationalIdPhoto?: File;
+  academicCertificates?: File;
+  passportPhoto?: File;
+}
+
+// Helper function to upload file to R2
+async function uploadFileToR2(file: File, folder: string): Promise<string> {
+  const fileExtension = file.name.split('.').pop();
+  const fileName = `${folder}/${uuidv4()}.${fileExtension}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: fileName,
+    Body: buffer,
+    ContentType: file.type,
+  });
+
+  await s3Client.send(command);
+  return fileName;
 }
 
 // Get admin profile data
-export async function getAdminProfile(userId: number): Promise<AdminProfileData> {
+export async function getAdminProfile(): Promise<AdminProfileData> {
   try {
+    const authUser = await getAuthUser();
+    if (!authUser) throw new Error('Unauthorized');
+
+    const userId = authUser.userId;
+
     // Get user data
     const userData = await db.select()
       .from(users)
@@ -78,37 +112,64 @@ export async function getAdminProfile(userId: number): Promise<AdminProfileData>
     };
   } catch (error) {
     console.error('Error fetching admin profile:', error);
-    throw new Error('Failed to fetch admin profile');
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'Failed to fetch admin profile'
+    );
   }
 }
 
 // Update admin profile
 export async function updateAdminProfile(
-  userId: number,
-  staffId: number,
   data: UpdateAdminProfileParams
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const { firstName, lastName, email, currentPassword, newPassword } = data;
+    const authUser = await getAuthUser();
+    if (!authUser) throw new Error('Unauthorized');
 
-    // Verify current user exists
-    const userData = await db.select()
+    const userId = authUser.userId;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      idNumber, 
+      position, 
+      currentPassword, 
+      newPassword,
+      employmentDocuments,
+      nationalIdPhoto,
+      academicCertificates,
+      passportPhoto
+    } = data;
+
+    // Get current user and staff data
+    const [userData] = await db.select()
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
 
-    if (!userData[0]) {
+    if (!userData) {
       throw new Error('User not found');
     }
 
-    // Check if email is already taken by another user
-    if (email !== userData[0].email) {
-      const existingUser = await db.select()
+    const [staffData] = await db.select()
+      .from(staff)
+      .where(eq(staff.userId, userId))
+      .limit(1);
+
+    if (!staffData) {
+      throw new Error('Staff profile not found');
+    }
+
+    // Check if email is already taken by ANOTHER user
+    if (email !== userData.email) {
+      const [existingUser] = await db.select()
         .from(users)
-        .where(and(eq(users.email, email), eq(users.id, userId)))
+        .where(and(eq(users.email, email), sql`${users.id} != ${userId}`))
         .limit(1);
 
-      if (existingUser[0]) {
+      if (existingUser) {
         return {
           success: false,
           message: 'Email is already taken by another user'
@@ -116,9 +177,24 @@ export async function updateAdminProfile(
       }
     }
 
+    // Check if ID number is already taken by ANOTHER user
+    if (idNumber && idNumber !== userData.idNumber) {
+      const [existingUser] = await db.select()
+        .from(users)
+        .where(and(eq(users.idNumber, idNumber), sql`${users.id} != ${userId}`))
+        .limit(1);
+
+      if (existingUser) {
+        return {
+          success: false,
+          message: 'ID number is already taken by another user'
+        };
+      }
+    }
+
     // Handle password change if provided
     if (currentPassword && newPassword) {
-      const isPasswordValid = await compare(currentPassword, userData[0].passwordHash);
+      const isPasswordValid = await compare(currentPassword, userData.passwordHash);
       if (!isPasswordValid) {
         return {
           success: false,
@@ -128,36 +204,68 @@ export async function updateAdminProfile(
 
       const hashedPassword = await hash(newPassword, 12);
       
-      // Update user with new password
       await db.update(users)
         .set({
           email,
+          idNumber: idNumber || null,
           passwordHash: hashedPassword,
           updatedAt: new Date()
         })
         .where(eq(users.id, userId));
     } else {
-      // Update user without changing password
       await db.update(users)
         .set({
           email,
+          idNumber: idNumber || null,
           updatedAt: new Date()
         })
         .where(eq(users.id, userId));
     }
 
+    // Upload files if provided
+    const [
+      employmentDocumentsUrl,
+      nationalIdPhotoUrl,
+      academicCertificatesUrl,
+      passportPhotoUrl
+    ] = await Promise.all([
+      employmentDocuments 
+        ? uploadFileToR2(employmentDocuments, 'employment-documents') 
+        : Promise.resolve(null),
+      nationalIdPhoto 
+        ? uploadFileToR2(nationalIdPhoto, 'national-id-photos') 
+        : Promise.resolve(null),
+      academicCertificates 
+        ? uploadFileToR2(academicCertificates, 'academic-certificates') 
+        : Promise.resolve(null),
+      passportPhoto 
+        ? uploadFileToR2(passportPhoto, 'passport-photos') 
+        : Promise.resolve(null),
+    ]);
+
+    // Prepare staff update data
+    const staffUpdateData: Partial<SelectStaff> = {
+      firstName,
+      lastName,
+      email,
+      idNumber: idNumber || null,
+      position: position || staffData.position,
+      updatedAt: new Date()
+    };
+
+    // Only update file URLs if new files were uploaded
+    if (employmentDocumentsUrl) staffUpdateData.employmentDocumentsUrl = employmentDocumentsUrl;
+    if (nationalIdPhotoUrl) staffUpdateData.nationalIdPhotoUrl = nationalIdPhotoUrl;
+    if (academicCertificatesUrl) staffUpdateData.academicCertificatesUrl = academicCertificatesUrl;
+    if (passportPhotoUrl) staffUpdateData.passportPhotoUrl = passportPhotoUrl;
+
     // Update staff profile
     await db.update(staff)
-      .set({
-        firstName,
-        lastName,
-        email,
-        updatedAt: new Date()
-      })
-      .where(eq(staff.id, staffId));
+      .set(staffUpdateData)
+      .where(eq(staff.id, staffData.id));
 
     // Log the profile update
-    await logUserAction(userId, 'update', 'staff', staffId, 'Updated admin profile information');
+    await logUserAction(userId, 'update', 'staff', staffData.id, 'Updated admin profile information');
 
     revalidatePath('/admin/profile');
     return {
@@ -168,46 +276,84 @@ export async function updateAdminProfile(
     console.error('Error updating admin profile:', error);
     return {
       success: false,
-      message: 'Failed to update profile'
+      message: error instanceof Error 
+        ? error.message 
+        : 'Failed to update profile'
     };
   }
 }
 
-// Update admin profile photo
+// Update individual profile photo
 export async function updateAdminProfilePhoto(
-  userId: number,
-  staffId: number,
-  photoType: 'passport' | 'nationalId' | 'academic',
-  photoUrl: string
-): Promise<{ success: boolean; message: string }> {
+  photoType: 'passport' | 'nationalId' | 'academic' | 'employment',
+  file: File
+): Promise<{ success: boolean; message: string; fileUrl?: string }> {
   try {
-    const updateData: Partial<SelectStaff> = {};
+    const authUser = await getAuthUser();
+    if (!authUser) throw new Error('Unauthorized');
+
+    const userId = authUser.userId;
+
+    const [staffData] = await db.select()
+      .from(staff)
+      .where(eq(staff.userId, userId))
+      .limit(1);
+
+    if (!staffData) {
+      throw new Error('Staff profile not found');
+    }
+
+    // Upload file to R2
+    let folder: string;
+    switch (photoType) {
+      case 'passport':
+        folder = 'passport-photos';
+        break;
+      case 'nationalId':
+        folder = 'national-id-photos';
+        break;
+      case 'academic':
+        folder = 'academic-certificates';
+        break;
+      case 'employment':
+        folder = 'employment-documents';
+        break;
+      default:
+        folder = 'staff-documents';
+    }
+
+    const fileUrl = await uploadFileToR2(file, folder);
+
+    const updateData: Partial<SelectStaff> = {
+      updatedAt: new Date()
+    };
 
     switch (photoType) {
       case 'passport':
-        updateData.passportPhotoUrl = photoUrl;
+        updateData.passportPhotoUrl = fileUrl;
         break;
       case 'nationalId':
-        updateData.nationalIdPhotoUrl = photoUrl;
+        updateData.nationalIdPhotoUrl = fileUrl;
         break;
       case 'academic':
-        updateData.academicCertificatesUrl = photoUrl;
+        updateData.academicCertificatesUrl = fileUrl;
+        break;
+      case 'employment':
+        updateData.employmentDocumentsUrl = fileUrl;
         break;
     }
 
-    updateData.updatedAt = new Date();
-
     await db.update(staff)
       .set(updateData)
-      .where(eq(staff.id, staffId));
+      .where(eq(staff.id, staffData.id));
 
-    // Log the photo update
-    await logUserAction(userId, 'update', 'staff', staffId, `Updated ${photoType} photo`);
+    await logUserAction(userId, 'update', 'staff', staffData.id, `Updated ${photoType} photo`);
 
     revalidatePath('/admin/profile');
     return {
       success: true,
-      message: 'Profile photo updated successfully'
+      message: 'Profile photo updated successfully',
+      fileUrl
     };
   } catch (error) {
     console.error('Error updating profile photo:', error);
@@ -219,17 +365,17 @@ export async function updateAdminProfilePhoto(
 }
 
 // Get admin dashboard statistics
-export async function getAdminDashboardStats(userId: number) {
+export async function getAdminDashboardStats() {
   try {
-    // You'll need to import additional tables for these queries
-    console.log(userId)
+    const authUser = await getAuthUser();
+    if (!authUser) throw new Error('Unauthorized');
+
     const [
       totalStudents,
       totalStaff,
       totalCourses,
       recentRegistrations
     ] = await Promise.all([
-      // Example queries - adjust based on your actual needs
       db.select({ count: count() }).from(students),
       db.select({ count: count() }).from(staff),
       db.select({ count: count() }).from(courses),
@@ -275,14 +421,25 @@ async function logUserAction(
   }
 }
 
-// Delete admin account (with proper authorization checks)
+// Delete admin account
 export async function deleteAdminAccount(
-  userId: number,
-  staffId: number,
   confirmation: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    // Add additional security checks here
+    const authUser = await getAuthUser();
+    if (!authUser) throw new Error('Unauthorized');
+
+    const userId = authUser.userId;
+
+    const [staffData] = await db.select()
+      .from(staff)
+      .where(eq(staff.userId, userId))
+      .limit(1);
+
+    if (!staffData) {
+      throw new Error('Staff profile not found');
+    }
+
     if (confirmation !== 'DELETE MY ACCOUNT') {
       return {
         success: false,
@@ -293,7 +450,7 @@ export async function deleteAdminAccount(
     // Check if admin is head of any department
     const departmentsHeaded = await db.select()
       .from(departments)
-      .where(eq(departments.headOfDepartmentId, staffId));
+      .where(eq(departments.headOfDepartmentId, staffData.id));
 
     if (departmentsHeaded.length > 0) {
       return {
@@ -302,13 +459,12 @@ export async function deleteAdminAccount(
       };
     }
 
-    // Delete staff record (this should cascade to related records based on your schema)
-    await db.delete(staff).where(eq(staff.id, staffId));
+    // Delete staff record
+    await db.delete(staff).where(eq(staff.id, staffData.id));
 
     // Delete user account
     await db.delete(users).where(eq(users.id, userId));
 
-    // Log the account deletion
     await logUserAction(userId, 'delete', 'users', userId, 'Admin account deleted');
 
     redirect('/login');
@@ -321,8 +477,58 @@ export async function deleteAdminAccount(
   }
 }
 
-// Utility function for counting (if not already available)
-function count() {
-  // This is a placeholder - you might need to adjust based on your database
-  return sql`count(*)`;
+// Get image URL for admin profile
+export async function getAdminImageUrl(
+  imageType: 'passport' | 'nationalId' | 'academic' | 'employment'
+): Promise<{ success: boolean; imageUrl?: string; message?: string }> {
+  try {
+    const authUser = await getAuthUser();
+    if (!authUser) throw new Error('Unauthorized');
+
+    const userId = authUser.userId;
+
+    const [staffData] = await db.select()
+      .from(staff)
+      .where(eq(staff.userId, userId))
+      .limit(1);
+
+    if (!staffData) {
+      throw new Error('Staff profile not found');
+    }
+
+    let imageUrl: string | null = null;
+
+    switch (imageType) {
+      case 'passport':
+        imageUrl = staffData.passportPhotoUrl;
+        break;
+      case 'nationalId':
+        imageUrl = staffData.nationalIdPhotoUrl;
+        break;
+      case 'academic':
+        imageUrl = staffData.academicCertificatesUrl;
+        break;
+      case 'employment':
+        imageUrl = staffData.employmentDocumentsUrl;
+        break;
+    }
+
+    if (!imageUrl) {
+      return {
+        success: false,
+        message: 'Image not found'
+      };
+    }
+
+    return {
+      success: true,
+      imageUrl
+    };
+  } catch (error) {
+    console.error('Error getting admin image URL:', error);
+    return {
+      success: false,
+      message: 'Failed to get image URL'
+    };
+  }
 }
