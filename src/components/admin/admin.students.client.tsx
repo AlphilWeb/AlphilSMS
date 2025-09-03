@@ -18,7 +18,7 @@ import { ActionError } from '@/lib/utils';
 import BulkStudentsModal from '@/components/admin/bulk-students-modal.client';
 
 import {
-  getStudentForEdit,
+  // getStudentForEdit,
   updateStudent,
 } from '@/lib/actions/users/student.edit.actions';
 import { getStudentFormOptions, addStudent } from '@/lib/actions/test/test.action';
@@ -31,6 +31,45 @@ import {
   FiEyeOff,
   FiDownload // Added download icon
 } from 'react-icons/fi';
+import { bulkAddStudentsWithDetails, getStudentWithDetails } from '@/lib/actions/admin/student-with-details.actions';
+
+interface StudentWithDetailsData {
+  // Student basic info
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber: string;
+  registrationNumber: string;
+  studentNumber: string;
+  programId: number;
+  departmentId: number;
+  currentSemesterId: number;
+  password: string;
+  roleId: number;
+  
+  // Personal details
+  age: number;
+  sex: string;
+  county: string;
+  village: string;
+  contact1: string;
+  contact2: string;
+  contact3: string;
+  dateJoined: string;
+}
+
+interface Option {
+  id: number;
+  name: string;
+  code?: string;
+}
+
+interface StudentFormOptions {
+  programs: Option[];
+  departments: Option[];
+  semesters: Option[];
+  roles: Option[]; 
+}
 
 interface Option {
   id: number;
@@ -75,25 +114,21 @@ interface SelectedStudentType {
       name: string;
     };
   };
+  personalDetails?: {
+    age: number;
+    sex: string;
+    county: string;
+    village: string;
+    contact1: string;
+    contact2?: string | null;
+    contact3?: string | null;
+    dateJoined: string;
+  };
   createdAt: Date;
   updatedAt: Date;
   passportPhotoUrl?: string | null;
   idPhotoUrl?: string | null;
   certificateUrl?: string | null;
-}
-
-interface StudentData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  idNumber: string;
-  registrationNumber: string;
-  studentNumber: string;
-  programId: number;
-  departmentId: number;
-  currentSemesterId: number;
-  password: string;
-  roleId: number;
 }
 
 export default function AdminStudentsClient() {
@@ -138,6 +173,7 @@ export default function AdminStudentsClient() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+
 
   // Fetch all students on component mount and when search changes
   useEffect(() => {
@@ -264,11 +300,11 @@ const timer = setTimeout(async () => {
       setLoading(prev => ({ ...prev, details: true, enrollments: true }));
       setError(null);
       
-      const [opts, studentRes, studentEnrollments] = await Promise.all([
-        getStudentFormOptions(),
-        getStudentForEdit(studentId),
-        getStudentEnrollments(studentId)
-      ]);
+const [opts, studentRes, studentEnrollments] = await Promise.all([
+  getStudentFormOptions(),
+  getStudentWithDetails(studentId), // Changed from getStudentForEdit to getStudentWithDetails
+  getStudentEnrollments(studentId)
+]);
 
       setOptions(opts);
 
@@ -586,83 +622,31 @@ const timer = setTimeout(async () => {
     }
   };
 
-  const handleBulkCreateStudents = async (students: StudentData[]) => {
-    try {
-      setLoading(prev => ({ ...prev, create: true }));
-      setError(null);
-      
-      const createdStudents: StudentWithDetails[] = [];
-      
-      for (const student of students) {
-        // Validate required fields
-        if (!student.firstName || !student.lastName || !student.email || 
-            !student.registrationNumber || !student.studentNumber || 
-            !student.programId || !student.departmentId || !student.currentSemesterId ||
-            !student.password || !student.roleId) {
-          throw new ActionError(`All required fields must be filled for all students`);
-        }
-
-        const studentData: StudentData = {
-          firstName: student.firstName,
-          lastName: student.lastName,
-          email: student.email,
-          idNumber: student.idNumber,
-          registrationNumber: student.registrationNumber,
-          studentNumber: student.studentNumber,
-          programId: student.programId,
-          departmentId: student.departmentId,
-          currentSemesterId: student.currentSemesterId,
-          password: student.password,
-          roleId: student.roleId,
-        };
-
-        const newStudent = await addStudent(studentData);
-        
-        if (newStudent.success && newStudent.student) {
-          createdStudents.push({
-            id: newStudent.student.id,
-            firstName: newStudent.student.firstName,
-            lastName: newStudent.student.lastName,
-            email: newStudent.student.email,
-            registrationNumber: newStudent.student.registrationNumber,
-            studentNumber: newStudent.student.studentNumber,
-            program: {
-              id: student.programId,
-              name: options.programs.find(p => p.id === student.programId)?.name || ''
-            },
-            department: {
-              id: student.departmentId,
-              name: options.departments.find(d => d.id === student.departmentId)?.name || ''
-            },
-            currentSemester: {
-              id: student.currentSemesterId,
-              name: options.semesters.find(s => s.id === student.currentSemesterId)?.name || ''
-            },
-            user: {
-              id: newStudent.student.userId || 0,
-              role: {
-                id: student.roleId,
-                name: (options.roles ?? []).find(r => r.id === student.roleId)?.name || ''
-              }
-            },
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
-        } else {
-          throw new ActionError(newStudent.error || 'Failed to create student');
-        }
-      }
-      
-      // Add all created students to the list
-      setStudents(prev => [...prev, ...createdStudents]);
-      setIsBulkModalOpen(false);
-      setSuccess(`${students.length} students created successfully!`);
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to create students');
-    } finally {
-      setLoading(prev => ({ ...prev, create: false }));
+const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsData[]) => {
+  try {
+    setLoading(prev => ({ ...prev, create: true }));
+    setError(null);
+    
+    // Use the new bulk action that handles both students and personal details
+    const results = await bulkAddStudentsWithDetails(students);
+    
+    if (results.errors.length > 0) {
+      const errorMessage = `Failed to create ${results.errors.length} students. Errors: ${results.errors.map(e => `Row ${e.index + 1}: ${e.error}`).join(', ')}`;
+      throw new ActionError(errorMessage);
     }
-  };
+    
+    // Refresh the students list by fetching all students again
+    const updatedStudents = await getAllStudents();
+    setStudents(updatedStudents);
+    
+    setIsBulkModalOpen(false);
+    setSuccess(`${results.success} students with details created successfully!`);
+  } catch (err) {
+    setError(err instanceof ActionError ? err.message : 'Failed to create students');
+  } finally {
+    setLoading(prev => ({ ...prev, create: false }));
+  }
+};
 
   // Delete student
   const handleDeleteStudent = async () => {
@@ -1192,7 +1176,6 @@ const timer = setTimeout(async () => {
       )}
 
       {/* View Student Details Modal */}
-      {/* View Student Details Modal */}
 {isViewModalOpen && selectedStudent && (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-auto">
     <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -1331,6 +1314,53 @@ const timer = setTimeout(async () => {
             </div>
           </div>
         </div>
+
+{/* Personal Details Section */}
+{selectedStudent.personalDetails && (
+  <div className="mt-6">
+    <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Details</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Age</h4>
+        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.age}</p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Sex</h4>
+        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.sex}</p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">County</h4>
+        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.county}</p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Village</h4>
+        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.village}</p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Primary Contact</h4>
+        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.contact1}</p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Emergency Contact</h4>
+        <p className="mt-1 text-sm text-gray-900">
+          {selectedStudent.personalDetails.contact2 || 'Not provided'}
+        </p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Next of Kin</h4>
+        <p className="mt-1 text-sm text-gray-900">
+          {selectedStudent.personalDetails.contact3 || 'Not provided'}
+        </p>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-gray-500">Date Joined</h4>
+        <p className="mt-1 text-sm text-gray-900">
+          {new Date(selectedStudent.personalDetails.dateJoined).toLocaleDateString()}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Enrollments Section */}
         <div className="mt-8">
@@ -1727,7 +1757,7 @@ const timer = setTimeout(async () => {
       <BulkStudentsModal
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
-        onSubmit={handleBulkCreateStudents}
+        onSubmit={handleBulkCreateStudentsWithDetails}
         options={options}
       />
     </div>
