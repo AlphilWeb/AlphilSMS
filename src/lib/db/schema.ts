@@ -305,6 +305,33 @@ export const students = pgTable('students', {
 export type NewStudent = InferInsertModel<typeof students>;
 export type SelectStudent = InferSelectModel<typeof students>;
 
+// Add to your schema file after the students table
+export const studentPersonalDetails = pgTable('student_personal_details', {
+  id: serial('id').primaryKey(),
+  studentId: integer('student_id').notNull().unique(),
+  age: integer('age').notNull(),
+  sex: varchar('sex', { length: 10 }).notNull(),
+  county: varchar('county', { length: 100 }).notNull(),
+  village: varchar('village', { length: 100 }).notNull(),
+  contact1: varchar('contact1', { length: 20 }).notNull(), // Primary contact
+  contact2: varchar('contact2', { length: 20 }), // Emergency contact
+  contact3: varchar('contact3', { length: 20 }), // Next of kin
+  dateJoined: date('date_joined', { mode: 'string' }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Explicit Foreign Key Constraint: studentPersonalDetails.studentId -> students.id
+    studentFk: foreignKey({
+      columns: [table.studentId],
+      foreignColumns: [students.id],
+    }).onDelete('cascade'), // If a student is deleted, their personal details are also deleted
+  };
+});
+
+export type NewStudentPersonalDetails = InferInsertModel<typeof studentPersonalDetails>;
+export type SelectStudentPersonalDetails = InferSelectModel<typeof studentPersonalDetails>;
+
 
 
 // --- Academic Records Tables ---
@@ -757,6 +784,18 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   transcripts: many(transcripts),
   invoices: many(invoices),
   payments: many(payments),
+  // Add this new relation
+  personalDetails: one(studentPersonalDetails, {
+    fields: [students.id],
+    references: [studentPersonalDetails.studentId],
+  }),
+}));
+
+export const studentPersonalDetailsRelations = relations(studentPersonalDetails, ({ one }) => ({
+  student: one(students, {
+    fields: [studentPersonalDetails.studentId],
+    references: [students.id],
+  }),
 }));
 
 export const staffRelations = relations(staff, ({ one, many }) => ({
