@@ -439,7 +439,7 @@ export async function generateStudentListPdf(
       filterDescription += filterDescription !== "All Students" ? `, Course: ${course?.name || 'Unknown'}` : `Course: ${course?.name || 'Unknown'}`;
     }
 
-const html = `
+const html = ` 
 <!DOCTYPE html>
 <html>
 <head>
@@ -467,28 +467,34 @@ const html = `
       border-radius: 10px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 900px;
+      max-width: 1200px;
       padding: 30px;
       position: relative;
     }
 
     .header {
-      text-align: center;
-      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       border-bottom: 2px solid #1a4f8c;
-      padding-bottom: 20px;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
     }
 
     .logo-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 15px;
+      flex-shrink: 0;
+      margin-right: 20px;
     }
 
     .logo {
       width: 90px;
       height: 90px;
       border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .school-details {
+      flex-grow: 1;
     }
 
     .school-name {
@@ -498,14 +504,11 @@ const html = `
       margin-bottom: 8px;
     }
 
-    .school-address {
+    .school-address,
+    .school-contact {
       color: #555;
       margin-bottom: 5px;
       line-height: 1.4;
-    }
-
-    .school-contact {
-      color: #555;
       font-size: 14px;
     }
 
@@ -535,19 +538,35 @@ const html = `
     }
 
     th, td {
-      border: 1px solid #e0e0e0;
-      padding: 10px;
+      border: 1px solid #000;
+      padding: 6px 8px;
       text-align: left;
+      color: black;
     }
 
     th {
-      background-color: #f0f5ff;
-      color: #1a4f8c;
+      background-color: #4CAF50;
+      color: white;
       font-weight: bold;
+      text-align: center;
     }
 
     tr:nth-child(even) {
-      background-color: #fafafa;
+      background-color: #f9f9f9;
+    }
+
+    .lecturer-section {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+
+    .lecturer-field {
+      width: 45%;
+      border-top: 1px solid #000;
+      padding-top: 5px;
+      text-align: center;
     }
 
     .footer {
@@ -590,11 +609,13 @@ const html = `
 
     <div class="header">
       <div class="logo-container">
-        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+        <img src="icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
-      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
-      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+      <div class="school-details">
+        <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+        <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+        <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+      </div>
     </div>
 
     <div class="report-title">STUDENT LIST</div>
@@ -610,6 +631,10 @@ const html = `
           <th>Department</th>
           <th>Current Semester</th>
           <th>Email</th>
+          <th>Lesson 1</th>
+          <th>Lesson 2</th>
+          <th>Lesson 3</th>
+          <th>Lesson 4</th>
         </tr>
       </thead>
       <tbody>
@@ -621,10 +646,19 @@ const html = `
             <td>${student.department.name}</td>
             <td>${student.semester.name}</td>
             <td>${student.student.email}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
           </tr>
         `).join('')}
       </tbody>
     </table>
+
+    <div class="lecturer-section">
+      <div class="lecturer-field">Lecturer's Name</div>
+      <div class="lecturer-field">Signature</div>
+    </div>
 
     <div class="footer">
       Total students: ${studentData.length}
@@ -750,28 +784,34 @@ const html = `
       border-radius: 10px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 900px;
+      max-width: 1200px;
       padding: 30px;
       position: relative;
     }
 
     .header {
-      text-align: center;
-      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       border-bottom: 2px solid #1a4f8c;
-      padding-bottom: 20px;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
     }
 
     .logo-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 15px;
+      flex-shrink: 0;
+      margin-right: 20px;
     }
 
     .logo {
       width: 90px;
       height: 90px;
       border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .school-details {
+      flex-grow: 1;
     }
 
     .school-name {
@@ -781,14 +821,11 @@ const html = `
       margin-bottom: 8px;
     }
 
-    .school-address {
+    .school-address,
+    .school-contact {
       color: #555;
       margin-bottom: 5px;
       line-height: 1.4;
-    }
-
-    .school-contact {
-      color: #555;
       font-size: 14px;
     }
 
@@ -818,19 +855,21 @@ const html = `
     }
 
     th, td {
-      border: 1px solid #e0e0e0;
-      padding: 10px;
+      border: 1px solid #000;
+      padding: 6px 8px;
       text-align: left;
+      color: black;
     }
 
     th {
-      background-color: #f0f5ff;
-      color: #1a4f8c;
+      background-color: #4CAF50;
+      color: white;
       font-weight: bold;
+      text-align: center;
     }
 
     tr:nth-child(even) {
-      background-color: #fafafa;
+      background-color: #f9f9f9;
     }
 
     .footer {
@@ -873,11 +912,13 @@ const html = `
 
     <div class="header">
       <div class="logo-container">
-        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+        <img src="icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
-      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
-      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+      <div class="school-details">
+        <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+        <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+        <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+      </div>
     </div>
 
     <div class="report-title">STAFF DIRECTORY</div>
@@ -1029,7 +1070,7 @@ export async function generateInvoiceListPdf(
         `Status: ${filters.status}`;
     }
 
-    const html = `
+const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -1057,28 +1098,34 @@ export async function generateInvoiceListPdf(
       border-radius: 10px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 1000px;
+      max-width: 1200px;
       padding: 30px;
       position: relative;
     }
 
     .header {
-      text-align: center;
-      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       border-bottom: 2px solid #1a4f8c;
-      padding-bottom: 20px;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
     }
 
     .logo-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 15px;
+      flex-shrink: 0;
+      margin-right: 20px;
     }
 
     .logo {
       width: 90px;
       height: 90px;
       border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .school-details {
+      flex-grow: 1;
     }
 
     .school-name {
@@ -1088,14 +1135,11 @@ export async function generateInvoiceListPdf(
       margin-bottom: 8px;
     }
 
-    .school-address {
+    .school-address,
+    .school-contact {
       color: #555;
       margin-bottom: 5px;
       line-height: 1.4;
-    }
-
-    .school-contact {
-      color: #555;
       font-size: 14px;
     }
 
@@ -1125,19 +1169,21 @@ export async function generateInvoiceListPdf(
     }
 
     th, td {
-      border: 1px solid #e0e0e0;
-      padding: 10px;
+      border: 1px solid #000;
+      padding: 6px 8px;
       text-align: left;
+      color: black;
     }
 
     th {
-      background-color: #f0f5ff;
-      color: #1a4f8c;
+      background-color: #4CAF50;
+      color: white;
       font-weight: bold;
+      text-align: center;
     }
 
     tr:nth-child(even) {
-      background-color: #fafafa;
+      background-color: #f9f9f9;
     }
 
     .negative {
@@ -1185,11 +1231,13 @@ export async function generateInvoiceListPdf(
 
     <div class="header">
       <div class="logo-container">
-        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
+        <img src="icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
-      <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
-      <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+      <div class="school-details">
+        <div class="school-name">ALPHIL TRAINING COLLEGE</div>
+        <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+        <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
+      </div>
     </div>
 
     <div class="report-title">INVOICE LIST</div>
@@ -1233,7 +1281,6 @@ export async function generateInvoiceListPdf(
 </body>
 </html>
 `;
-
 
     const pdfBuffer = await generatePdfFromHtml(html, true);
     
