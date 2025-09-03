@@ -272,7 +272,7 @@ const html = `
         <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
       <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-address">Kiratina Estate, menengai Ward, Nakuru , Kenya</div>
       <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
     </div>
 
@@ -439,7 +439,7 @@ export async function generateStudentListPdf(
       filterDescription += filterDescription !== "All Students" ? `, Course: ${course?.name || 'Unknown'}` : `Course: ${course?.name || 'Unknown'}`;
     }
 
-const html = ` 
+const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -476,7 +476,7 @@ const html = `
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2px solid #1a4f8c;
+      border-bottom: 2px solid #ec4899;
       padding-bottom: 15px;
       margin-bottom: 25px;
     }
@@ -490,7 +490,9 @@ const html = `
       width: 90px;
       height: 90px;
       border-radius: 50%;
-      object-fit: cover;
+      background-image: url("icon.jpg");
+      background-size: cover;
+      background-position: center;
     }
 
     .school-details {
@@ -500,13 +502,13 @@ const html = `
     .school-name {
       font-size: 24px;
       font-weight: bold;
-      color: #1a4f8c;
+      color: #ec4899;
       margin-bottom: 8px;
     }
 
     .school-address,
     .school-contact {
-      color: #555;
+      color: #ec4899;
       margin-bottom: 5px;
       line-height: 1.4;
       font-size: 14px;
@@ -516,10 +518,10 @@ const html = `
       text-align: center;
       font-size: 20px;
       font-weight: bold;
-      color: #1a4f8c;
+      color: #ec4899;
       margin: 20px 0;
       padding: 10px;
-      background-color: #f0f5ff;
+      background-color: #fdf2f8;
       border-radius: 5px;
     }
 
@@ -535,6 +537,7 @@ const html = `
       border-collapse: collapse;
       margin: 15px 0;
       font-size: 14px;
+      page-break-inside: auto;
     }
 
     th, td {
@@ -545,7 +548,7 @@ const html = `
     }
 
     th {
-      background-color: #4CAF50;
+      background-color: #ec4899;
       color: white;
       font-weight: bold;
       text-align: center;
@@ -553,6 +556,14 @@ const html = `
 
     tr:nth-child(even) {
       background-color: #f9f9f9;
+    }
+
+    /* force 15 rows per printed page */
+    tbody tr {
+      page-break-inside: avoid;
+    }
+    tbody tr:nth-of-type(15n) {
+      page-break-after: always;
     }
 
     .lecturer-section {
@@ -585,7 +596,7 @@ const html = `
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 100px;
       font-weight: bold;
-      color: #1a4f8c;
+      color: #ec4899;
       opacity: 0.03;
       pointer-events: none;
       white-space: nowrap;
@@ -609,16 +620,14 @@ const html = `
 
     <div class="header">
       <div class="logo-container">
-        <img src="icon.jpg" alt="Alphil Training College Logo" class="logo">
+        <div class="logo"></div>
       </div>
       <div class="school-details">
         <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-        <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+        <div class="school-address">Kiratina Estate, Menengai Ward, Nakuru, Kenya</div>
         <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
       </div>
     </div>
-
-    <div class="report-title">STUDENT LIST</div>
 
     <div class="filter-info">${filterDescription}</div>
 
@@ -631,10 +640,6 @@ const html = `
           <th>Department</th>
           <th>Current Semester</th>
           <th>Email</th>
-          <th>Lesson 1</th>
-          <th>Lesson 2</th>
-          <th>Lesson 3</th>
-          <th>Lesson 4</th>
         </tr>
       </thead>
       <tbody>
@@ -646,10 +651,6 @@ const html = `
             <td>${student.department.name}</td>
             <td>${student.semester.name}</td>
             <td>${student.student.email}</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
           </tr>
         `).join('')}
       </tbody>
@@ -668,6 +669,7 @@ const html = `
 </body>
 </html>
 `;
+
 
 
     const pdfBuffer = await generatePdfFromHtml(html, true);
@@ -916,7 +918,7 @@ const html = `
       </div>
       <div class="school-details">
         <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-        <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+        <div class="school-address">Kiratina Estate, menengai Ward, Nakuru     , Kenya</div>
         <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
       </div>
     </div>
@@ -1235,7 +1237,7 @@ const html = `
       </div>
       <div class="school-details">
         <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-        <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+        <div class="school-address">Kiratina Estate, menengai Ward, Nakuru     , Kenya</div>
         <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
       </div>
     </div>
@@ -1538,7 +1540,7 @@ export async function generatePaymentListPdf(
         <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
       <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-address">Kiratina Estate, menengai Ward, Nakuru     , Kenya</div>
       <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
     </div>
 
@@ -1949,7 +1951,7 @@ let html = `
         <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
       <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-address">Kiratina Estate, menengai Ward, Nakuru     , Kenya</div>
       <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
     </div>
 
@@ -2274,7 +2276,7 @@ export async function generateFeeStructurePdf(
         <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
       </div>
       <div class="school-name">ALPHIL TRAINING COLLEGE</div>
-      <div class="school-address">Kiratina Estate, Mending Ward, Nakuru East Sub-County, Kenya</div>
+      <div class="school-address">Kiratina Estate, menengai Ward, Nakuru     , Kenya</div>
       <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
     </div>
 

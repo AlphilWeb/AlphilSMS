@@ -8,16 +8,6 @@ import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionError } from '@/lib/utils';
 
-// Types
-
-interface Role {
-  id: number;
-  name: string;
-}
-interface User {
-  id: number;
-  role: Role;
-}
 export type StudentWithDetails = {
   id: number;
   firstName: string;
@@ -37,7 +27,7 @@ export type StudentWithDetails = {
     id: number;
     name: string;
   };
-  user?: User;
+  // user?: User;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -108,34 +98,39 @@ export async function getAllStudents(): Promise<StudentWithDetails[]> {
   const authUser = await getAuthUser();
   if (!authUser) throw new Error('Unauthorized');
 
-  return db
-    .select({
-      id: students.id,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      email: students.email,
-      registrationNumber: students.registrationNumber,
-      studentNumber: students.studentNumber,
-      program: {
-        id: programs.id,
-        name: programs.name,
-      },
-      department: {
-        id: departments.id,
-        name: departments.name,
-      },
-      currentSemester: {
-        id: semesters.id,
-        name: semesters.name,
-      },
-      createdAt: students.createdAt,
-      updatedAt: students.updatedAt,
-    })
-    .from(students)
-    .innerJoin(programs, eq(programs.id, students.programId))
-    .innerJoin(departments, eq(departments.id, students.departmentId))
-    .innerJoin(semesters, eq(semesters.id, students.currentSemesterId))
-    .orderBy(asc(students.lastName), asc(students.firstName));
+  try {
+    return db
+      .select({
+        id: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        email: students.email,
+        registrationNumber: students.registrationNumber,
+        studentNumber: students.studentNumber,
+        program: {
+          id: programs.id,
+          name: programs.name,
+        },
+        department: {
+          id: departments.id,
+          name: departments.name,
+        },
+        currentSemester: {
+          id: semesters.id,
+          name: semesters.name,
+        },
+        createdAt: students.createdAt,
+        updatedAt: students.updatedAt,
+      })
+      .from(students)
+      .innerJoin(programs, eq(programs.id, students.programId))
+      .innerJoin(departments, eq(departments.id, students.departmentId))
+      .innerJoin(semesters, eq(semesters.id, students.currentSemesterId))
+      .orderBy(asc(students.lastName), asc(students.firstName));
+  } catch (error) {
+    console.error('Error in getAllStudents:', error);
+    throw new ActionError('Failed to fetch students from database');
+  }
 }
 
 // Search students by name, email, or registration number

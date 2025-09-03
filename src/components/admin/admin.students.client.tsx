@@ -176,23 +176,23 @@ export default function AdminStudentsClient() {
 
 
   // Fetch all students on component mount and when search changes
-  useEffect(() => {
-    const loadStudents = async () => {
-      try {
-        setLoading(prev => ({ ...prev, students: true }));
-        setError(null);
-        const studentsData = await getAllStudents();
-        setStudents(studentsData);
-      } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load students' );
-        console.error('Error loading students:', err);
-      } finally {
-        setLoading(prev => ({ ...prev, students: false }));
-      }
-    };
+useEffect(() => {
+  const loadStudents = async () => {
+    try {
+      setLoading(prev => ({ ...prev, students: true }));
+      setError(null);
+      const studentsData = await getAllStudents();
+      setStudents(studentsData);
+    } catch (err) {
+      console.error('Detailed error loading students:', err);
+      setError(err instanceof ActionError ? err.message : 'Failed to load students. Please check console for details.');
+    } finally {
+      setLoading(prev => ({ ...prev, students: false }));
+    }
+  };
 
-    loadStudents();
-  }, []);
+  loadStudents();
+}, []);
 
   // Load form options
   useEffect(() => {
@@ -223,7 +223,6 @@ export default function AdminStudentsClient() {
     loadOptions();
   }, []);
 
-  // Handle search
 // Handle search
 useEffect(() => {
   // If search query is empty, reload all students immediately

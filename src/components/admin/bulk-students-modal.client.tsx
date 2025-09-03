@@ -165,10 +165,6 @@ export default function BulkStudentsModal({
           throw new Error(`Row ${i + 1}: Age must be between 16 and 100`);
         }
         
-        // Contact validation
-        if (student.contact1.length < 10) {
-          throw new Error(`Row ${i + 1}: Contact 1 must be at least 10 characters`);
-        }
       }
       
       await onSubmit(students);

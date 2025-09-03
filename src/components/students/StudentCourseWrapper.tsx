@@ -32,12 +32,7 @@ export default function StudentCoursesWrapper() {
     const fetchData = async () => {
       try {
         const enrolled = await getStudentEnrolledCourses();
-        setEnrolledCourses(enrolled);
-        
-        // If you have a function to get available courses:
-        // const available = await getAvailableCourses();
-        // setAvailableCourses(available);
-        
+        setEnrolledCourses(enrolled);      
         setLoading(false);
       } catch (error) {
         console.error('Failed to load courses:', error);
