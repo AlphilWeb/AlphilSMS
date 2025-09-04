@@ -23,6 +23,7 @@ import {
 
 import TipTapEditor from '@/components/TipTapEditor';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
+import { generateAttendanceListPdf, getCourses, getDepartments, getPrograms, getSemesters } from '@/lib/actions/pdf-generataion/attendance.generation.action';
 
 type TimetableEntry = {
   dayOfWeek: string;
@@ -34,6 +35,45 @@ type TimetableEntry = {
 interface MaterialContent {
   html: string;
   json: object;
+}
+
+// Add these type definitions near the top of your component
+interface Department {
+  id: number;
+  name: string;
+  headOfDepartmentId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Program {
+  id: number;
+  departmentId: number;
+  name: string;
+  code: string;
+  durationSemesters: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Semester {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface Course {
+  id: number;
+  programId: number;
+  semesterId: number;
+  lecturerId: number | null;
+  name: string;
+  code: string;
+  credits: string | number;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export default function LecturerCoursesClient() {
@@ -66,6 +106,79 @@ export default function LecturerCoursesClient() {
     content: { html: '', json: {} },
     file: null,
   });
+
+// Add these to your existing state declarations
+const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+const [attendanceFilters, setAttendanceFilters] = useState({
+  departmentId: 0,
+  programId: 0,
+  semesterId: 0,
+  courseId: 0
+});
+// Update these state declarations with proper types
+const [availableDepartments, setAvailableDepartments] = useState<Department[]>([]);
+const [availablePrograms, setAvailablePrograms] = useState<Program[]>([]);
+const [availableSemesters, setAvailableSemesters] = useState<Semester[]>([]);
+const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+const [generatingPdf, setGeneratingPdf] = useState(false);  
+
+// Add these functions to your component
+
+// Fetch filter options
+const fetchFilterOptions = async () => {
+  try {
+    // You'll need to create these functions in your actions
+    const [depts, progs, sems, crs] = await Promise.all([
+      getDepartments(),
+      getPrograms(),
+      getSemesters(),
+      getCourses()
+    ]);
+    setAvailableDepartments(depts);
+    setAvailablePrograms(progs);
+    setAvailableSemesters(sems);
+    setAvailableCourses(crs);
+  } catch (error) {
+    setError('Failed to load filter options');
+    console.log(error)
+  }
+};
+
+// Generate attendance list PDF
+// Update the handleGenerateAttendanceList function
+const handleGenerateAttendanceList = async () => {
+  try {
+    setGeneratingPdf(true);
+    setError(null);
+    
+    const pdfBuffer = await generateAttendanceListPdf(attendanceFilters);
+    
+    // Convert Buffer to Uint8Array first, then to Blob
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const blob = new Blob([uint8Array], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-list-${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    setIsAttendanceModalOpen(false);
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'Failed to generate attendance list');
+  } finally {
+    setGeneratingPdf(false);
+  }
+};
+
+// Load filter options when modal opens
+useEffect(() => {
+  if (isAttendanceModalOpen) {
+    fetchFilterOptions();
+  }
+}, [isAttendanceModalOpen]);
 
   const toggleExpanded = (id: number) => {
     setExpandedMaterialIds((prev) => {
@@ -278,10 +391,16 @@ export default function LecturerCoursesClient() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Course Management</h1>
-      </div>
+{/* Header */}
+<div className="flex justify-between items-center mb-8">
+  <h1 className="text-3xl font-bold text-gray-800">Course Management</h1>
+  <button
+    onClick={() => setIsAttendanceModalOpen(true)}
+    className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
+  >
+    <FiFileText /> Generate Attendance List
+  </button>
+</div>
 
       {/* Error Message */}
       {error && (
@@ -761,6 +880,145 @@ export default function LecturerCoursesClient() {
           </div>
         </div>
       )}
+
+      {/* Attendance List Modal */}
+{isAttendanceModalOpen && (
+  <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <div className="flex justify-between items-center p-6 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-gray-800">Generate Attendance List</h2>
+        <button
+          onClick={() => setIsAttendanceModalOpen(false)}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <FiX size={24} />
+        </button>
+      </div>
+
+      <div className="p-6 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Department
+          </label>
+          <select
+            value={attendanceFilters.departmentId}
+            onChange={(e) => setAttendanceFilters({
+              ...attendanceFilters,
+              departmentId: parseInt(e.target.value),
+              programId: 0,
+              courseId: 0
+            })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          >
+            <option value={0}>All Departments</option>
+            {availableDepartments.map((dept) => (
+              <option key={dept.id} value={dept.id}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Program
+          </label>
+          <select
+            value={attendanceFilters.programId}
+            onChange={(e) => setAttendanceFilters({
+              ...attendanceFilters,
+              programId: parseInt(e.target.value),
+              courseId: 0
+            })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            disabled={!attendanceFilters.departmentId}
+          >
+            <option value={0}>All Programs</option>
+            {availablePrograms
+              .filter(prog => !attendanceFilters.departmentId || prog.departmentId === attendanceFilters.departmentId)
+              .map((prog) => (
+                <option key={prog.id} value={prog.id}>
+                  {prog.name}
+                </option>
+              ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Semester
+          </label>
+          <select
+            value={attendanceFilters.semesterId}
+            onChange={(e) => setAttendanceFilters({
+              ...attendanceFilters,
+              semesterId: parseInt(e.target.value)
+            })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          >
+            <option value={0}>All Semesters</option>
+            {availableSemesters.map((sem) => (
+              <option key={sem.id} value={sem.id}>
+                {sem.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Course
+          </label>
+          <select
+            value={attendanceFilters.courseId}
+            onChange={(e) => setAttendanceFilters({
+              ...attendanceFilters,
+              courseId: parseInt(e.target.value)
+            })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            disabled={!attendanceFilters.programId}
+          >
+            <option value={0}>All Courses</option>
+            {availableCourses
+              .filter(course => !attendanceFilters.programId || course.programId === attendanceFilters.programId)
+              .map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.name} ({course.code})
+                </option>
+              ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+        <button
+          onClick={() => setIsAttendanceModalOpen(false)}
+          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleGenerateAttendanceList}
+          disabled={generatingPdf}
+          className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 disabled:bg-pink-300 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {generatingPdf ? (
+            <>
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generating...
+            </>
+          ) : (
+            'Generate PDF'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+      
     </div>
   );
 }
