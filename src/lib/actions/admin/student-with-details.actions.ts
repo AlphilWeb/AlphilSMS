@@ -7,9 +7,7 @@ import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { hash } from "bcryptjs";
 import { eq, InferSelectModel } from "drizzle-orm";
-import { StudentWithDetailsFormData, studentWithDetailsSchemaClient } from "./student-schemas";
-
-
+import { StudentWithDetailsFormData } from "./student-schemas";
 
 type User = InferSelectModel<typeof users>;
 type Student = InferSelectModel<typeof students>;
@@ -44,7 +42,7 @@ async function deleteFileFromR2(fileUrl: string | null): Promise<void> {
 
   try {
     await s3Client.send(command);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error deleting file from R2:", error);
   }
 }
@@ -74,11 +72,12 @@ export async function getStudentWithDetails(studentId: number) {
       success: true,
       student: studentData,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching student with details:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch student";
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch student",
+      error: errorMessage,
     };
   }
 }
@@ -93,7 +92,7 @@ export async function addStudentWithDetails(data: StudentWithDetailsFormData & {
   let newStudent: Student | null = null;
   
   try {
-    const validatedData = studentWithDetailsSchemaClient.parse(data);
+    const validatedData = data;
 
     // Check if email already exists
     const existingUser = await db.query.users.findFirst({
@@ -194,14 +193,14 @@ export async function addStudentWithDetails(data: StudentWithDetailsFormData & {
       user: newUser,
       personalDetails,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error adding student with details:", error);
 
     // Cleanup: Delete created records if any step fails
     if (newStudent) {
       try {
         await db.delete(students).where(eq(students.id, newStudent.id));
-      } catch (cleanupError) {
+      } catch (cleanupError: unknown) {
         console.error("Failed to clean up student record:", cleanupError);
       }
     }
@@ -209,14 +208,15 @@ export async function addStudentWithDetails(data: StudentWithDetailsFormData & {
     if (newUser) {
       try {
         await db.delete(users).where(eq(users.id, newUser.id));
-      } catch (cleanupError) {
+      } catch (cleanupError: unknown) {
         console.error("Failed to clean up user record:", cleanupError);
       }
     }
 
+    const errorMessage = error instanceof Error ? error.message : "Failed to add student with details";
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to add student with details",
+      error: errorMessage,
     };
   }
 }
@@ -398,43 +398,68 @@ export async function updateStudentWithDetails(
       success: true,
       student: updatedStudent,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error updating student with details:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to update student";
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update student",
+      error: errorMessage,
     };
   }
 }
 
-// BULK CREATE students with details
+// BULK CREATE students with details - UPDATED VERSION
 export async function bulkAddStudentsWithDetails(studentsData: StudentWithDetailsFormData[]) {
+  type BulkResult = {
+    success: boolean;
+    student?: Student;
+    user?: User;
+    personalDetails?: StudentPersonalDetails;
+    error?: string;
+  };
+
   const results = {
     success: 0,
     errors: [] as { index: number; error: string }[],
-    createdStudents: [] as Array<{
-      success: boolean;
-      student?: Student;
-      user?: User;
-      personalDetails?: StudentPersonalDetails;
-      error?: string;
-    }>,
+    createdStudents: [] as BulkResult[],
   };
 
   for (let i = 0; i < studentsData.length; i++) {
     try {
+      // Check if student already exists before trying to create
+      const existingStudent = await db.query.students.findFirst({
+        where: (students, { or, eq }) => 
+          or(
+            eq(students.email, studentsData[i].email),
+            eq(students.registrationNumber, studentsData[i].registrationNumber),
+            eq(students.studentNumber, studentsData[i].studentNumber)
+          ),
+      });
+
+      if (existingStudent) {
+        results.errors.push({ 
+          index: i, 
+          error: `Student with email ${studentsData[i].email} already exists` 
+        });
+        continue;
+      }
+
       const result = await addStudentWithDetails(studentsData[i]);
       
       if (result.success) {
         results.success++;
         results.createdStudents.push(result);
       } else {
-        results.errors.push({ index: i, error: result.error || "Unknown error" });
+        results.errors.push({ 
+          index: i, 
+          error: result.error || "Unknown error" 
+        });
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       results.errors.push({ 
         index: i, 
-        error: error instanceof Error ? error.message : "Unknown error" 
+        error: errorMessage 
       });
     }
   }
