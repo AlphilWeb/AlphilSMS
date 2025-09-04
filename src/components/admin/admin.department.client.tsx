@@ -50,6 +50,16 @@ export default function AdminDepartmentsClient() {
     direction: 'asc'
   });
 
+  // Friendly error handler (uses ActionError message if present, otherwise a fallback)
+  const handleError = (err: unknown, fallbackMessage: string) => {
+    console.error(err);
+    if (err instanceof ActionError && err.message) {
+      setError(err.message);
+    } else {
+      setError(fallbackMessage);
+    }
+  };
+
   // Fetch all departments on component mount
   useEffect(() => {
     const loadDepartments = async () => {
@@ -59,7 +69,7 @@ export default function AdminDepartmentsClient() {
         setDepartments(data);
         setFilteredDepartments(data);
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load departments');
+        handleError(err, 'Unable to load departments. Please try again later.');
       } finally {
         setLoading(prev => ({ ...prev, departments: false }));
       }
@@ -68,7 +78,7 @@ export default function AdminDepartmentsClient() {
     loadDepartments();
   }, []);
 
-  // Filter departments based on search term
+  // Filter & sort departments (selected department stays pinned at top)
   useEffect(() => {
     const filtered = departments.filter(dept => 
       dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,15 +87,12 @@ export default function AdminDepartmentsClient() {
           .toLowerCase().includes(searchTerm.toLowerCase()))
     );
     
-    // Sort the filtered departments
     const sorted = [...filtered].sort((a, b) => {
-      // If one of them is selected, it should come first
       if (selectedDepartment) {
         if (a.id === selectedDepartment.id) return -1;
         if (b.id === selectedDepartment.id) return 1;
       }
       
-      // Apply the current sorting
       if (sortConfig.key) {
         const aValue = a[sortConfig.key as keyof DepartmentWithStats];
         const bValue = b[sortConfig.key as keyof DepartmentWithStats];
@@ -141,7 +148,7 @@ export default function AdminDepartmentsClient() {
       setNewDepartmentName(details.name);
       setIsDetailsModalOpen(true);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to load department details');
+      handleError(err, 'Unable to load department details. Please try again later.');
     } finally {
       setLoading(prev => ({ 
         ...prev, 
@@ -176,7 +183,7 @@ export default function AdminDepartmentsClient() {
       setNewDepartmentName('');
       setIsCreateModalOpen(false);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to create department');
+      handleError(err, 'Unable to create department. Please try again later.');
     } finally {
       setLoading(prev => ({ ...prev, create: false }));
     }
@@ -204,13 +211,13 @@ export default function AdminDepartmentsClient() {
       setSelectedDepartment(prev => prev ? { ...prev, name: updatedDept.name } : null);
       setEditMode(false);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to update department');
+      handleError(err, 'Unable to update department. Please try again later.');
     } finally {
       setLoading(prev => ({ ...prev, update: false }));
     }
   };
 
-  // Assign head of department
+  // Assign head of department (UI-only; server call commented out above)
   const handleAssignHead = async (staffId: number) => {
     if (!selectedDepartment) return;
 
@@ -218,7 +225,6 @@ export default function AdminDepartmentsClient() {
       setError(null);
       // const updatedDept = await assignHeadOfDepartment(selectedDepartment.id, staffId);
       
-      // Update the head in both lists
       const newHead = staff.find(s => s.id === staffId);
       
       setDepartments(prev => prev.map(dept => 
@@ -250,7 +256,7 @@ export default function AdminDepartmentsClient() {
         isHead: member.id === staffId
       })));
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to assign head');
+      handleError(err, 'Unable to assign head. Please try again later.');
     }
   };
 
@@ -275,7 +281,7 @@ export default function AdminDepartmentsClient() {
         isHead: false
       })));
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to remove head');
+      handleError(err, 'Unable to remove head. Please try again later.');
     }
   };
 
@@ -291,7 +297,7 @@ export default function AdminDepartmentsClient() {
       setSelectedDepartment(null);
       setIsDetailsModalOpen(false);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to delete department');
+      handleError(err, 'Unable to delete department. Please try again later.');
     }
   };
 
