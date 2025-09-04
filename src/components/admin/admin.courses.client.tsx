@@ -25,7 +25,6 @@ import {
   FiUserPlus, FiUserMinus, FiLoader, FiX,
   FiChevronUp, FiChevronDown, FiSearch
 } from 'react-icons/fi';
-import { ActionError } from '@/lib/utils';
 
 export default function AdminCoursesClient() {
   const [courses, setCourses] = useState<CourseWithDetails[]>([]);
@@ -81,7 +80,8 @@ export default function AdminCoursesClient() {
           semesterId: semestersData[0]?.id || 0
         }));
       } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load initial data');
+        console.error(err);
+        setError('Something went wrong while loading data. Please try again.');
       } finally {
         setLoadingOptions(false);
         setLoading(prev => ({ ...prev, courses: false }));
@@ -164,7 +164,8 @@ export default function AdminCoursesClient() {
         lecturerId: details.lecturer?.id
       });
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to load course details');
+      console.error(err);
+      setError('Unable to load course details. Please try again.');
     } finally {
       setLoading(prev => ({ ...prev, details: false }));
     }
@@ -177,7 +178,8 @@ export default function AdminCoursesClient() {
       setLecturerOptions(lecturers);
       setIsLecturerModalOpen(true);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to load lecturers');
+      console.error(err);
+      setError('Unable to load lecturers. Please try again.');
     } finally {
       setLoadingLecturers(false);
     }
@@ -192,12 +194,12 @@ export default function AdminCoursesClient() {
   // Create new course
   const handleCreateCourse = async () => {
     if (!formData.name.trim() || !formData.code.trim()) {
-      setError('Course name and code are required');
+      setError('Course name and code are required.');
       return;
     }
 
     if (!formData.programId || !formData.semesterId) {
-      setError('Please select both program and semester');
+      setError('Please select both program and semester.');
       return;
     }
 
@@ -209,7 +211,8 @@ export default function AdminCoursesClient() {
       setCourses(prev => [...prev, newCourse]);
       setIsCreateModalOpen(false);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to create course');
+      console.error(err);
+      setError('Unable to create course. Please try again.');
     } finally {
       setLoading(prev => ({ ...prev, create: false }));
     }
@@ -218,7 +221,7 @@ export default function AdminCoursesClient() {
   // Update course
   const handleUpdateCourse = async () => {
     if (!selectedCourse || !formData.name.trim() || !formData.code.trim()) {
-      setError('Course name and code are required');
+      setError('Course name and code are required.');
       return;
     }
 
@@ -235,7 +238,8 @@ export default function AdminCoursesClient() {
       setSelectedCourse(updatedCourse);
       setEditMode(false);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to update course');
+      console.error(err);
+      setError('Unable to update course. Please try again.');
     } finally {
       setLoading(prev => ({ ...prev, update: false }));
     }
@@ -255,7 +259,8 @@ export default function AdminCoursesClient() {
       
       setSelectedCourse(updatedCourse);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to assign lecturer');
+      console.error(err);
+      setError('Unable to assign lecturer. Please try again.');
     }
   };
 
@@ -273,7 +278,8 @@ export default function AdminCoursesClient() {
       
       setSelectedCourse(updatedCourse);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to remove lecturer');
+      console.error(err);
+      setError('Unable to remove lecturer. Please try again.');
     }
   };
 
@@ -289,7 +295,8 @@ export default function AdminCoursesClient() {
       setSelectedCourse(null);
       setIsDetailsModalOpen(false);
     } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to delete course');
+      console.error(err);
+      setError('Unable to delete course. Please try again.');
     }
   };
 
@@ -317,6 +324,7 @@ export default function AdminCoursesClient() {
           {error}
         </div>
       )}
+
 
       {/* Search Bar */}
       <div className="mb-6">
