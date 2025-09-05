@@ -36,6 +36,11 @@ export type EnrolledCourse = {
   materialsCount: number;
   assignmentsCount: number;
   quizzesCount: number;
+  // Add lecturer field
+  lecturer: {
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
 };
 
 export type AvailableCourse = {
@@ -123,64 +128,65 @@ export async function getStudentEnrolledCourses(): Promise<EnrolledCourse[]> {
       throw new Error('Student record not found');
     }
 
-const enrolledCourses = await db
-  .select({
-    id: courses.id,
-    name: courses.name,
-    code: courses.code,
-    credits: courses.credits,
-    description: courses.description,
-    programName: programs.name,
-    programCode: programs.code,
-    semesterName: semesters.name,
-    materialsCount: sql<number>`(
-        SELECT COUNT(*) 
-        FROM ${courseMaterials} 
-        WHERE ${courseMaterials.courseId} = ${courses.id}
-      )`.as('materials_count'),
-    assignmentsCount: sql<number>`(
-        SELECT COUNT(*) 
-        FROM ${assignmentsTable} 
-        WHERE ${assignmentsTable.courseId} = ${courses.id}
-      )`.as('assignments_count'),
-    quizzesCount: sql<number>`(
-        SELECT COUNT(*) 
-        FROM ${quizzesTable} 
-        WHERE ${quizzesTable.courseId} = ${courses.id}
-      )`.as('quizzes_count')
-  })
-  .from(enrollments)
-  .innerJoin(courses, eq(enrollments.courseId, courses.id))
-  .innerJoin(programs, eq(courses.programId, programs.id))
-  .innerJoin(semesters, eq(courses.semesterId, semesters.id))
-  .where(
-    and(
-      eq(enrollments.studentId, student.id),
-      // Check for a non-null semester ID
-      student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
-    )
-  );
-
-return enrolledCourses.map(course => ({
-  ...course,
-  credits: Number(course.credits),
-  materialsCount: Number(course.materialsCount),
-  assignmentsCount: Number(course.assignmentsCount),
-  quizzesCount: Number(course.quizzesCount),
-  programName: course.programName ?? '',
-  programCode: course.programCode ?? '',
-  semesterName: course.semesterName ?? ''
-}));
+    const enrolledCourses = await db
+      .select({
+        id: courses.id,
+        name: courses.name,
+        code: courses.code,
+        credits: courses.credits,
+        description: courses.description,
+        programName: programs.name,
+        programCode: programs.code,
+        semesterName: semesters.name,
+        materialsCount: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${courseMaterials} 
+          WHERE ${courseMaterials.courseId} = ${courses.id}
+        )`.as('materials_count'),
+        assignmentsCount: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${assignmentsTable} 
+          WHERE ${assignmentsTable.courseId} = ${courses.id}
+        )`.as('assignments_count'),
+        quizzesCount: sql<number>`(
+          SELECT COUNT(*) 
+          FROM ${quizzesTable} 
+          WHERE ${quizzesTable.courseId} = ${courses.id}
+        )`.as('quizzes_count'),
+        // Add lecturer information
+        lecturerFirstName: staff.firstName,
+        lecturerLastName: staff.lastName
+      })
+      .from(enrollments)
+      .innerJoin(courses, eq(enrollments.courseId, courses.id))
+      .innerJoin(programs, eq(courses.programId, programs.id))
+      .innerJoin(semesters, eq(courses.semesterId, semesters.id))
+      // Join with staff table to get lecturer information
+      .leftJoin(staff, eq(courses.lecturerId, staff.id))
+      .where(
+        and(
+          eq(enrollments.studentId, student.id),
+          student.currentSemesterId !== null ? eq(enrollments.semesterId, student.currentSemesterId) : sql`false`
+        )
+      );
 
     return enrolledCourses.map(course => ({
-      ...course,
+      id: course.id,
+      name: course.name,
+      code: course.code,
       credits: Number(course.credits),
+      description: course.description,
+      programName: course.programName ?? '',
+      programCode: course.programCode ?? '',
+      semesterName: course.semesterName ?? '',
       materialsCount: Number(course.materialsCount),
       assignmentsCount: Number(course.assignmentsCount),
       quizzesCount: Number(course.quizzesCount),
-      programName: course.programName ?? '',
-      programCode: course.programCode ?? '',
-      semesterName: course.semesterName ?? ''
+      // Add lecturer object
+      lecturer: course.lecturerFirstName || course.lecturerLastName ? {
+        firstName: course.lecturerFirstName,
+        lastName: course.lecturerLastName
+      } : null
     }));
   } catch (error) {
     console.error('[GET_STUDENT_ENROLLED_COURSES_ERROR]', error);
