@@ -52,11 +52,9 @@ interface StudentCourseManagerProps {
 }
 
 export default function StudentCourseManager({
-  enrolledCourses: initialEnrolledCourses,
+  // enrolledCourses: initialEnrolledCourses,
 }: StudentCourseManagerProps) {
-  const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(
-    initialEnrolledCourses[0] || null
-  );
+  const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(null);
   const [courses, setCourses] = useState<EnrolledCourse[]>([]);
   const [materials, setMaterials] = useState<CourseMaterial[]>([]);
   const [assignments, setAssignments] = useState<CourseAssignment[]>([]);
@@ -73,6 +71,7 @@ export default function StudentCourseManager({
   const [searchTerm, setSearchTerm] = useState('');
   const [materialsViewMode, setMaterialsViewMode] = useState<'course' | 'program'>('course');
   const [allProgramMaterials, setAllProgramMaterials] = useState<CourseMaterial[]>([]);
+  const [showCourseModal, setShowCourseModal] = useState(false);
   
   // Document viewer state
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -114,9 +113,6 @@ export default function StudentCourseManager({
         setIsLoading(true);
         const data = await getStudentEnrolledCourses();
         setCourses(data);
-        if (data.length > 0) {
-          setSelectedCourse(data[0]);
-        }
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load courses');
@@ -185,6 +181,11 @@ export default function StudentCourseManager({
   // Toggle between course and program view
   const toggleMaterialsView = () => {
     setMaterialsViewMode(prev => prev === 'course' ? 'program' : 'course');
+  };
+
+  const handleCourseSelect = (course: EnrolledCourse) => {
+    setSelectedCourse(course);
+    setShowCourseModal(true);
   };
 
   const handleAssignmentSubmit = async () => {
@@ -359,444 +360,466 @@ export default function StudentCourseManager({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Courses List - Changed to cards */}
-        <div className="lg:col-span-1">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-700">My Enrollments</h2>
-          </div>
-          
-          {/* Search Box - remains unchanged */}
-          <div className="relative mb-4">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiSearch className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search courses..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-100 rounded-lg animate-pulse"></div>
-              ))}
-            </div>
-          ) : courses.length === 0 ? (
-            <div className="p-6 text-center bg-gray-50 rounded-lg">
-              <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">Not enrolled in any courses</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredCourses.map((course) => (
-                <div 
-                  key={course.id} 
-                  className={`p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer transition-colors ${
-                    selectedCourse?.id === course.id
-                      ? 'bg-pink-50 hover:bg-pink-100 border-pink-300'
-                      : 'bg-white hover:bg-gray-50'
-                  }`}
-                  onClick={() => setSelectedCourse(course)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{course.name}</h3>
-                      <p className="text-sm text-gray-500">{course.code}</p>
-                    </div>
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-pink-100 text-pink-800">
-                      {course.credits} cr
+      {/* Search Box */}
+      <div className="relative mb-6 max-w-md">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <FiSearch className="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="Search courses..."
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* Courses Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-48 bg-gray-100 rounded-lg animate-pulse"></div>
+          ))}
+        </div>
+      ) : courses.length === 0 ? (
+        <div className="p-6 text-center bg-gray-50 rounded-lg">
+          <FiBook className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+          <p className="text-gray-500">Not enrolled in any courses</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCourses.map((course) => (
+            <div 
+              key={course.id} 
+              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 cursor-pointer transition-all hover:shadow-md hover:border-pink-300"
+              onClick={() => handleCourseSelect(course)}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 text-lg mb-1">{course.name}</h3>
+                  <p className="text-sm text-gray-500">{course.code}</p>
+                </div>
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-pink-100 text-pink-800 whitespace-nowrap">
+                  {course.credits} cr
+                </span>
+              </div>
+              
+              <div className="space-y-2 text-sm text-gray-600">
+                <p className="truncate">{course.programName}</p>
+                <p className="truncate">{course.semesterName}</p>
+                
+                {course.lecturer && (
+                  <p className="mt-2">
+                    <span className="font-medium">Lecturer:</span> {course.lecturer.firstName} {course.lecturer.lastName}
+                  </p>
+                )}
+                
+                <div className="flex justify-between items-center pt-3 mt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <FiFileText size={12} />
+                      {course.materialsCount}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FiUpload size={12} />
+                      {course.assignmentsCount}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FiClock size={12} />
+                      {course.quizzesCount}
                     </span>
                   </div>
-                  <div className="mt-3 text-xs text-gray-500">
-                    <p className="truncate">{course.programName}</p>
-                    {/* Added lecturer name display */}
-                    {course.lecturer && (
-                      <p className="mt-1">
-                        Lecturer: {course.lecturer.firstName} {course.lecturer.lastName}
-                      </p>
-                    )}
-                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Course Content */}
-        {selectedCourse && (
-          <div className="lg:col-span-3">
-            {/* Course Header */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">
-                {selectedCourse.name} ({selectedCourse.code})
-              </h2>
-              <p className="text-gray-600 mt-1">
-                {selectedCourse.programName} • {selectedCourse.semesterName}
-              </p>
-              {selectedCourse.description && (
-                <p className="mt-4 text-gray-700">{selectedCourse.description}</p>
-              )}
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b border-gray-200 mb-6">
-              <nav className="-mb-px flex space-x-8">
-                <button
-                  onClick={() => setActiveTab('materials')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                    activeTab === 'materials'
-                      ? 'border-pink-500 text-pink-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <FiFileText /> Materials ({displayedMaterials.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('assignments')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                    activeTab === 'assignments'
-                      ? 'border-pink-500 text-pink-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <FiUpload /> Assignments ({assignments.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('quizzes')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                    activeTab === 'quizzes'
-                      ? 'border-pink-500 text-pink-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <FiClock /> Quizzes ({quizzes.length})
-                </button>
-              </nav>
-            </div>
-
-            {/* Content */}
-            {isLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
-                ))}
               </div>
-            ) : (
-              <>
-                {/* Materials Tab - Updated with view mode toggle */}
-                {activeTab === 'materials' && (
-                  <div className="space-y-4">
-                    {/* View Mode Toggle */}
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-medium text-gray-800">
-                        {materialsViewMode === 'course' ? 'Course Materials' : 'All Program Materials'}
-                      </h3>
-                      <button
-                        onClick={toggleMaterialsView}
-                        className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-300 hover:bg-gray-200 rounded-md transition-colors"
-                        title={materialsViewMode === 'course' ? 'View all program materials' : 'View only current course materials'}
-                      >
-                        {materialsViewMode === 'course' ? (
-                          <>
-                            <FiLayers size={14} />
-                            View All Program
-                          </>
-                        ) : (
-                          <>
-                            <FiGrid size={14} />
-                            View This Course Only
-                          </>
-                        )}
-                      </button>
-                    </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-                    {displayedMaterials.length === 0 ? (
-                      <div className="p-6 text-center bg-gray-50 rounded-lg">
-                        <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                        <p className="text-gray-500">No materials available</p>
+      {/* Course Details Modal */}
+      {showCourseModal && selectedCourse && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {selectedCourse.name} ({selectedCourse.code})
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  {selectedCourse.programName} • {selectedCourse.semesterName}
+                </p>
+                {selectedCourse.description && (
+                  <p className="mt-2 text-gray-700">{selectedCourse.description}</p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setShowCourseModal(false);
+                  setSelectedCourse(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {/* Tabs */}
+              <div className="border-b border-gray-200 mb-6">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('materials')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                      activeTab === 'materials'
+                        ? 'border-pink-500 text-pink-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <FiFileText /> Materials ({displayedMaterials.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('assignments')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                      activeTab === 'assignments'
+                        ? 'border-pink-500 text-pink-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <FiUpload /> Assignments ({assignments.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('quizzes')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                      activeTab === 'quizzes'
+                        ? 'border-pink-500 text-pink-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <FiClock /> Quizzes ({quizzes.length})
+                  </button>
+                </nav>
+              </div>
+
+              {/* Content */}
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Materials Tab */}
+                  {activeTab === 'materials' && (
+                    <div className="space-y-4">
+                      {/* View Mode Toggle */}
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-gray-800">
+                          {materialsViewMode === 'course' ? 'Course Materials' : 'All Program Materials'}
+                        </h3>
+                        <button
+                          onClick={toggleMaterialsView}
+                          className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-300 hover:bg-gray-200 rounded-md transition-colors"
+                          title={materialsViewMode === 'course' ? 'View all program materials' : 'View only current course materials'}
+                        >
+                          {materialsViewMode === 'course' ? (
+                            <>
+                              <FiLayers size={14} />
+                              View All Program
+                            </>
+                          ) : (
+                            <>
+                              <FiGrid size={14} />
+                              View This Course Only
+                            </>
+                          )}
+                        </button>
                       </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {Object.entries(groupMaterialsBySemester(displayedMaterials)).map(([semesterName, semesterMaterials]) => (
-                          <div key={semesterName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                              <h3 className="font-semibold text-gray-800">{semesterName}</h3>
-                            </div>
-                            <div className="divide-y divide-gray-200">
-                              {semesterMaterials.map((material) => {
-                                const isExpanded = expandedMaterialIds.has(material.id);
-                                
-                                return (
-                                  <div key={material.id} className="bg-white">
-                                    {/* Card Header */}
-                                    <div 
-                                      className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
-                                      onClick={() => toggleExpanded(material.id)}
-                                    >
-                                      <div>
-                                        <h4 className="font-medium text-gray-800">{material.title}</h4>
-                                        <div className="flex items-center gap-2 mt-1">
-                                          <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
-                                            {material.type.replace('_', ' ')}
-                                          </span>
-                                          <span className="text-xs text-gray-500">
-                                            {material.courseCode} • Uploaded {formatDate(material.uploadedAt)}
-                                          </span>
+
+                      {displayedMaterials.length === 0 ? (
+                        <div className="p-6 text-center bg-gray-50 rounded-lg">
+                          <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                          <p className="text-gray-500">No materials available</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {Object.entries(groupMaterialsBySemester(displayedMaterials)).map(([semesterName, semesterMaterials]) => (
+                            <div key={semesterName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                                <h3 className="font-semibold text-gray-800">{semesterName}</h3>
+                              </div>
+                              <div className="divide-y divide-gray-200">
+                                {semesterMaterials.map((material) => {
+                                  const isExpanded = expandedMaterialIds.has(material.id);
+                                  
+                                  return (
+                                    <div key={material.id} className="bg-white">
+                                      {/* Card Header */}
+                                      <div 
+                                        className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+                                        onClick={() => toggleExpanded(material.id)}
+                                      >
+                                        <div>
+                                          <h4 className="font-medium text-gray-800">{material.title}</h4>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
+                                              {material.type.replace('_', ' ')}
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                              {material.courseCode} • Uploaded {formatDate(material.uploadedAt)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                          {material.type !== 'notes' && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleViewMaterial(material);
+                                              }}
+                                              className="text-pink-600 hover:text-pink-800 p-1"
+                                              title="View"
+                                            >
+                                              <FiEye size={16} />
+                                            </button>
+                                          )}
+                                          {isExpanded ? (
+                                            <FiChevronUp className="text-gray-500" />
+                                          ) : (
+                                            <FiChevronDown className="text-gray-500" />
+                                          )}
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-3">
-                                        {material.type !== 'notes' && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleViewMaterial(material);
-                                            }}
-                                            className="text-pink-600 hover:text-pink-800 p-1"
-                                            title="View"
-                                          >
-                                            <FiEye size={16} />
-                                          </button>
-                                        )}
-                                        {isExpanded ? (
-                                          <FiChevronUp className="text-gray-500" />
-                                        ) : (
-                                          <FiChevronDown className="text-gray-500" />
-                                        )}
-                                      </div>
-                                    </div>
 
-                                    {/* Card Content - Collapsible */}
-                                    {isExpanded && (
-                                      <div className="px-4 pb-4 border-t border-gray-100">
-                                        {material.type === 'notes' ? (
-                                          <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                                            <div 
-                                              className="prose prose-sm max-w-none text-black" 
-                                              dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }}
-                                            />
-                                          </div>
-                                        ) : (
-                                          <div className="mt-3 flex gap-2">
-                                            <button
-                                              onClick={() => handleViewMaterial(material)}
-                                              className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
-                                            >
-                                              View Material
-                                            </button>
-                                          </div>
-                                        )}
+                                      {/* Card Content - Collapsible */}
+                                      {isExpanded && (
+                                        <div className="px-4 pb-4 border-t border-gray-100">
+                                          {material.type === 'notes' ? (
+                                            <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                                              <div 
+                                                className="prose prose-sm max-w-none text-black" 
+                                                dangerouslySetInnerHTML={{ __html: getMaterialContent(material) }}
+                                              />
+                                            </div>
+                                          ) : (
+                                            <div className="mt-3 flex gap-2">
+                                              <button
+                                                onClick={() => handleViewMaterial(material)}
+                                                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
+                                              >
+                                                View Material
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Assignments Tab */}
+                  {activeTab === 'assignments' && (
+                    <div className="space-y-4">
+                      {assignments.length === 0 ? (
+                        <div className="p-6 text-center bg-gray-50 rounded-lg">
+                          <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                          <p className="text-gray-500">No assignments available</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignment</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {assignments.map((assignment) => (
+                                <tr key={assignment.id}>
+                                  <td className="px-6 py-4">
+                                    <div className="font-medium text-gray-900">
+                                      {assignment.title}
+                                    </div>
+                                    {assignment.description && (
+                                      <div className="text-sm text-gray-500 mt-1 line-clamp-2">
+                                        {assignment.description}
                                       </div>
                                     )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Assignments Tab */}
-                {activeTab === 'assignments' && (
-                  <div className="space-y-4">
-                    {assignments.length === 0 ? (
-                      <div className="p-6 text-center bg-gray-50 rounded-lg">
-                        <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                        <p className="text-gray-500">No assignments available</p>
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignment</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {assignments.map((assignment) => (
-                              <tr key={assignment.id}>
-                                <td className="px-6 py-4">
-                                  <div className="font-medium text-gray-900">
-                                    {assignment.title}
-                                  </div>
-                                  {assignment.description && (
-                                    <div className="text-sm text-gray-500 mt-1 line-clamp-2">
-                                      {assignment.description}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div className="flex items-center">
+                                      <FiClock className="mr-1" />
+                                      {formatDate(assignment.dueDate)}
                                     </div>
-                                  )}
-                                  
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  <div className="flex items-center">
-                                    <FiClock className="mr-1" />
-                                    {formatDate(assignment.dueDate)}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  {assignment.submitted ? (
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                      Submitted
-                                    </span>
-                                  ) : (
-                                    new Date(assignment.dueDate) < new Date() ? (
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    {assignment.submitted ? (
+                                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Submitted
+                                      </span>
+                                    ) : (
+                                      new Date(assignment.dueDate) < new Date() ? (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                          Overdue
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                          Pending
+                                        </span>
+                                      )
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {assignment.submitted && assignment.submission?.grade !== null ? 
+                                      `${assignment.submission?.grade}%` : '--'
+                                    }
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div className="flex gap-3">
+                                      {!assignment.submitted ? (
+                                        <button
+                                          onClick={() => {
+                                            setSelectedAssignment(assignment);
+                                            setShowAssignmentModal(true);
+                                          }}
+                                          className="text-pink-600 hover:text-pink-900"
+                                        >
+                                          <FiUpload size={16} />
+                                        </button>
+                                      ) : (
+                                        <>
+                                          {assignment.submission?.grade !== null && (
+                                            <span className="text-green-600">
+                                              <FiCheckCircle size={16} />
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Quizzes Tab */}
+                  {activeTab === 'quizzes' && (
+                    <div className="space-y-4">
+                      {quizzes.length === 0 ? (
+                        <div className="p-6 text-center bg-gray-50 rounded-lg">
+                          <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                          <p className="text-gray-500">No quizzes available</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {quizzes.map((quiz) => (
+                                <tr key={quiz.id}>
+                                  <td className="px-6 py-4">
+                                    <div className="font-medium text-gray-900">
+                                      {quiz.title}
+                                    </div>
+                                    {quiz.instructions && (
+                                      <div className="text-sm text-gray-500 mt-1 line-clamp-2">
+                                        {quiz.instructions}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {formatDate(quiz.quizDate)}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    {quiz.submitted ? (
+                                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Submitted
+                                      </span>
+                                    ) : new Date(quiz.quizDate) < new Date() ? (
                                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                        Overdue
+                                        Missed
                                       </span>
                                     ) : (
                                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                         Pending
                                       </span>
-                                    )
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {assignment.submitted && assignment.submission?.grade !== null ? 
-                                    `${assignment.submission?.grade}%` : '--'
-                                  }
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <div className="flex gap-3">
-                                    {!assignment.submitted ? (
-                                      <button
-                                        onClick={() => {
-                                          setSelectedAssignment(assignment);
-                                          setShowAssignmentModal(true);
-                                        }}
-                                        className="text-pink-600 hover:text-pink-900"
-                                      >
-                                        <FiUpload size={16} />
-                                      </button>
-                                    ) : (
-                                      <>
-                                        
-                                        {assignment.submission?.grade !== null && (
-                                          <span className="text-green-600">
-                                            <FiCheckCircle size={16} />
-                                          </span>
-                                        )}
-                                      </>
                                     )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Quizzes Tab */}
-                {activeTab === 'quizzes' && (
-                  <div className="space-y-4">
-                    {quizzes.length === 0 ? (
-                      <div className="p-6 text-center bg-gray-50 rounded-lg">
-                        <FiFileText className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                        <p className="text-gray-500">No quizzes available</p>
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {quizzes.map((quiz) => (
-                              <tr key={quiz.id}>
-                                <td className="px-6 py-4">
-                                  <div className="font-medium text-gray-900">
-                                    {quiz.title}
-                                  </div>
-                                  {quiz.instructions && (
-                                    <div className="text-sm text-gray-500 mt-1 line-clamp-2">
-                                      {quiz.instructions}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {quiz.submitted && quiz.submission?.score !== null ? 
+                                      `${quiz.submission?.score}/${quiz.totalMarks}` : '--'
+                                    }
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div className="flex gap-3">
+                                      {!quiz.submitted && new Date(quiz.quizDate) >= new Date() ? (
+                                        <button
+                                          onClick={() => {
+                                            setSelectedQuiz(quiz);
+                                            setShowQuizModal(true);
+                                          }}
+                                          className="text-pink-600 hover:text-pink-900"
+                                        >
+                                          <FiUpload size={16} />
+                                        </button>
+                                      ) : quiz.submitted ? (
+                                        <>
+                                          {quiz.submission?.score !== null && (
+                                            <span className="text-green-600">
+                                              <FiCheckCircle size={16} />
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <span className="text-red-600">
+                                          <FiXCircle size={16} />
+                                        </span>
+                                      )}
                                     </div>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {formatDate(quiz.quizDate)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  {quiz.submitted ? (
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                      Submitted
-                                    </span>
-                                  ) : new Date(quiz.quizDate) < new Date() ? (
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                      Missed
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                      Pending
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {quiz.submitted && quiz.submission?.score !== null ? 
-                                    `${quiz.submission?.score}/${quiz.totalMarks}` : '--'
-                                  }
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <div className="flex gap-3">
-                                    {!quiz.submitted && new Date(quiz.quizDate) >= new Date() ? (
-                                      <button
-                                        onClick={() => {
-                                          setSelectedQuiz(quiz);
-                                          setShowQuizModal(true);
-                                        }}
-                                        className="text-pink-600 hover:text-pink-900"
-                                      >
-                                        <FiUpload size={16} />
-                                      </button>
-                                    ) : quiz.submitted ? (
-                                      <>
-                                        {quiz.submission?.score !== null && (
-                                          <span className="text-green-600">
-                                            <FiCheckCircle size={16} />
-                                          </span>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="text-red-600">
-                                        <FiXCircle size={16} />
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Assignment Submission Modal */}
       {showAssignmentModal && selectedAssignment && (
-        <div className="fixed inset-0 backdrop-blur-sm border border-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
@@ -849,7 +872,7 @@ export default function StudentCourseManager({
 
       {/* Quiz Submission Modal */}
       {showQuizModal && selectedQuiz && (
-        <div className="fixed inset-0 backdrop-blur-sm border border-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">
@@ -904,29 +927,29 @@ export default function StudentCourseManager({
       )}
 
       {/* Document Viewer Modal */}
-{isViewerOpen && currentDocument && (
-  <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center p-2 z-50">
-    <div className="bg-white rounded-lg shadow-xl w-full h-full md:max-w-6xl md:max-h-[90vh] md:h-auto overflow-hidden flex flex-col">
-      <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-200">
-        <h2 className="text-lg md:text-2xl font-bold text-gray-800 truncate">
-          {currentDocument.title}
-        </h2>
-        <button
-          onClick={() => setIsViewerOpen(false)}
-          className="text-gray-400 hover:text-gray-600 p-1"
-        >
-          <FiX size={24} />
-        </button>
-      </div>
-      <div className="flex-1 overflow-auto p-2 md:p-4">
-        <DocumentViewer 
-          document={currentDocument} 
-          onClose={() => setIsViewerOpen(false)} 
-        />
-      </div>
-    </div>
-  </div>
-)}
+      {isViewerOpen && currentDocument && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-50 flex items-center justify-center p-2 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full h-full md:max-w-6xl md:max-h-[90vh] md:h-auto overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-200">
+              <h2 className="text-lg md:text-2xl font-bold text-gray-800 truncate">
+                {currentDocument.title}
+              </h2>
+              <button
+                onClick={() => setIsViewerOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-2 md:p-4">
+              <DocumentViewer 
+                document={currentDocument} 
+                onClose={() => setIsViewerOpen(false)} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
