@@ -1,28 +1,327 @@
-first 
-  state - "  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarLoading, setAvatarLoading] = useState(true);", 
+// components/admin/admin.courses.client.tsx
+'use client';
 
-  then
-  use effect - "
+import { useState, useEffect } from 'react';
+import {
+  getAllCourses,
+  getCourseDetails,
+  createCourse,
+  updateCourse,
+  assignCourseLecturer,
+  removeCourseLecturer,
+  getAllPrograms,
+  getAllSemesters,
+  deleteCourse,
+  getAllLecturers,
+  type CourseWithDetails,
+  type CourseFormValues,
+  ProgramOption,
+  SemesterOption,
+  LecturerOption,
+} from '@/lib/actions/admin/courses.actions';
+
+import {
+  FiUsers, FiBook, FiPlus, FiEdit2, FiTrash2,
+  FiUserPlus, FiUserMinus, FiLoader, FiX,
+  FiChevronUp, FiChevronDown, FiSearch
+} from 'react-icons/fi';
+import { ActionError } from '@/lib/utils';
+
+export default function AdminCoursesClient() {
+  const [courses, setCourses] = useState<CourseWithDetails[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<CourseWithDetails | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [loading, setLoading] = useState({
+    courses: true,
+    details: false,
+    create: false,
+    update: false
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<CourseFormValues>({
+    name: '',
+    code: '',
+    credits: 3,
+    programId: 0,
+    semesterId: 0,
+  });
+  const [editMode, setEditMode] = useState(false);
+
+  const [isLecturerModalOpen, setIsLecturerModalOpen] = useState(false);
+  const [lecturerOptions, setLecturerOptions] = useState<LecturerOption[]>([]);
+  const [loadingLecturers, setLoadingLecturers] = useState(false);
+
+  const [programOptions, setProgramOptions] = useState<ProgramOption[]>([]);
+  const [semesterOptions, setSemesterOptions] = useState<SemesterOption[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'name',
+    direction: 'asc'
+  });
+
+  // Load initial data
   useEffect(() => {
-    const loadData = async () => {
+    const loadInitialData = async () => {
       try {
-        const data = await getLecturerHeaderData();
-        setLecturerData(data);
-
-        // 🔑 fetch signed avatar URL
-        if (data?.id) {
-          const url = await getClientImageUrl(data.id, 'lecturer-passport');
-          setAvatarUrl(url || null);
-        }
-      } catch (error) {
-        console.error('Failed to load lecturer data:', error);
-        setLecturerData(null);
-        setAvatarUrl(null);
+        setLoadingOptions(true);
+        const [coursesData, programsData, semestersData] = await Promise.all([
+          getAllCourses(),
+          getAllPrograms(),
+          getAllSemesters(),
+        ]);
+        setCourses(coursesData);
+        setProgramOptions(programsData);
+        setSemesterOptions(semestersData);
+        
+        setFormData(prev => ({
+          ...prev,
+          programId: programsData[0]?.id || 0,
+          semesterId: semestersData[0]?.id || 0
+        }));
+      } catch (err) {
+        console.error(err);
+        setError('Something went wrong while loading data. Please try again.');
       } finally {
-        setLoading(false);
-        setAvatarLoading(false);
+        setLoadingOptions(false);
+        setLoading(prev => ({ ...prev, courses: false }));
       }
     };
-    loadData();
-  }, []);", 
+
+    loadInitialData();
+  }, []);
+
+  // Reset form when create modal closes
+  useEffect(() => {
+    if (!isCreateModalOpen) {
+      setFormData({
+        name: '',
+        code: '',
+        credits: 3,
+        programId: programOptions[0]?.id || 0,
+        semesterId: semesterOptions[0]?.id || 0,
+      });
+      setError(null);
+    }
+  }, [isCreateModalOpen, programOptions, semesterOptions]);
+
+  // Sort courses
+  const sortedCourses = [...courses].sort((a, b) => {
+    if (sortConfig.key === 'name') {
+      return sortConfig.direction === 'asc' 
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    }
+    if (sortConfig.key === 'code') {
+      return sortConfig.direction === 'asc'
+        ? a.code.localeCompare(b.code)
+        : b.code.localeCompare(a.code);
+    }
+    if (sortConfig.key === 'credits') {
+      return sortConfig.direction === 'asc' 
+        ? Number(a.credits) - Number(b.credits) 
+        : Number(b.credits) - Number(a.credits);
+    }
+    return 0;
+  });
+
+  // Filter courses based on search term
+  const filteredCourses = sortedCourses.filter(course =>
+    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.program.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Move selected course to top
+  const displayedCourses = selectedCourse
+    ? [selectedCourse, ...filteredCourses.filter(c => c.id !== selectedCourse.id)]
+    : filteredCourses;
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Load course details when selected
+  const handleSelectCourse = async (courseId: number) => {
+    try {
+      setLoading(prev => ({ ...prev, details: true }));
+      setError(null);
+      
+      const details = await getCourseDetails(courseId);
+      setSelectedCourse(details);
+      setIsDetailsModalOpen(true);
+      setEditMode(false);
+      setFormData({
+        name: details.name,
+        code: details.code,
+        credits: details.credits,
+        description: details.description || '',
+        programId: details.program.id,
+        semesterId: details.semester.id,
+        lecturerId: details.lecturer?.id
+      });
+    } catch (err) {
+      console.error(err);
+      setError('Unable to load course details. Please try again.');
+    } finally {
+      setLoading(prev => ({ ...prev, details: false }));
+    }
+  };
+
+  const openLecturerModal = async () => {
+    try {
+      setLoadingLecturers(true);
+      const lecturers = await getAllLecturers();
+      setLecturerOptions(lecturers);
+      setIsLecturerModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      setError('Unable to load lecturers. Please try again.');
+    } finally {
+      setLoadingLecturers(false);
+    }
+  };
+
+  const handleSelectLecturer = (lecturerId: number) => {
+    if (!selectedCourse) return;
+    handleAssignLecturer(lecturerId);
+    setIsLecturerModalOpen(false);
+  };
+
+  // Create new course
+  const handleCreateCourse = async () => {
+    if (!formData.name.trim() || !formData.code.trim()) {
+      setError('Course name and code are required.');
+      return;
+    }
+
+    if (!formData.programId || !formData.semesterId) {
+      setError('Please select both program and semester.');
+      return;
+    }
+
+    try {
+      setLoading(prev => ({ ...prev, create: true }));
+      setError(null);
+
+      const newCourse = await createCourse(formData);
+      setCourses(prev => [...prev, newCourse]);
+      setIsCreateModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      setError('Unable to create course. Please try again.');
+    } finally {
+      setLoading(prev => ({ ...prev, create: false }));
+    }
+  };
+
+  // Update course
+  const handleUpdateCourse = async () => {
+    if (!selectedCourse || !formData.name.trim() || !formData.code.trim()) {
+      setError('Course name and code are required.');
+      return;
+    }
+
+    try {
+      setLoading(prev => ({ ...prev, update: true }));
+      setError(null);
+
+      const updatedCourse = await updateCourse(selectedCourse.id, formData);
+      
+      setCourses(prev => prev.map(course => 
+        course.id === selectedCourse.id ? updatedCourse : course
+      ));
+      
+      setSelectedCourse(updatedCourse);
+      setEditMode(false);
+    } catch (err) {
+      console.error(err);
+      setError('Unable to update course. Please try again.');
+    } finally {
+      setLoading(prev => ({ ...prev, update: false }));
+    }
+  };
+
+  // Assign lecturer to course
+  const handleAssignLecturer = async (lecturerId: number) => {
+    if (!selectedCourse) return;
+
+    try {
+      setError(null);
+      const updatedCourse = await assignCourseLecturer(selectedCourse.id, lecturerId);
+      
+      setCourses(prev => prev.map(course => 
+        course.id === selectedCourse.id ? updatedCourse : course
+      ));
+      
+      setSelectedCourse(updatedCourse);
+    } catch (err) {
+      console.error(err);
+      setError('Unable to assign lecturer. Please try again.');
+    }
+  };
+
+  // Remove lecturer from course
+  const handleRemoveLecturer = async () => {
+    if (!selectedCourse || !selectedCourse.lecturer) return;
+
+    try {
+      setError(null);
+      const updatedCourse = await removeCourseLecturer(selectedCourse.id);
+      
+      setCourses(prev => prev.map(course => 
+        course.id === selectedCourse.id ? updatedCourse : course
+      ));
+      
+      setSelectedCourse(updatedCourse);
+    } catch (err) {
+      console.error(err);
+      setError('Unable to remove lecturer. Please try again.');
+    }
+  };
+
+  // Delete course
+  const handleDeleteCourse = async () => {
+    if (!selectedCourse) return;
+
+    try {
+      setError(null);
+      await deleteCourse(selectedCourse.id);
+      
+      setCourses(prev => prev.filter(course => course.id !== selectedCourse.id));
+      setSelectedCourse(null);
+      setIsDetailsModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      setError('Unable to delete course. Please try again.');
+    }
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortConfig.key !== columnKey) return <FiChevronUp className="opacity-30" />;
+    return sortConfig.direction === 'asc' ? <FiChevronUp /> : <FiChevronDown />;
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">Course Management</h1>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center gap-2"
+        >
+          <FiPlus size={16} /> New Course
+        </button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
