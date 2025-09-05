@@ -14,7 +14,7 @@ export default async function StudentCoursesPage() {
     ]);
 
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+      <main className="md:pl-64 pt-2 overflow-y-auto bg-emerald-800 text-white">
         <div className="p-6 max-w-7xl mx-auto min-h-[calc(100vh-8rem)]">
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
