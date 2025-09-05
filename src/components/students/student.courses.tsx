@@ -100,7 +100,7 @@ export default function StudentCourseManager({
     course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.programName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => a.name.localeCompare(b.name));
 
   // Get the appropriate materials based on view mode
   const displayedMaterials = materialsViewMode === 'course' 
@@ -360,13 +360,13 @@ export default function StudentCourseManager({
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Courses List */}
+        {/* Courses List - Changed to cards */}
         <div className="lg:col-span-1">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-700">My Enrollments</h2>
           </div>
           
-          {/* Search Box */}
+          {/* Search Box - remains unchanged */}
           <div className="relative mb-4">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FiSearch className="h-5 w-5 text-gray-400" />
@@ -383,7 +383,7 @@ export default function StudentCourseManager({
           {isLoading ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-24 bg-gray-100 rounded-lg animate-pulse"></div>
+                <div key={i} className="h-32 bg-gray-100 rounded-lg animate-pulse"></div>
               ))}
             </div>
           ) : courses.length === 0 ? (
@@ -392,51 +392,40 @@ export default function StudentCourseManager({
               <p className="text-gray-500">Not enrolled in any courses</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg shadow-sm border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Credits
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredCourses.map((course) => (
-                    <tr 
-                      key={course.id} 
-                      className={`cursor-pointer transition-colors ${
-                        selectedCourse?.id === course.id
-                          ? 'bg-pink-50 hover:bg-pink-100'
-                          : 'hover:bg-gray-50'
-                      }`}
-                      onClick={() => setSelectedCourse(course)}
-                    >
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{course.name}</div>
-                            <div className="text-sm text-gray-500">{course.code}</div>
-                            <div className="text-xs text-gray-400 mt-1">{course.programName}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-pink-100 text-pink-800">
-                          {course.credits} cr
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              {filteredCourses.map((course) => (
+                <div 
+                  key={course.id} 
+                  className={`p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer transition-colors ${
+                    selectedCourse?.id === course.id
+                      ? 'bg-pink-50 hover:bg-pink-100 border-pink-300'
+                      : 'bg-white hover:bg-gray-50'
+                  }`}
+                  onClick={() => setSelectedCourse(course)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{course.name}</h3>
+                      <p className="text-sm text-gray-500">{course.code}</p>
+                    </div>
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-pink-100 text-pink-800">
+                      {course.credits} cr
+                    </span>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500">
+                    <p className="truncate">{course.programName}</p>
+                    {/* Added lecturer name display */}
+                    {course.lecturer && (
+                      <p className="mt-1">
+                        Lecturer: {course.lecturer.firstName} {course.lecturer.lastName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
-
         {/* Course Content */}
         {selectedCourse && (
           <div className="lg:col-span-3">
