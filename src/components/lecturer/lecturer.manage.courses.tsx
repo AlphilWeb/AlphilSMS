@@ -23,7 +23,7 @@ import {
 
 import TipTapEditor from '@/components/TipTapEditor';
 import { getDownloadUrl } from '@/lib/actions/files.download.action';
-import { generateAttendanceListPdf, getCourses, getDepartments, getPrograms, getSemesters } from '@/lib/actions/pdf-generataion/attendance.generation.action';
+import { generateAttendanceListPdf, getLecturerPrograms, getLecturerSemesters } from '@/lib/actions/pdf-generataion/attendance.generation.action';
 
 type TimetableEntry = {
   dayOfWeek: string;
@@ -37,41 +37,10 @@ interface MaterialContent {
   json: object;
 }
 
-// Add these type definitions near the top of your component
 interface Department {
   id: number;
   name: string;
   headOfDepartmentId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Program {
-  id: number;
-  departmentId: number;
-  name: string;
-  code: string;
-  durationSemesters: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Semester {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-}
-
-interface Course {
-  id: number;
-  programId: number;
-  semesterId: number;
-  lecturerId: number | null;
-  name: string;
-  code: string;
-  credits: string | number;
-  description: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -110,37 +79,34 @@ export default function LecturerCoursesClient() {
 // Add these to your existing state declarations
 const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
 const [attendanceFilters, setAttendanceFilters] = useState({
-  departmentId: 0,
   programId: 0,
   semesterId: 0,
   courseId: 0
 });
+
 // Update these state declarations with proper types
-const [availableDepartments, setAvailableDepartments] = useState<Department[]>([]);
-const [availablePrograms, setAvailablePrograms] = useState<Program[]>([]);
-const [availableSemesters, setAvailableSemesters] = useState<Semester[]>([]);
-const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
 const [generatingPdf, setGeneratingPdf] = useState(false);  
+const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
+const [availableSemesters, setAvailableSemesters] = useState<any[]>([]);
+const [availableCourses, setAvailableCourses] = useState<any[]>([]);
 
 // Add these functions to your component
 
 // Fetch filter options
+// Replace the fetchFilterOptions function:
 const fetchFilterOptions = async () => {
   try {
-    // You'll need to create these functions in your actions
-    const [depts, progs, sems, crs] = await Promise.all([
-      getDepartments(),
-      getPrograms(),
-      getSemesters(),
-      getCourses()
+    const [progs, sems, crs] = await Promise.all([
+      getLecturerPrograms(),
+      getLecturerSemesters(),
+      getLecturerCourses()
     ]);
-    setAvailableDepartments(depts);
     setAvailablePrograms(progs);
     setAvailableSemesters(sems);
     setAvailableCourses(crs);
   } catch (error) {
     setError('Failed to load filter options');
-    console.log(error)
+    console.error(error);
   }
 };
 
@@ -151,7 +117,14 @@ const handleGenerateAttendanceList = async () => {
     setGeneratingPdf(true);
     setError(null);
     
-    const pdfBuffer = await generateAttendanceListPdf(attendanceFilters);
+    // Convert 0 values to undefined (which means "all")
+    const filters = {
+      programId: attendanceFilters.programId || undefined,
+      semesterId: attendanceFilters.semesterId || undefined,
+      courseId: attendanceFilters.courseId || undefined
+    };
+    
+    const pdfBuffer = await generateAttendanceListPdf(filters);
     
     // Convert Buffer to Uint8Array first, then to Blob
     const uint8Array = new Uint8Array(pdfBuffer);
@@ -896,29 +869,8 @@ useEffect(() => {
       </div>
 
       <div className="p-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Department
-          </label>
-          <select
-            value={attendanceFilters.departmentId}
-            onChange={(e) => setAttendanceFilters({
-              ...attendanceFilters,
-              departmentId: parseInt(e.target.value),
-              programId: 0,
-              courseId: 0
-            })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          >
-            <option value={0}>All Departments</option>
-            {availableDepartments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
+        {/* Remove the Department dropdown */}
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Program
@@ -931,16 +883,13 @@ useEffect(() => {
               courseId: 0
             })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            disabled={!attendanceFilters.departmentId}
           >
             <option value={0}>All Programs</option>
-            {availablePrograms
-              .filter(prog => !attendanceFilters.departmentId || prog.departmentId === attendanceFilters.departmentId)
-              .map((prog) => (
-                <option key={prog.id} value={prog.id}>
-                  {prog.name}
-                </option>
-              ))}
+            {availablePrograms.map((prog) => (
+              <option key={prog.id} value={prog.id}>
+                {prog.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -976,7 +925,6 @@ useEffect(() => {
               courseId: parseInt(e.target.value)
             })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            disabled={!attendanceFilters.programId}
           >
             <option value={0}>All Courses</option>
             {availableCourses
@@ -1004,10 +952,10 @@ useEffect(() => {
         >
           {generatingPdf ? (
             <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
               Generating...
             </>
           ) : (

@@ -1,34 +1,128 @@
 "use server";
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer";
 import puppeteerCore from "puppeteer-core";
 import { 
-  db, students, programs, departments, 
-   courses, semesters
+  db, students, programs, courses, semesters, staff
 } from "@/lib/db";
-// import { getAuthUser } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth";
 
-// Add these to your existing actions file
-export async function getDepartments() {
-  const data = await db.select().from(departments);
-  return data;
+// Get courses assigned to the logged-in lecturer
+export async function getLecturerCourses() {
+  try {
+    const authUser = await getAuthUser();
+    
+    // First get the staff ID for the logged-in user
+    const lecturerStaff = await db.select({
+      id: staff.id
+    })
+    .from(staff)
+    .where(eq(staff.userId, authUser.userId));
+    
+    if (lecturerStaff.length === 0) {
+      return [];
+    }
+    
+    const lecturerId = lecturerStaff[0].id;
+    
+    // Get courses assigned to this lecturer
+    const data = await db.select({
+      id: courses.id,
+      name: courses.name,
+      code: courses.code,
+      credits: courses.credits,
+      description: courses.description,
+      programName: programs.name,
+      semesterName: semesters.name
+    })
+    .from(courses)
+    .where(eq(courses.lecturerId, lecturerId))
+    .innerJoin(programs, eq(courses.programId, programs.id))
+    .innerJoin(semesters, eq(courses.semesterId, semesters.id))
+    .orderBy(courses.name);
+    
+    return data;
+  } catch (error) {
+    console.error("Error fetching lecturer courses:", error);
+    throw new Error("Failed to load courses");
+  }
 }
 
-export async function getPrograms() {
-  const data = await db.select().from(programs);
-  return data;
+// Get programs that the lecturer teaches courses in
+export async function getLecturerPrograms() {
+  try {
+    const authUser = await getAuthUser();
+    
+    // First get the staff ID for the logged-in user
+    const lecturerStaff = await db.select({
+      id: staff.id
+    })
+    .from(staff)
+    .where(eq(staff.userId, authUser.userId));
+    
+    if (lecturerStaff.length === 0) {
+      return [];
+    }
+    
+    const lecturerId = lecturerStaff[0].id;
+    
+    // Get programs that have courses taught by this lecturer
+    const data = await db.select({
+      id: programs.id,
+      name: programs.name,
+      code: programs.code
+    })
+    .from(programs)
+    .innerJoin(courses, eq(courses.programId, programs.id))
+    .where(eq(courses.lecturerId, lecturerId))
+    .groupBy(programs.id, programs.name, programs.code)
+    .orderBy(programs.name);
+    
+    return data;
+  } catch (error) {
+    console.error("Error fetching lecturer programs:", error);
+    throw new Error("Failed to load programs");
+  }
 }
 
-export async function getSemesters() {
-  const data = await db.select().from(semesters);
-  return data;
-}
-
-export async function getCourses() {
-  const data = await db.select().from(courses);
-  return data;
+// Get semesters that the lecturer teaches courses in
+export async function getLecturerSemesters() {
+  try {
+    const authUser = await getAuthUser();
+    
+    // First get the staff ID for the logged-in user
+    const lecturerStaff = await db.select({
+      id: staff.id
+    })
+    .from(staff)
+    .where(eq(staff.userId, authUser.userId));
+    
+    if (lecturerStaff.length === 0) {
+      return [];
+    }
+    
+    const lecturerId = lecturerStaff[0].id;
+    
+    // Get semesters that have courses taught by this lecturer
+    const data = await db.select({
+      id: semesters.id,
+      name: semesters.name,
+      startDate: semesters.startDate,
+      endDate: semesters.endDate
+    })
+    .from(semesters)
+    .innerJoin(courses, eq(courses.semesterId, semesters.id))
+    .where(eq(courses.lecturerId, lecturerId))
+    .groupBy(semesters.id, semesters.name, semesters.startDate, semesters.endDate)
+    .orderBy(semesters.startDate);
+    
+    return data;
+  } catch (error) {
+    console.error("Error fetching lecturer semesters:", error);
+    throw new Error("Failed to load semesters");
+  }
 }
 
 async function getBrowser() {
@@ -84,7 +178,6 @@ async function generatePdfFromHtml(html: string, landscape: boolean = false): Pr
 }
 
 interface AttendanceFilterParams {
-  departmentId?: number;
   programId?: number;
   semesterId?: number;
   courseId?: number;
@@ -95,19 +188,43 @@ interface AttendanceFilterParams {
  */
 export async function generateAttendanceListPdf(
   filters: AttendanceFilterParams,
-//   ipAddress?: string,
-//   userAgent?: string
 ): Promise<Buffer> {
   try {
-    // const authUser = await getAuthUser();
-    // const userId = authUser.userId;
+    const authUser = await getAuthUser();
+
+    // First get the staff ID for the logged-in user
+    const lecturerStaff = await db.select({
+      id: staff.id
+    })
+    .from(staff)
+    .where(eq(staff.userId, authUser.userId));
+    
+    if (lecturerStaff.length === 0) {
+      throw new Error("Lecturer not found");
+    }
+    
+    const lecturerId = lecturerStaff[0].id;
 
     // Build the where clause based on provided filters
     const whereConditions = [];
     
-    if (filters.departmentId) {
-      whereConditions.push(eq(students.departmentId, filters.departmentId));
+    // Get courses taught by this lecturer
+    const lecturerCourses = await db.select({
+      id: courses.id,
+      programId: courses.programId
+    })
+    .from(courses)
+    .where(eq(courses.lecturerId, lecturerId));
+    
+    const lecturerCourseIds = lecturerCourses.map(course => course.id);
+    const lecturerProgramIds = lecturerCourses.map(course => course.programId);
+    
+    if (lecturerCourseIds.length === 0) {
+      throw new Error("No courses assigned to lecturer");
     }
+    
+    // Filter students by programs that the lecturer teaches
+    whereConditions.push(inArray(students.programId, lecturerProgramIds));
     
     if (filters.programId) {
       whereConditions.push(eq(students.programId, filters.programId));
@@ -126,26 +243,18 @@ export async function generateAttendanceListPdf(
         studentNumber: students.studentNumber,
         registrationNumber: students.registrationNumber,
         programName: programs.name,
-        departmentName: departments.name,
         semesterName: semesters.name
       })
       .from(students)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .innerJoin(programs, eq(students.programId, programs.id))
-      .innerJoin(departments, eq(students.departmentId, departments.id))
       .leftJoin(semesters, eq(students.currentSemesterId, semesters.id))
       .orderBy(students.studentNumber);
 
     // Get additional filter details for the header
-    let departmentName = "All Departments";
     let programName = "All Programs";
     let semesterName = "All Semesters";
     let courseName = "All Courses";
-
-    if (filters.departmentId) {
-      const dept = await db.select().from(departments).where(eq(departments.id, filters.departmentId));
-      departmentName = dept[0]?.name || departmentName;
-    }
 
     if (filters.programId) {
       const prog = await db.select().from(programs).where(eq(programs.id, filters.programId));
@@ -190,33 +299,21 @@ export async function generateAttendanceListPdf(
       border-radius: 5px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 1000px;
+      max-width: 1200px;
       padding: 20px;
     }
 
     .header {
       text-align: center;
       margin-bottom: 20px;
-      border-bottom: 2px solid #1a4f8c;
+      border-bottom: 2px solid #ec4899; /* Pink-500 */
       padding-bottom: 15px;
     }
 
-    .logo-container {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 10px;
-    }
-
-    .logo {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-    }
-
     .school-name {
-      font-size: 18px;
+      font-size: 24px;
       font-weight: bold;
-      color: #1a4f8c;
+      color: #ec4899; /* Pink-500 */
       margin-bottom: 5px;
     }
 
@@ -224,22 +321,22 @@ export async function generateAttendanceListPdf(
       color: #555;
       margin-bottom: 3px;
       line-height: 1.3;
-      font-size: 12px;
+      font-size: 14px;
     }
 
     .school-contact {
       color: #555;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .document-title {
       text-align: center;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
-      color: #1a4f8c;
+      color: #22c55e; /* Green */
       margin: 15px 0 10px;
       padding: 8px;
-      background-color: #f0f5ff;
+      background-color: #f0fdf4; /* Light green background */
       border-radius: 3px;
     }
 
@@ -286,7 +383,7 @@ export async function generateAttendanceListPdf(
     }
 
     .attendance-table th {
-      background-color: #1a4f8c;
+      background-color: #ec4899; /* Pink-500 */
       color: white;
       font-weight: bold;
     }
@@ -316,13 +413,13 @@ export async function generateAttendanceListPdf(
     }
 
     .week-header {
-      background-color: #2c6baf !important;
+      background-color: #f472b6 !important; /* Lighter pink */
     }
 
     .lecturer-section {
       margin-top: 20px;
       padding: 15px;
-      border-top: 2px solid #1a4f8c;
+      border-top: 2px solid #22c55e; /* Green */
     }
 
     .lecturer-info {
@@ -371,7 +468,7 @@ export async function generateAttendanceListPdf(
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 60px;
       font-weight: bold;
-      color: #1a4f8c;
+      color: #ec4899; /* Pink-500 */
       opacity: 0.03;
       pointer-events: none;
       white-space: nowrap;
@@ -394,9 +491,6 @@ export async function generateAttendanceListPdf(
     <div class="watermark">ALPHIL</div>
 
     <div class="header">
-      <div class="logo-container">
-        <img src="/icon.jpg" alt="Alphil Training College Logo" class="logo">
-      </div>
       <div class="school-name">ALPHIL TRAINING COLLEGE</div>
       <div class="school-address">Kiratina Estate, menengai Ward, Nakuru , Kenya</div>
       <div class="school-contact">Phone: +254 782 179 498 | Email: alphilcollege@gmail.com</div>
@@ -405,10 +499,7 @@ export async function generateAttendanceListPdf(
     <div class="document-title">STUDENT ATTENDANCE LIST</div>
 
     <div class="filter-info">
-      <div class="filter-row">
-        <div class="filter-label">Department:</div>
-        <div class="filter-value">${departmentName}</div>
-      </div>
+
       <div class="filter-row">
         <div class="filter-label">Program:</div>
         <div class="filter-value">${programName}</div>
@@ -434,10 +525,10 @@ export async function generateAttendanceListPdf(
           <th style="width: 100px">Student No.</th>
           <th style="width: 200px">Student Name</th>
           <th style="width: 120px">Reg. Number</th>
-          <th colspan="4" class="week-header">Week 1</th>
-          <th colspan="4" class="week-header">Week 2</th>
-          <th colspan="4" class="week-header">Week 3</th>
-          <th colspan="4" class="week-header">Week 4</th>
+          <th colspan="6" class="week-header">Week 1</th>
+          <th colspan="6" class="week-header">Week 2</th>
+          <th colspan="6" class="week-header">Week 3</th>
+          <th colspan="6" class="week-header">Week 4</th>
         </tr>
         <tr>
           <th></th>
@@ -449,21 +540,29 @@ export async function generateAttendanceListPdf(
           <th class="attendance-cell">T</th>
           <th class="attendance-cell">W</th>
           <th class="attendance-cell">T</th>
+          <th class="attendance-cell">F</th>
+          <th class="attendance-cell">S</th>
           <!-- Week 2 days -->
           <th class="attendance-cell">M</th>
           <th class="attendance-cell">T</th>
           <th class="attendance-cell">W</th>
           <th class="attendance-cell">T</th>
+          <th class="attendance-cell">F</th>
+          <th class="attendance-cell">S</th>
           <!-- Week 3 days -->
           <th class="attendance-cell">M</th>
           <th class="attendance-cell">T</th>
           <th class="attendance-cell">W</th>
           <th class="attendance-cell">T</th>
+          <th class="attendance-cell">F</th>
+          <th class="attendance-cell">S</th>
           <!-- Week 4 days -->
           <th class="attendance-cell">M</th>
           <th class="attendance-cell">T</th>
           <th class="attendance-cell">W</th>
           <th class="attendance-cell">T</th>
+          <th class="attendance-cell">F</th>
+          <th class="attendance-cell">S</th>
         </tr>
       </thead>
       <tbody>
@@ -478,7 +577,11 @@ export async function generateAttendanceListPdf(
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
+            <td class="attendance-cell"></td>
+            <td class="attendance-cell"></td>
             <!-- Week 2 -->
+            <td class="attendance-cell"></td>
+            <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
@@ -488,7 +591,11 @@ export async function generateAttendanceListPdf(
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
+            <td class="attendance-cell"></td>
+            <td class="attendance-cell"></td>
             <!-- Week 4 -->
+            <td class="attendance-cell"></td>
+            <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
             <td class="attendance-cell"></td>
