@@ -345,13 +345,32 @@ export default function StudentCourseManager({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-3">
-          <FaChalkboardTeacher className="h-8 w-8 text-pink-600" />
-          <h1 className="text-3xl font-bold text-gray-800">My Courses</h1>
-        </div>
-      </div>
+{/* Header */}
+<div className="flex justify-between items-center mb-8">
+  {/* <div className="flex items-center gap-3">
+    <FaChalkboardTeacher className="h-8 w-8 text-pink-600" />
+    <h1 className="text-3xl font-bold text-gray-800">My Courses</h1>
+  </div> */}
+  
+  {/* Add the toggle button here */}
+  <button
+    onClick={toggleMaterialsView}
+    className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors border border-gray-300"
+    title={materialsViewMode === 'course' ? 'View all program materials' : 'View only current course materials'}
+  >
+    {materialsViewMode === 'course' ? (
+      <>
+        <FiLayers size={16} />
+        View All Program Materials
+      </>
+    ) : (
+      <>
+        <FiGrid size={16} />
+        View This Course Only
+      </>
+    )}
+  </button>
+</div>
 
       {/* Error Message */}
       {error && (
@@ -515,28 +534,9 @@ export default function StudentCourseManager({
                   {activeTab === 'materials' && (
                     <div className="space-y-4">
                       {/* View Mode Toggle */}
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-medium text-gray-800">
-                          {materialsViewMode === 'course' ? 'Course Materials' : 'All Program Materials'}
-                        </h3>
-                        <button
-                          onClick={toggleMaterialsView}
-                          className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-300 hover:bg-gray-200 rounded-md transition-colors"
-                          title={materialsViewMode === 'course' ? 'View all program materials' : 'View only current course materials'}
-                        >
-                          {materialsViewMode === 'course' ? (
-                            <>
-                              <FiLayers size={14} />
-                              View All Program
-                            </>
-                          ) : (
-                            <>
-                              <FiGrid size={14} />
-                              View This Course Only
-                            </>
-                          )}
-                        </button>
-                      </div>
+<h3 className="text-lg font-medium text-gray-800 mb-4">
+  {materialsViewMode === 'course' ? 'Course Materials' : 'All Program Materials'}
+</h3>
 
                       {displayedMaterials.length === 0 ? (
                         <div className="p-6 text-center bg-gray-50 rounded-lg">
