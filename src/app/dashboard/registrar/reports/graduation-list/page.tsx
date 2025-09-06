@@ -13,8 +13,8 @@ export default async function GraduationListPage() {
     const data = await getGraduationList();
 
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      // <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 space-y-6 max-w-7xl mx-auto bg-emerald-800">
           {/* Header Card */}
           <div className="bg-white rounded-lg shadow p-6">
             <h1 className="text-2xl font-bold text-gray-800">Graduation List</h1>
@@ -42,19 +42,19 @@ export default async function GraduationListPage() {
             <GraduationList data={data} />
           </div>
         </div>
-      </main>
+      // </main>
     );
   } catch (error) {
     console.error('Error loading graduation list:', error);
     return (
-      <main className="md:pl-64 pt-16 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto">
+      // <main className="md:pl-64 pt-16 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 max-w-7xl mx-auto bg-emerald-800">
           <ErrorMessage
             title="Failed to load graduation list"
             message="There was an error loading graduation data. Please try again later."
           />
         </div>
-      </main>
+      // </main>
     );
   }
 }
