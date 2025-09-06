@@ -37,13 +37,13 @@ interface MaterialContent {
   json: object;
 }
 
-interface Department {
-  id: number;
-  name: string;
-  headOfDepartmentId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// interface Department {
+//   id: number;
+//   name: string;
+//   headOfDepartmentId: number | null;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
 interface Program {
   id: number;
