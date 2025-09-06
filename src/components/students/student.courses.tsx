@@ -31,7 +31,7 @@ import {
   FiGrid,
   FiLayers
 } from 'react-icons/fi';
-import { FaChalkboardTeacher } from 'react-icons/fa';
+// import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
 import dynamic from 'next/dynamic';
 const DocumentViewer = dynamic(() => import('../documentViewer'), { ssr: false });
