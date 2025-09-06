@@ -45,6 +45,38 @@ interface Department {
   updatedAt: Date;
 }
 
+interface Program {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface Semester {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface Course {
+  id: number;
+  name: string;
+  code: string;
+  credits: string;
+  description: string | null;
+  program: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  semester: {
+    id: number;
+    name: string;
+    startDate: string;
+    endDate: string;
+  };
+}
+
 export default function LecturerCoursesClient() {
   const [courses, setCourses] = useState<CourseWithProgram[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<CourseWithProgram | null>(null);
@@ -86,29 +118,29 @@ const [attendanceFilters, setAttendanceFilters] = useState({
 
 // Update these state declarations with proper types
 const [generatingPdf, setGeneratingPdf] = useState(false);  
-const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
-const [availableSemesters, setAvailableSemesters] = useState<any[]>([]);
-const [availableCourses, setAvailableCourses] = useState<any[]>([]);
+const [availablePrograms, setAvailablePrograms] = useState<Program[]>([]);
+const [availableSemesters, setAvailableSemesters] = useState<Semester[]>([]);
+const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
 
 // Add these functions to your component
 
 // Fetch filter options
 // Replace the fetchFilterOptions function:
-const fetchFilterOptions = async () => {
-  try {
-    const [progs, sems, crs] = await Promise.all([
-      getLecturerPrograms(),
-      getLecturerSemesters(),
-      getLecturerCourses()
-    ]);
-    setAvailablePrograms(progs);
-    setAvailableSemesters(sems);
-    setAvailableCourses(crs);
-  } catch (error) {
-    setError('Failed to load filter options');
-    console.error(error);
-  }
-};
+  const fetchFilterOptions = async () => {
+    try {
+      const [progs, sems, crs] = await Promise.all([
+        getLecturerPrograms(),
+        getLecturerSemesters(),
+        getLecturerCourses()
+      ]);
+      setAvailablePrograms(progs);
+      setAvailableSemesters(sems);
+      setAvailableCourses(crs);
+    } catch (error) {
+      setError('Failed to load filter options');
+      console.error(error);
+    }
+  };
 
 // Generate attendance list PDF
 // Update the handleGenerateAttendanceList function
@@ -928,7 +960,7 @@ useEffect(() => {
           >
             <option value={0}>All Courses</option>
             {availableCourses
-              .filter(course => !attendanceFilters.programId || course.programId === attendanceFilters.programId)
+              .filter(course => !attendanceFilters.programId || course.program.id === attendanceFilters.programId)
               .map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.name} ({course.code})

@@ -310,8 +310,8 @@ export default function LoginPage() {
             <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <h3 className="text-sm font-medium text-gray-700 mb-2">Need help?</h3>
               <p className="text-xs text-gray-600">
-                If you're having trouble logging in, please contact the system administrator at{" "}
-                <span className="text-emerald-700">support@alphilcollege.com</span>
+                Having trouble logging in, please contact the system administrator at{" "}
+                <span className="text-emerald-700">alphilcollege@gmail.com</span>
               </p>
             </div>
           </form>
