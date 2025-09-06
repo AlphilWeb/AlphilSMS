@@ -10,8 +10,8 @@ export default async function PaymentsPage() {
     const financialData = await getStudentFinancialData();
 
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
+      // <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 max-w-7xl mx-auto space-y-6 bg-emerald-800">
           <div className="bg-white rounded-lg shadow p-6">
             <h1 className="text-2xl font-bold text-gray-800 mb-6">Financial Center</h1>
             <FinancialOverview
@@ -33,19 +33,19 @@ export default async function PaymentsPage() {
             </div>
           </div>
         </div>
-      </main>
+      // </main>
     );
   } catch (error) {
     console.error('Error rendering PaymentsPage:', error);
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto">
+      // <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 max-w-7xl mx-auto bg-emerald-800">
           <ErrorMessage
             title="Failed to load financial data"
             message={error instanceof Error ? error.message : 'There was an error loading your financial information.'}
           />
         </div>
-      </main>
+      // </main>
     );
   }
 }

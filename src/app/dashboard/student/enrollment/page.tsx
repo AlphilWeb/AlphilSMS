@@ -8,8 +8,8 @@ export default async function CourseEnrollmentPage() {
     const availableCourses = await getAvailableCoursesForEnrollment();
 
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto">
+      // <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 max-w-7xl mx-auto bg-emerald-800">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-800">Course Enrollment</h1>
@@ -24,19 +24,19 @@ export default async function CourseEnrollmentPage() {
             <CourseEnrollmentForm availableCourses={availableCourses} />
           </div>
         </div>
-      </main>
+      // </main>
     );
   } catch (error) {
     console.error('Error rendering CourseEnrollmentPage:', error);
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto">
+      // <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 max-w-7xl mx-auto bg-emerald-800">
           <ErrorMessage
             title="Failed to load enrollment data"
             message={error instanceof Error ? error.message : 'There was an error loading available courses.'}
           />
         </div>
-      </main>
+      // </main>
     );
   }
 }

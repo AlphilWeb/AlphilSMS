@@ -14,8 +14,8 @@ export default async function StudentCoursesPage() {
     ]);
 
     return (
-      <main className="md:pl-64 pt-2 overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto min-h-[calc(100vh-8rem)]">
+      // <main className="md:pl-64 pt-2 overflow-y-auto bg-emerald-800 text-white">
+        <div className="p-6 max-w-7xl mx-auto min-h-[calc(100vh-8rem)] bg-emerald-800">
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h1 className="text-2xl font-bold text-gray-800">My Courses</h1>
@@ -31,19 +31,19 @@ export default async function StudentCoursesPage() {
             </Suspense>
           </div>
         </div>
-      </main>
+      // </main>
     );
   } catch (error) {
     console.error('Error rendering StudentCoursesPage:', error);
     return (
-      <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto bg-emerald-800 text-white">
-        <div className="p-6 max-w-7xl mx-auto">
+      // <main className="md:pl-64 pt-2 h-[calc(100vh-4rem)] overflow-y-auto  text-white">
+        <div className="p-6 max-w-7xl mx-auto bg-emerald-800">
           <ErrorMessage
             title="Failed to load courses"
             message={error instanceof Error ? error.message : 'There was an error loading your courses.'}
           />
         </div>
-      </main>
+      // </main>
     );
   }
 }
