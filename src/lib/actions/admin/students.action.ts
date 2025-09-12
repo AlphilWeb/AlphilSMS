@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/db';
 import { students, users, programs, departments, semesters, enrollments, userLogs, courses } from '@/lib/db/schema';
-import { and, eq, asc, sql, like, or, ne } from 'drizzle-orm';
+import { and, eq, asc, sql, or, ne, ilike } from 'drizzle-orm';
 import { getAuthUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionError } from '@/lib/utils';
@@ -136,9 +136,43 @@ export async function getAllStudents(): Promise<StudentWithDetails[]> {
 // Search students by name, email, or registration number
 export async function searchStudents(query: string): Promise<StudentWithDetails[]> {
   const authUser = await getAuthUser();
-  if (!authUser) throw new Error('Unauthorized');
+  if (!authUser) throw new ActionError('Unauthorized');
 
-  if (!query.trim()) return getAllStudents();
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return getAllStudents();
+
+  const searchTerms = trimmedQuery.split(/\s+/).filter(term => term.length > 0);
+  const patterns = searchTerms.map(term => `%${term}%`);
+
+  // Build conditions for each search term
+  const termConditions = patterns.map(pattern => 
+    or(
+      ilike(students.firstName, pattern),
+      ilike(students.lastName, pattern),
+      ilike(students.email, pattern),
+      ilike(students.registrationNumber, pattern),
+      ilike(students.studentNumber, pattern)
+    )
+  );
+
+  // Special handling for name combinations (e.g., "John Doe")
+  let nameCombinationCondition;
+  if (searchTerms.length >= 2) {
+    nameCombinationCondition = or(
+      and(
+        ilike(students.firstName, patterns[0]),
+        ilike(students.lastName, patterns[1])
+      ),
+      and(
+        ilike(students.firstName, patterns[1]),
+        ilike(students.lastName, patterns[0])
+      )
+    );
+  }
+
+  const whereClause = nameCombinationCondition 
+    ? or(and(...termConditions), nameCombinationCondition)
+    : and(...termConditions);
 
   return db
     .select({
@@ -167,21 +201,10 @@ export async function searchStudents(query: string): Promise<StudentWithDetails[
     .innerJoin(programs, eq(programs.id, students.programId))
     .innerJoin(departments, eq(departments.id, students.departmentId))
     .innerJoin(semesters, eq(semesters.id, students.currentSemesterId))
-    .where(
-      or(
-        like(students.firstName, `%${query}%`),
-        like(students.lastName, `%${query}%`),
-        like(students.email, `%${query}%`),
-        like(students.registrationNumber, `%${query}%`),
-        like(students.studentNumber, `%${query}%`),
-        // Add full name search (first + last)
-        like(sql`CONCAT(${students.firstName}, ' ', ${students.lastName})`, `%${query}%`),
-        // Also search last + first name
-        like(sql`CONCAT(${students.lastName}, ' ', ${students.firstName})`, `%${query}%`)
-      )
-    )
+    .where(whereClause)
     .orderBy(asc(students.lastName), asc(students.firstName));
 }
+
 
 // Get student details by ID
 export async function getStudentDetails(studentId: number): Promise<StudentWithDetails> {
