@@ -1,12 +1,12 @@
 // components/admin/admin.students.client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   getAllStudents,
   deleteStudent,
   getStudentEnrollments,
-  searchStudents,
+  // searchStudents,
   type StudentWithDetails,
   type StudentEnrollment,
 } from '@/lib/actions/admin/students.action';
@@ -16,22 +16,25 @@ import { generateStudentListPdf } from '@/lib/actions/pdf-generataion/pdf-genera
 import { ActionError } from '@/lib/utils';
 
 import BulkStudentsModal from '@/components/admin/bulk-students-modal.client';
-
+import Image from 'next/image';
 import {
-  // getStudentForEdit,
   updateStudent,
 } from '@/lib/actions/users/student.edit.actions';
 import { getStudentFormOptions, addStudent } from '@/lib/actions/test/test.action';
 
 import {
   FiUser, FiBook, FiPlus, FiEdit2, FiTrash2, 
-  FiLoader, FiX, FiSearch, FiInfo, FiCheck, FiFileText, FiCreditCard, FiAward, FiCamera,
-  FiExternalLink,
+  FiLoader, FiX, FiSearch, FiInfo, FiCheck, FiCreditCard, FiAward, FiCamera,
+  // FiExternalLink,
   FiEye,
   FiEyeOff,
-  FiDownload // Added download icon
+  FiDownload, // Added download icon
+  FiUpload,
+  FiExternalLink
 } from 'react-icons/fi';
 import { bulkAddStudentsWithDetails, getStudentWithDetails } from '@/lib/actions/admin/student-with-details.actions';
+import { getClientImageUrl } from '@/lib/image-client';
+// import { ImageType } from '@/lib/actions/iamge.actions';
 
 interface StudentWithDetailsData {
   // Student basic info
@@ -56,19 +59,6 @@ interface StudentWithDetailsData {
   contact2: string;
   contact3: string;
   dateJoined: string;
-}
-
-interface Option {
-  id: number;
-  name: string;
-  code?: string;
-}
-
-interface StudentFormOptions {
-  programs: Option[];
-  departments: Option[];
-  semesters: Option[];
-  roles: Option[]; 
 }
 
 interface Option {
@@ -152,6 +142,7 @@ export default function AdminStudentsClient() {
   const [options, setOptions] = useState<StudentFormOptions>({ programs: [], departments: [], semesters: [], roles: [] });
   const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -166,6 +157,17 @@ export default function AdminStudentsClient() {
     roleId: 0,
   });
 
+  const [personalDetailsForm, setPersonalDetailsForm] = useState({
+    age: '',
+    sex: '',
+    county: '',
+    village: '',
+    contact1: '',
+    contact2: '',
+    contact3: '',
+    dateJoined: '',
+  });
+
   const [documentsFormData, setDocumentsFormData] = useState({
     passportPhoto: null as File | null,
     idPhoto: null as File | null,
@@ -173,26 +175,77 @@ export default function AdminStudentsClient() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({
+    passportPhoto: null,
+    idPhoto: null,
+    certificate: null
+  });
+
+  console.log(imageUrls)
+
+  const filteredStudents = useMemo(() => {
+  if (!searchQuery.trim()) {
+    return students;
+  }
+
+  const query = searchQuery.toLowerCase().trim();
+  
+  return students.filter(student =>
+    student.firstName.toLowerCase().includes(query) ||
+    student.lastName.toLowerCase().includes(query) ||
+    student.email.toLowerCase().includes(query) ||
+    student.registrationNumber.toLowerCase().includes(query) ||
+    student.studentNumber.toLowerCase().includes(query) ||
+    student.program.name.toLowerCase().includes(query) ||
+    student.department.name.toLowerCase().includes(query) ||
+    `${student.firstName} ${student.lastName}`.toLowerCase().includes(query)
+  );
+}, [students, searchQuery]);
 
 
-  // Fetch all students on component mount and when search changes
+// const [openDropdown, setOpenDropdown] = useState<ImageType | null>(null);
+// const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+const [loadingImage, setLoadingImage] = useState(false);
+console.log(setLoadingImage)
+console.log(loadingImage)
+
+const [passportUrl, setPassportUrl] = useState<string | null>(null);
+const [idUrl, setIdUrl] = useState<string | null>(null);
+const [certificateUrl, setCertificateUrl] = useState<string | null>(null);
+
 useEffect(() => {
-  const loadStudents = async () => {
+  if (!selectedStudent) {
+    setPassportUrl(null);
+    setIdUrl(null);
+    setCertificateUrl(null);
+    return;
+  }
+
+  const fetchUrls = async () => {
     try {
-      setLoading(prev => ({ ...prev, students: true }));
-      setError(null);
-      const studentsData = await getAllStudents();
-      setStudents(studentsData);
+      const pUrl = selectedStudent.passportPhotoUrl
+        ? await getClientImageUrl(selectedStudent.id, 'student-passport')
+        : null;
+      const iUrl = selectedStudent.idPhotoUrl
+        ? await getClientImageUrl(selectedStudent.id, 'student-id')
+        : null;
+      const cUrl = selectedStudent.certificateUrl
+        ? await getClientImageUrl(selectedStudent.id, 'student-certificate')
+        : null;
+
+      setPassportUrl(pUrl ?? null);
+      setIdUrl(iUrl ?? null);
+      setCertificateUrl(cUrl ?? null);
     } catch (err) {
-      console.error('Detailed error loading students:', err);
-      setError(err instanceof ActionError ? err.message : 'Failed to load students. Please check console for details.');
-    } finally {
-      setLoading(prev => ({ ...prev, students: false }));
+      console.error('Failed to fetch student images:', err);
+      setPassportUrl(null);
+      setIdUrl(null);
+      setCertificateUrl(null);
     }
   };
 
-  loadStudents();
-}, []);
+  fetchUrls();
+}, [selectedStudent]);
 
   // Load form options
   useEffect(() => {
@@ -223,43 +276,43 @@ useEffect(() => {
     loadOptions();
   }, []);
 
-// Handle search
-useEffect(() => {
-  // If search query is empty, reload all students immediately
-  if (!searchQuery.trim()) {
-    const loadAllStudents = async () => {
-      try {
-        setLoading(prev => ({ ...prev, students: true }));
-        const studentsData = await getAllStudents();
-        setStudents(studentsData);
-      } catch (err) {
-        setError(err instanceof ActionError ? err.message : 'Failed to load students');
-      } finally {
-        setLoading(prev => ({ ...prev, students: false }));
+  useEffect(() => {
+  const loadAllStudents = async () => {
+    try {
+      setLoading(prev => ({ ...prev, students: true }));
+      const studentsData = await getAllStudents();
+      setStudents(studentsData);
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to load students');
+    } finally {
+      setLoading(prev => ({ ...prev, students: false }));
+    }
+  };
+  
+  loadAllStudents();
+}, []);
+  // Fetch image URLs when selected student changes
+  useEffect(() => {
+    const fetchImageUrls = async () => {
+      if (!selectedStudent) return;
+
+      const urls: Record<string, string | null | undefined> = {};
+      
+      if (selectedStudent.id) {
+        urls.passportPhoto= await getClientImageUrl(selectedStudent.id, 'student-passport');
+        urls.idPhoto = await getClientImageUrl(selectedStudent.id, 'student-id');
+        urls.certificate = await getClientImageUrl(selectedStudent.id, 'student-certificate');
       }
+      
+      setImageUrls({
+        passportPhoto: urls.passportPhoto ?? null,
+        idPhoto: urls.idPhoto ?? null,
+        certificate: urls.certificate ?? null,
+      });
     };
-    
-    loadAllStudents();
-    return;
-  }
 
-  // If there's a search query, use the debounced search
-const timer = setTimeout(async () => {
-  try {
-    setLoading(prev => ({ ...prev, students: true }));
-    // Encode the search query to handle spaces and special characters
-    const encodedQuery = encodeURIComponent(searchQuery.trim());
-    const results = await searchStudents(encodedQuery);
-    setStudents(results);
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Search failed');
-  } finally {
-    setLoading(prev => ({ ...prev, students: false }));
-  }
-}, 500);
-
-  return () => clearTimeout(timer);
-}, [searchQuery]);
+    fetchImageUrls();
+  }, [selectedStudent]);
 
   // NEW: Generate Student List PDF
   const generateStudentListPdfHandler = async () => {
@@ -299,11 +352,11 @@ const timer = setTimeout(async () => {
       setLoading(prev => ({ ...prev, details: true, enrollments: true }));
       setError(null);
       
-const [opts, studentRes, studentEnrollments] = await Promise.all([
-  getStudentFormOptions(),
-  getStudentWithDetails(studentId), // Changed from getStudentForEdit to getStudentWithDetails
-  getStudentEnrollments(studentId)
-]);
+      const [opts, studentRes, studentEnrollments] = await Promise.all([
+        getStudentFormOptions(),
+        getStudentWithDetails(studentId),
+        getStudentEnrollments(studentId)
+      ]);
 
       setOptions(opts);
 
@@ -329,9 +382,23 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
           programId: studentRes.student.programId,
           departmentId: studentRes.student.departmentId,
           currentSemesterId: studentRes.student.currentSemesterId ?? 0,
-          password: '',
-          roleId: (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0 
+          password: '', // Password will be fetched separately if needed
+          roleId: studentRes.student.user?.role?.id || (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0 
         });
+
+        // Set personal details if they exist
+        if (studentRes.student.personalDetails) {
+          setPersonalDetailsForm({
+            age: studentRes.student.personalDetails.age.toString(),
+            sex: studentRes.student.personalDetails.sex,
+            county: studentRes.student.personalDetails.county,
+            village: studentRes.student.personalDetails.village,
+            contact1: studentRes.student.personalDetails.contact1,
+            contact2: studentRes.student.personalDetails.contact2 || '',
+            contact3: studentRes.student.personalDetails.contact3 || '',
+            dateJoined: studentRes.student.personalDetails.dateJoined,
+          });
+        }
 
         // Set file previews
         const previews: Record<string, string> = {};
@@ -360,13 +427,23 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
     }));
   };
 
+  // Handle personal details form changes
+  const handlePersonalDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setPersonalDetailsForm(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   // Handle file input changes
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const { files } = e.target;
     if (files && files.length > 0) {
+      const file = files[0];
       setDocumentsFormData(prev => ({
         ...prev,
-        [field]: files[0]
+        [field]: file
       }));
 
       const reader = new FileReader();
@@ -376,7 +453,7 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
           [field]: e.target?.result as string
         }));
       };
-      reader.readAsDataURL(files[0]);
+      reader.readAsDataURL(file);
     }
   };
 
@@ -483,6 +560,16 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
           password: '',
           roleId: (options.roles ?? []).find(r => r.name.toLowerCase().includes('student'))?.id || (options.roles ?? [])[0]?.id || 0
         });
+        setPersonalDetailsForm({
+          age: '',
+          sex: '',
+          county: '',
+          village: '',
+          contact1: '',
+          contact2: '',
+          contact3: '',
+          dateJoined: '',
+        });
         setDocumentsFormData({
           passportPhoto: null,
           idPhoto: null,
@@ -519,28 +606,47 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
       };
 
       const updatePayload: {
-        firstName: string;
-        lastName: string;
-        email: string;
-        idNumber: string | null;
-        registrationNumber: string;
-        studentNumber: string;
-        programId: number;
-        departmentId: number;
-        currentSemesterId: number;
-        password?: string;
-        roleId: number;
-        shouldDeleteFiles: {
-          certificate: boolean;
-          idPhoto: boolean;
-          passportPhoto: boolean;
-        };
-        passportPhoto?: File;
-        idPhoto?: File;
-        certificate?: File;
-      } = {
-        ...formData,
+            firstName: string;
+            lastName: string;
+            email: string;
+            idNumber: string | null;
+            registrationNumber: string;
+            studentNumber: string;
+            programId: number;
+            departmentId: number;
+            currentSemesterId: number;
+            shouldDeleteFiles: {
+              certificate: boolean;
+              idPhoto: boolean;
+              passportPhoto: boolean;
+            };
+            roleId: number;
+            password?: string;
+            personalDetails?: {
+              age: number;
+              sex: string;
+              county: string;
+              village: string;
+              contact1: string;
+              contact2?: string;
+              contact3?: string;
+              dateJoined: string;
+            };
+            passportPhoto?: File;
+            idPhoto?: File;
+            certificate?: File;
+          } = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        idNumber: formData.idNumber || null,
+        registrationNumber: formData.registrationNumber,
+        studentNumber: formData.studentNumber,
+        programId: formData.programId,
+        departmentId: formData.departmentId,
+        currentSemesterId: formData.currentSemesterId,
         shouldDeleteFiles,
+        roleId: formData.roleId,
       };
       
       // Only include password if it's not empty
@@ -548,17 +654,26 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
         updatePayload.password = formData.password;
       }
       
-      // Include roleId
-      updatePayload.roleId = formData.roleId;
+      // Include personal details if they exist in the form
+      if (personalDetailsForm.age || personalDetailsForm.sex || personalDetailsForm.county || 
+          personalDetailsForm.village || personalDetailsForm.contact1 || personalDetailsForm.dateJoined) {
+        updatePayload.personalDetails = {
+          age: parseInt(personalDetailsForm.age),
+          sex: personalDetailsForm.sex,
+          county: personalDetailsForm.county,
+          village: personalDetailsForm.village,
+          contact1: personalDetailsForm.contact1,
+          contact2: personalDetailsForm.contact2 || undefined,
+          contact3: personalDetailsForm.contact3 || undefined,
+          dateJoined: personalDetailsForm.dateJoined,
+        };
+      }
       
       if (documentsFormData.passportPhoto) updatePayload.passportPhoto = documentsFormData.passportPhoto;
       if (documentsFormData.idPhoto) updatePayload.idPhoto = documentsFormData.idPhoto;
       if (documentsFormData.certificate) updatePayload.certificate = documentsFormData.certificate;
 
-      const updatedStudent = await updateStudent(selectedStudent.id, {
-        ...updatePayload,
-        password: updatePayload.password ?? "",
-      });    
+      const updatedStudent = await updateStudent(selectedStudent.id, updatePayload);
       
       if (updatedStudent.success && updatedStudent.student) {
         setStudents(prev => prev.map(student => 
@@ -621,31 +736,31 @@ const [opts, studentRes, studentEnrollments] = await Promise.all([
     }
   };
 
-const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsData[]) => {
-  try {
-    setLoading(prev => ({ ...prev, create: true }));
-    setError(null);
-    
-    // Use the new bulk action that handles both students and personal details
-    const results = await bulkAddStudentsWithDetails(students);
-    
-    if (results.errors.length > 0) {
-      const errorMessage = `Failed to create ${results.errors.length} students. Errors: ${results.errors.map(e => `Row ${e.index + 1}: ${e.error}`).join(', ')}`;
-      throw new ActionError(errorMessage);
+  const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsData[]) => {
+    try {
+      setLoading(prev => ({ ...prev, create: true }));
+      setError(null);
+      
+      // Use the new bulk action that handles both students and personal details
+      const results = await bulkAddStudentsWithDetails(students);
+      
+      if (results.errors.length > 0) {
+        const errorMessage = `Failed to create ${results.errors.length} students. Errors: ${results.errors.map(e => `Row ${e.index + 1}: ${e.error}`).join(', ')}`;
+        throw new ActionError(errorMessage);
+      }
+      
+      // Refresh the students list by fetching all students again
+      const updatedStudents = await getAllStudents();
+      setStudents(updatedStudents);
+      
+      setIsBulkModalOpen(false);
+      setSuccess(`${results.success} students with details created successfully!`);
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : 'Failed to create students');
+    } finally {
+      setLoading(prev => ({ ...prev, create: false }));
     }
-    
-    // Refresh the students list by fetching all students again
-    const updatedStudents = await getAllStudents();
-    setStudents(updatedStudents);
-    
-    setIsBulkModalOpen(false);
-    setSuccess(`${results.success} students with details created successfully!`);
-  } catch (err) {
-    setError(err instanceof ActionError ? err.message : 'Failed to create students');
-  } finally {
-    setLoading(prev => ({ ...prev, create: false }));
-  }
-};
+  };
 
   // Delete student
   const handleDeleteStudent = async () => {
@@ -675,7 +790,59 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
     });
   };
 
-  return (
+  // Check if required fields are filled for create
+  const isCreateFormValid = () => {
+    return formData.firstName && formData.lastName && formData.email && 
+           formData.registrationNumber && formData.studentNumber && 
+           formData.programId && formData.departmentId && formData.currentSemesterId &&
+           formData.password && formData.roleId;
+  };
+
+  // Check if required fields are filled for update
+  const isUpdateFormValid = () => {
+    return formData.firstName && formData.lastName && formData.email && 
+           formData.registrationNumber && formData.studentNumber && 
+           formData.programId && formData.departmentId && formData.currentSemesterId &&
+           formData.roleId;
+  };
+
+  // File input component with improved design
+  const FileInput = ({ field, label, accept }: { field: string; label: string; accept: string }) => (
+    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-emerald-500 transition-colors">
+      <input
+        type="file"
+        id={field}
+        accept={accept}
+        onChange={(e) => handleFileChange(e, field)}
+        className="hidden"
+      />
+      <label htmlFor={field} className="cursor-pointer">
+        <FiUpload className="mx-auto text-gray-400 mb-2" size={24} />
+        <p className="text-sm text-gray-600">{label}</p>
+        <p className="text-xs text-gray-500 mt-1">Click to upload or drag and drop</p>
+      </label>
+      {filePreviews[field] && (
+        <div className="mt-4">
+          <div className="relative inline-block">
+            <Image 
+              src={filePreviews[field]} 
+              alt={label}
+              className="h-20 w-20 object-cover rounded border"
+            />
+            <button
+              // type="button"
+              onClick={() => removeFile(field)}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+            >
+              <FiX size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+ return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -750,21 +917,23 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
             </div>
           </div>
 
-          {loading.students ? (
-            <div className="p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-10 bg-gray-200 rounded"></div>
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gray-100 rounded"></div>
-                ))}
+            {loading.students ? (
+              <div className="p-6">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-10 bg-gray-200 rounded"></div>
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : students.length === 0 ? (
-            <div className="p-6 text-center">
-              <FiUser className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No students found</p>
-            </div>
-          ) : (
+            ) : filteredStudents.length === 0 ? (
+              <div className="p-6 text-center">
+                <FiUser className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                <p className="text-gray-500">
+                  {searchQuery ? 'No students match your search' : 'No students found'}
+                </p>
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -787,7 +956,7 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student) => (
+                  {filteredStudents.map((student) => (
                     <tr 
                       key={student.id} 
                       className="hover:bg-gray-50 cursor-pointer"
@@ -869,7 +1038,7 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
       {/* Create Student Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b p-6 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <FiPlus size={18} /> Create New Student
@@ -882,260 +1051,347 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="John"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="Doe"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="john.doe@university.edu"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID Number
-                  </label>
-                  <input
-                    type="text"
-                    name="idNumber"
-                    value={formData.idNumber}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="ID123456"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Registration Number *
-                  </label>
-                  <input
-                    type="text"
-                    name="registrationNumber"
-                    value={formData.registrationNumber}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    placeholder="REG123456"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Student Number *
-                </label>
-                <input
-                  type="text"
-                  name="studentNumber"
-                  value={formData.studentNumber}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  placeholder="STU789012"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department *
-                  </label>
-                  <select
-                    name="departmentId"
-                    value={formData.departmentId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Department</option>
-                    {options.departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Program *
-                  </label>
-                  <select
-                    name="programId"
-                    value={formData.programId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Program</option>
-                    {options.programs.map((program) => (
-                      <option key={program.id} value={program.id}>
-                        {program.code ? `${program.code} - ${program.name}` : program.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Semester *
-                  </label>
-                  <select
-                    name="currentSemesterId"
-                    value={formData.currentSemesterId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Semester</option>
-                    {options.semesters.map((semester) => (
-                      <option key={semester.id} value={semester.id}>{semester.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        placeholder="John"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        placeholder="Doe"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="john.doe@university.edu"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ID Number (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        name="idNumber"
+                        value={formData.idNumber}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        placeholder="ID123456"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Registration Number *
+                      </label>
+                      <input
+                        type="text"
+                        name="registrationNumber"
+                        value={formData.registrationNumber}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        placeholder="REG123456"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Student Number *
+                    </label>
+                    <input
+                      type="text"
+                      name="studentNumber"
+                      value={formData.studentNumber}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="STU789012"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Department *
+                      </label>
+                      <select
+                        name="departmentId"
+                        value={formData.departmentId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      >
+                        <option value="">Select Department</option>
+                        {options.departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Program *
+                      </label>
+                      <select
+                        name="programId"
+                        value={formData.programId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      >
+                        <option value="">Select Program</option>
+                        {options.programs.map((program) => (
+                          <option key={program.id} value={program.id}>
+                            {program.code ? `${program.code} - ${program.name}` : program.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Semester *
+                      </label>
+                      <select
+                        name="currentSemesterId"
+                        value={formData.currentSemesterId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      >
+                        <option value="">Select Semester</option>
+                        {options.semesters.map((semester) => (
+                          <option key={semester.id} value={semester.id}>{semester.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-              {/* Add Password Field */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Password *
-  </label>
-  <input
-    type="password"
-    name="password"
-    value={formData.password}
-    onChange={handleChange}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-    placeholder="Enter password"
-    required
-  />
-  <p className="text-xs text-gray-500 mt-1">
-    Must be at least 8 characters with uppercase, lowercase, number, and special character
-  </p>
-</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800 pr-10"
+                        placeholder="Enter password"
+                        required
+                      />
+                      <button
+                        // type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Must be at least 8 characters with uppercase, lowercase, number, and special character
+                    </p>
+                  </div>
 
-{/* Add Role Field */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Role *
-  </label>
-  <select
-    name="roleId"
-    value={formData.roleId}
-    onChange={handleChange}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-    required
-  >
-    <option value="">Select Role</option>
-    {options.roles?.map((role) => (
-      <option key={role.id} value={role.id}>{role.name}</option>
-    ))}
-  </select>
-</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Role *
+                    </label>
+                    <select
+                      name="roleId"
+                      value={formData.roleId}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {options.roles?.map((role) => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Personal Details */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Personal Details</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Age *
+                      </label>
+                      <input
+                        type="number"
+                        name="age"
+                        value={personalDetailsForm.age}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        placeholder="25"
+                        min="1"
+                        max="150"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sex *
+                      </label>
+                      <select
+                        name="sex"
+                        value={personalDetailsForm.sex}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      >
+                        <option value="">Select Sex</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      County *
+                    </label>
+                    <input
+                      type="text"
+                      name="county"
+                      value={personalDetailsForm.county}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="Nairobi"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Village *
+                    </label>
+                    <input
+                      type="text"
+                      name="village"
+                      value={personalDetailsForm.village}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="Westlands"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Primary Contact *
+                    </label>
+                    <input
+                      type="text"
+                      name="contact1"
+                      value={personalDetailsForm.contact1}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="+254712345678"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Emergency Contact (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="contact2"
+                      value={personalDetailsForm.contact2}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="+254712345679"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Next of Kin (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="contact3"
+                      value={personalDetailsForm.contact3}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="+254712345670"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date Joined *
+                    </label>
+                    <input
+                      type="date"
+                      name="dateJoined"
+                      value={personalDetailsForm.dateJoined}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* File Upload Sections */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Passport Photo
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'passportPhoto')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FileInput 
+                    field="passportPhoto" 
+                    label="Passport Photo" 
+                    accept="image/*" 
                   />
-                  {filePreviews.passportPhoto && (
-                    <div className="mt-2">
-                      <image href={filePreviews.passportPhoto} className="h-20 w-20 object-cover rounded" />
-                      <button
-                        type="button"
-                        onClick={() => removeFile('passportPhoto')}
-                        className="mt-1 text-red-600 text-sm hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID Photo
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'idPhoto')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <FileInput 
+                    field="idPhoto" 
+                    label="ID Photo" 
+                    accept="image/*" 
                   />
-                  {filePreviews.idPhoto && (
-                    <div className="mt-2">
-                      <image href={filePreviews.idPhoto} className="h-20 w-20 object-cover rounded" />
-                      <button
-                        type="button"
-                        onClick={() => removeFile('idPhoto')}
-                        className="mt-1 text-red-600 text-sm hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Certificate
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => handleFileChange(e, 'certificate')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <FileInput 
+                    field="certificate" 
+                    label="Certificate" 
+                    accept="image/*" 
                   />
-                  {filePreviews.certificate && (
-                    <div className="mt-2">
-                      <div className="h-20 w-20 bg-gray-100 rounded flex items-center justify-center">
-                        <FiFileText className="text-gray-400 text-2xl" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile('certificate')}
-                        className="mt-1 text-red-600 text-sm hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1149,10 +1405,7 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
               </button>
               <button
                 onClick={handleCreateStudent}
-                disabled={loading.create || !formData.firstName || !formData.lastName || !formData.email || 
-                      !formData.registrationNumber || !formData.studentNumber || 
-                      !formData.programId || !formData.departmentId || !formData.currentSemesterId ||
-                      !formData.password || !formData.roleId} 
+                disabled={loading.create || !isCreateFormValid()}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
                   loading.create ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
@@ -1175,287 +1428,304 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
       )}
 
       {/* View Student Details Modal */}
-{isViewModalOpen && selectedStudent && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-auto">
-    <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between items-center border-b p-6">
-        <h2 className="text-xl font-bold text-gray-800">Student Details</h2>
-        <button
-          onClick={() => setIsViewModalOpen(false)}
-          className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-        >
-          <FiX size={20} />
-        </button>
-      </div>
-      
-      <div className="p-6">
-        <div className="flex items-start gap-6">
-          <div className="flex-shrink-0 h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
-            <FiUser className="text-emerald-600 text-2xl" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-800">
-              {selectedStudent.firstName} {selectedStudent.lastName}
-            </h2>
-            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStudent.email}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Student Number</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStudent.studentNumber}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Registration Number</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStudent.registrationNumber}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedStudent.idNumber || 'Not provided'}
-                </p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Date Joined</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(selectedStudent.createdAt)}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(selectedStudent.updatedAt)}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Program</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStudent.program?.name || 'Unknown'}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Department</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStudent.department?.name || 'Unknown'}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Current Semester</h3>
-                <p className="mt-1 text-sm text-gray-900">{selectedStudent.currentSemester?.name || 'Unknown'}</p>
-              </div>
-              
-              {/* User Account Information */}
-              {selectedStudent.user && (
-                <>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">User ID</h3>
-                    <p className="mt-1 text-sm text-gray-900">{selectedStudent.user.id}</p>
+      {isViewModalOpen && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-auto">
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-6">
+              <h2 className="text-xl font-bold text-gray-800">Student Details</h2>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-start gap-6">
+                <div className="flex-shrink-0 h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <FiUser className="text-emerald-600 text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-gray-800">
+                    {selectedStudent.firstName} {selectedStudent.lastName}
+                  </h2>
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.email}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Student Number</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.studentNumber}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Registration Number</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.registrationNumber}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedStudent.idNumber || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Date Joined</h3>
+                      <p className="mt-1 text-sm text-gray-900">{formatDate(selectedStudent.createdAt)}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
+                      <p className="mt-1 text-sm text-gray-900">{formatDate(selectedStudent.updatedAt)}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Program</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.program?.name || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Department</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.department?.name || 'Unknown'}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Current Semester</h3>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.currentSemester?.name || 'Unknown'}</p>
+                    </div>
+                    
+                    {/* User Account Information */}
+                    {selectedStudent.user && (
+                      <>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">User ID</h3>
+                          <p className="mt-1 text-sm text-gray-900">{selectedStudent.user.id}</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">User Role</h3>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {selectedStudent.user.role?.name || 'Unknown'}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">User Role</h3>
-                    <p className="mt-1 text-sm text-gray-900">
-                      {selectedStudent.user.role?.name || 'Unknown'}
-                    </p>
+
+                  {/* Documents Section */}
+                  <div className="mt-8">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-6">Documents</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-blue-50 rounded-lg">
+                            <FiCamera className="text-blue-600" />
+                          </div>
+                          <h4 className="text-base font-medium text-gray-700">Passport Photo</h4>
+                        </div>
+                        <div className="mt-4">
+                          {selectedStudent.passportPhotoUrl ? (
+                            <a
+                              href={passportUrl || ''}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 hover:underline"
+                            >
+                              View Photo <FiExternalLink size={14} />
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 italic">Not uploaded</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-green-50 rounded-lg">
+                            <FiCreditCard className="text-green-600" />
+                          </div>
+                          <h4 className="text-base font-medium text-gray-700">ID Photo</h4>
+                        </div>
+                        <div className="mt-4">
+                          {selectedStudent.idPhotoUrl ? (
+                            <a
+                              href={idUrl || ''}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 hover:underline"
+                            >
+                              View ID <FiExternalLink size={14} />
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 italic">Not uploaded</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-purple-50 rounded-lg">
+                            <FiAward className="text-purple-600" />
+                          </div>
+                          <h4 className="text-base font-medium text-gray-700">Certificate</h4>
+                        </div>
+                        <div className="mt-4">
+                          {selectedStudent.certificateUrl ? (
+                            <a
+                              href={certificateUrl || ''}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 hover:underline"
+                            >
+                              View Document <FiExternalLink size={14} />
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 italic">Not uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </>
+
+                </div>
+              </div>
+
+              {/* Personal Details Section */}
+              {selectedStudent.personalDetails && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Age</h4>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.age}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Sex</h4>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.sex}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">County</h4>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.county}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Village</h4>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.village}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Primary Contact</h4>
+                      <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.contact1}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Emergency Contact</h4>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedStudent.personalDetails.contact2 || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Next of Kin</h4>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {selectedStudent.personalDetails.contact3 || 'Not provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Date Joined</h4>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {new Date(selectedStudent.personalDetails.dateJoined).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
-            </div>
 
-            {/* Documents Section */}
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiCamera /> Passport Photo
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStudent.passportPhotoUrl ? (
-                      <a 
-                        href={selectedStudent.passportPhotoUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-emerald-600 hover:underline flex items-center gap-1"
-                      >
-                        View Photo <FiExternalLink size={12} />
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiCreditCard /> ID Photo
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStudent.idPhotoUrl ? (
-                      <a 
-                        href={selectedStudent.idPhotoUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-emerald-600 hover:underline flex items-center gap-1"
-                      >
-                        View Photo <FiExternalLink size={12} />
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <FiAward /> Certificate
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedStudent.certificateUrl ? (
-                      <a 
-                        href={selectedStudent.certificateUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-emerald-600 hover:underline flex items-center gap-1"
-                      >
-                        View Document <FiExternalLink size={12} />
-                      </a>
-                    ) : 'Not uploaded'}
-                  </p>
-                </div>
+              {/* Enrollments Section */}
+              <div className="mt-8">
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  <FiBook /> Enrollments
+                </h3>
+                {loading.enrollments ? (
+                  <div className="animate-pulse space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-16 bg-gray-100 rounded"></div>
+                    ))}
+                  </div>
+                ) : enrollments.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
+                    No enrollments found for this student
+                  </div>
+                ) : (
+                  <div className="overflow-hidden border border-gray-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Course
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Semester
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Enrollment Date
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {enrollments.map((enrollment) => (
+                          <tr key={enrollment.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {enrollment.course.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {enrollment.course.code}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {enrollment.semester.name}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {enrollment.enrollmentDate ? new Date(enrollment.enrollmentDate).toLocaleDateString() : 'N/A'}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 p-6 border-t">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setIsEditModalOpen(true);
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"
+              >
+                <FiEdit2 size={16} />
+                Edit Student
+              </button>
+              <button
+                onClick={handleDeleteStudent}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
+              >
+                <FiTrash2 size={16} />
+                Delete Student
+              </button>
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
-
-{/* Personal Details Section */}
-{selectedStudent.personalDetails && (
-  <div className="mt-6">
-    <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Details</h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Age</h4>
-        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.age}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Sex</h4>
-        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.sex}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">County</h4>
-        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.county}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Village</h4>
-        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.village}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Primary Contact</h4>
-        <p className="mt-1 text-sm text-gray-900">{selectedStudent.personalDetails.contact1}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Emergency Contact</h4>
-        <p className="mt-1 text-sm text-gray-900">
-          {selectedStudent.personalDetails.contact2 || 'Not provided'}
-        </p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Next of Kin</h4>
-        <p className="mt-1 text-sm text-gray-900">
-          {selectedStudent.personalDetails.contact3 || 'Not provided'}
-        </p>
-      </div>
-      <div>
-        <h4 className="text-sm font-medium text-gray-500">Date Joined</h4>
-        <p className="mt-1 text-sm text-gray-900">
-          {new Date(selectedStudent.personalDetails.dateJoined).toLocaleDateString()}
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-        {/* Enrollments Section */}
-        <div className="mt-8">
-          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-            <FiBook /> Enrollments
-          </h3>
-          {loading.enrollments ? (
-            <div className="animate-pulse space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded"></div>
-              ))}
-            </div>
-          ) : enrollments.length === 0 ? (
-            <div className="p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
-              No enrollments found for this student
-            </div>
-          ) : (
-            <div className="overflow-hidden border border-gray-200 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Semester
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Enrollment Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {enrollments.map((enrollment) => (
-                    <tr key={enrollment.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {enrollment.course.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {enrollment.course.code}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {enrollment.semester.name}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {enrollment.enrollmentDate ? new Date(enrollment.enrollmentDate).toLocaleDateString() : 'N/A'}
-                        </div>
-                      </td>
-                      
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="flex justify-end gap-3 p-6 border-t">
-        <button
-          onClick={() => {
-            setIsViewModalOpen(false);
-            setIsEditModalOpen(true);
-          }}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2"
-        >
-          <FiEdit2 size={16} />
-          Edit Student
-        </button>
-        <button
-          onClick={handleDeleteStudent}
-          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-2"
-        >
-          <FiTrash2 size={16} />
-          Delete Student
-        </button>
-        <button
-          onClick={() => setIsViewModalOpen(false)}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Edit Student Modal */}
       {isEditModalOpen && selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b p-6 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <FiEdit2 size={18} /> Edit Student
@@ -1468,260 +1738,340 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID Number
-                  </label>
-                  <input
-                    type="text"
-                    name="idNumber"
-                    value={formData.idNumber}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Registration Number *
-                  </label>
-                  <input
-                    type="text"
-                    name="registrationNumber"
-                    value={formData.registrationNumber}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Student Number *
-                </label>
-                <input
-                  type="text"
-                  name="studentNumber"
-                  value={formData.studentNumber}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department *
-                  </label>
-                  <select
-                    name="departmentId"
-                    value={formData.departmentId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Department</option>
-                    {options.departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Program *
-                  </label>
-                  <select
-                    name="programId"
-                    value={formData.programId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Program</option>
-                    {options.programs.map((program) => (
-                      <option key={program.id} value={program.id}>
-                        {program.code ? `${program.code} - ${program.name}` : program.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Semester *
-                  </label>
-                  <select
-                    name="currentSemesterId"
-                    value={formData.currentSemesterId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                    required
-                  >
-                    <option value="">Select Semester</option>
-                    {options.semesters.map((semester) => (
-                      <option key={semester.id} value={semester.id}>{semester.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ID Number (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        name="idNumber"
+                        value={formData.idNumber}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Registration Number *
+                      </label>
+                      <input
+                        type="text"
+                        name="registrationNumber"
+                        value={formData.registrationNumber}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Student Number *
+                    </label>
+                    <input
+                      type="text"
+                      name="studentNumber"
+                      value={formData.studentNumber}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Department *
+                      </label>
+                      <select
+                        name="departmentId"
+                        value={formData.departmentId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      >
+                        <option value="">Select Department</option>
+                        {options.departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Program *
+                      </label>
+                      <select
+                        name="programId"
+                        value={formData.programId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      >
+                        <option value="">Select Program</option>
+                        {options.programs.map((program) => (
+                          <option key={program.id} value={program.id}>
+                            {program.code ? `${program.code} - ${program.name}` : program.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Semester *
+                      </label>
+                      <select
+                        name="currentSemesterId"
+                        value={formData.currentSemesterId}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        required
+                      >
+                        <option value="">Select Semester</option>
+                        {options.semesters.map((semester) => (
+                          <option key={semester.id} value={semester.id}>{semester.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password (leave blank to keep current)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800 pr-10"
-                    placeholder="Enter new password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Must be at least 8 characters
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      New Password (leave blank to keep current)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800 pr-10"
+                        placeholder="Enter new password"
+                      />
+                      <button
+                        // type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Must be at least 8 characters
+                    </p>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role *
-                </label>
-                <select
-                  name="roleId"
-                  value={formData.roleId}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
-                  required
-                >
-                  <option value="">Select Role</option>
-                  {options.roles?.map((role) => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Role *
+                    </label>
+                    <select
+                      name="roleId"
+                      value={formData.roleId}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      {options.roles?.map((role) => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Personal Details */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Personal Details</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Age *
+                      </label>
+                      <input
+                        type="number"
+                        name="age"
+                        value={personalDetailsForm.age}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                        placeholder="25"
+                        min="1"
+                        max="150"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sex *
+                      </label>
+                      <select
+                        name="sex"
+                        value={personalDetailsForm.sex}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      >
+                        <option value="">Select Sex</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      County *
+                    </label>
+                    <input
+                      type="text"
+                      name="county"
+                      value={personalDetailsForm.county}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="Nairobi"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Village *
+                    </label>
+                    <input
+                      type="text"
+                      name="village"
+                      value={personalDetailsForm.village}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="Westlands"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Primary Contact *
+                    </label>
+                    <input
+                      type="text"
+                      name="contact1"
+                      value={personalDetailsForm.contact1}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="+254712345678"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Emergency Contact (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="contact2"
+                      value={personalDetailsForm.contact2}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="+254712345679"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Next of Kin (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="contact3"
+                      value={personalDetailsForm.contact3}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                      placeholder="+254712345670"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date Joined *
+                    </label>
+                    <input
+                      type="date"
+                      name="dateJoined"
+                      value={personalDetailsForm.dateJoined}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* File Upload Sections */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Passport Photo
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'passportPhoto')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FileInput 
+                    field="passportPhoto" 
+                    label="Passport Photo" 
+                    accept="image/*" 
                   />
-                  {filePreviews.passportPhoto && (
-                    <div className="mt-2">
-                      <image href={filePreviews.passportPhoto} className="h-20 w-20 object-cover rounded" />
-                      <button
-                        type="button"
-                        onClick={() => removeFile('passportPhoto')}
-                        className="mt-1 text-red-600 text-sm hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID Photo
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'idPhoto')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <FileInput 
+                    field="idPhoto" 
+                    label="ID Photo" 
+                    accept="image/*" 
                   />
-                  {filePreviews.idPhoto && (
-                    <div className="mt-2">
-                      <image href={filePreviews.idPhoto} className="h-20 w-20 object-cover rounded" />
-                      <button
-                        type="button"
-                        onClick={() => removeFile('idPhoto')}
-                        className="mt-1 text-red-600 text-sm hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Certificate
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => handleFileChange(e, 'certificate')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <FileInput 
+                    field="certificate" 
+                    label="Certificate" 
+                    accept="image/*" 
                   />
-                  {filePreviews.certificate && (
-                    <div className="mt-2">
-                      <div className="h-20 w-20 bg-gray-100 rounded flex items-center justify-center">
-                        <FiFileText className="text-gray-400 text-2xl" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile('certificate')}
-                        className="mt-1 text-red-600 text-sm hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1735,7 +2085,7 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
               </button>
               <button
                 onClick={handleUpdateStudent}
-                disabled={loading.update}
+                disabled={loading.update || !isUpdateFormValid()}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-md flex items-center gap-2 ${
                   loading.update ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                 } transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed`}
@@ -1759,6 +2109,7 @@ const handleBulkCreateStudentsWithDetails = async (students: StudentWithDetailsD
         onSubmit={handleBulkCreateStudentsWithDetails}
         options={options}
       />
+
     </div>
   );
 }
