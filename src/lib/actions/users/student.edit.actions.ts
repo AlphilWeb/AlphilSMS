@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from "@/lib/db";
-import { students, users } from "@/lib/db/schema";
+import { students, users, studentPersonalDetails } from "@/lib/db/schema";
 import { s3Client, bucketName } from "@/lib/s3-client";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
@@ -22,6 +22,18 @@ type StudentFormData = {
   passportPhoto?: File | null;
   idPhoto?: File | null;
   certificate?: File | null;
+};
+
+// Student Personal Details type
+type StudentPersonalDetailsData = {
+  age: number;
+  sex: string;
+  county: string;
+  village: string;
+  contact1: string;
+  contact2?: string;
+  contact3?: string;
+  dateJoined: string;
 };
 
 // Helper function to upload file to R2
@@ -98,7 +110,8 @@ export async function getStudentForEdit(studentId: number) {
               }
             }
           }
-        }
+        },
+        personalDetails: true // Include personal details
       }
     });
 
@@ -119,15 +132,20 @@ export async function getStudentForEdit(studentId: number) {
   }
 }
 
-export async function updateStudent(studentId: number, data: StudentFormData & {
-  shouldDeleteFiles?: {
-    certificate?: boolean;
-    idPhoto?: boolean;
-    passportPhoto?: boolean;
-  };
-  password?: string;
-  roleId?: number;
-}) {
+export async function updateStudent(
+  studentId: number, 
+  data: StudentFormData & {
+    shouldDeleteFiles?: {
+      certificate?: boolean;
+      idPhoto?: boolean;
+      passportPhoto?: boolean;
+    };
+    password?: string;
+    roleId?: number;
+  } & {
+    personalDetails?: StudentPersonalDetailsData;
+  }
+) {
   try {
     // Manual validation (without Zod)
     if (!data.firstName || data.firstName.length < 2 || data.firstName.length > 100) {
@@ -140,13 +158,37 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
     if (!data.programId || !data.departmentId || !data.currentSemesterId) {
       throw new Error("Program, Department, or Semester not selected");
     }
-    // You can add more validation checks here as needed
+
+    // Validate personal details if provided
+    if (data.personalDetails) {
+      const { age, sex, county, village, contact1, dateJoined } = data.personalDetails;
+      
+      if (!age || age < 1 || age > 150) {
+        throw new Error("Invalid age");
+      }
+      if (!sex || !['male', 'female', 'other'].includes(sex.toLowerCase())) {
+        throw new Error("Invalid sex");
+      }
+      if (!county || county.length < 2 || county.length > 100) {
+        throw new Error("Invalid county");
+      }
+      if (!village || village.length < 2 || village.length > 100) {
+        throw new Error("Invalid village");
+      }
+      if (!contact1 || contact1.length < 5 || contact1.length > 20) {
+        throw new Error("Invalid primary contact");
+      }
+      if (!dateJoined) {
+        throw new Error("Date joined is required");
+      }
+    }
 
     // Check if student exists
     const existingStudent = await db.query.students.findFirst({
       where: eq(students.id, studentId),
       with: {
-        user: true
+        user: true,
+        personalDetails: true
       }
     });
 
@@ -294,6 +336,35 @@ export async function updateStudent(studentId: number, data: StudentFormData & {
       })
       .where(eq(students.id, studentId))
       .returning();
+
+    // Handle student personal details
+    if (data.personalDetails) {
+      const personalDetailsData = {
+        age: data.personalDetails.age,
+        sex: data.personalDetails.sex,
+        county: data.personalDetails.county,
+        village: data.personalDetails.village,
+        contact1: data.personalDetails.contact1,
+        contact2: data.personalDetails.contact2 || null,
+        contact3: data.personalDetails.contact3 || null,
+        dateJoined: data.personalDetails.dateJoined,
+        updatedAt: new Date(),
+      };
+
+      if (existingStudent.personalDetails) {
+        // Update existing personal details
+        await db
+          .update(studentPersonalDetails)
+          .set(personalDetailsData)
+          .where(eq(studentPersonalDetails.studentId, studentId));
+      } else {
+        // Create new personal details
+        await db.insert(studentPersonalDetails).values({
+          studentId: studentId,
+          ...personalDetailsData,
+        });
+      }
+    }
 
     return {
       success: true,
