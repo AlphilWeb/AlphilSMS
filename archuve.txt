@@ -1,327 +1,231 @@
-// components/admin/admin.courses.client.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  getAllCourses,
-  getCourseDetails,
-  createCourse,
-  updateCourse,
-  assignCourseLecturer,
-  removeCourseLecturer,
-  getAllPrograms,
-  getAllSemesters,
-  deleteCourse,
-  getAllLecturers,
-  type CourseWithDetails,
-  type CourseFormValues,
-  ProgramOption,
-  SemesterOption,
-  LecturerOption,
-} from '@/lib/actions/admin/courses.actions';
+import { useState } from 'react';
+import Image from 'next/image';
+import { getImageUrl, getMultipleImageUrls, ImageType } from '@/lib/actions/iamge.actions';
 
-import {
-  FiUsers, FiBook, FiPlus, FiEdit2, FiTrash2,
-  FiUserPlus, FiUserMinus, FiLoader, FiX,
-  FiChevronUp, FiChevronDown, FiSearch
-} from 'react-icons/fi';
-import { ActionError } from '@/lib/utils';
+const imageTypes: ImageType[] = [
+  'student-passport',
+  'student-id',
+  'student-certificate',
+  'staff-passport',
+  'staff-national-id',
+  'staff-academic-certificates',
+  'lecturer-passport',
+];
 
-export default function AdminCoursesClient() {
-  const [courses, setCourses] = useState<CourseWithDetails[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<CourseWithDetails | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [loading, setLoading] = useState({
-    courses: true,
-    details: false,
-    create: false,
-    update: false
-  });
+// Helper type to correctly filter the successful results from the action
+type SuccessfulImageResult = {
+  success: true;
+  imageUrl: string;
+  imageType: 'student-passport' | 'student-id';
+  targetId: number;
+};
+
+export default function ImageTestPage() {
+  const [targetId, setTargetId] = useState<number>(132);
+  const [imageType, setImageType] = useState<ImageType>('student-passport');
+  const [singleImageUrl, setSingleImageUrl] = useState<string | null>(null);
+  const [multipleImageResults, setMultipleImageResults] = useState<
+    Array<{ imageUrl: string; imageType: ImageType }>
+  >([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CourseFormValues>({
-    name: '',
-    code: '',
-    credits: 3,
-    programId: 0,
-    semesterId: 0,
-  });
-  const [editMode, setEditMode] = useState(false);
 
-  const [isLecturerModalOpen, setIsLecturerModalOpen] = useState(false);
-  const [lecturerOptions, setLecturerOptions] = useState<LecturerOption[]>([]);
-  const [loadingLecturers, setLoadingLecturers] = useState(false);
-
-  const [programOptions, setProgramOptions] = useState<ProgramOption[]>([]);
-  const [semesterOptions, setSemesterOptions] = useState<SemesterOption[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
-    key: 'name',
-    direction: 'asc'
-  });
-
-  // Load initial data
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        setLoadingOptions(true);
-        const [coursesData, programsData, semestersData] = await Promise.all([
-          getAllCourses(),
-          getAllPrograms(),
-          getAllSemesters(),
-        ]);
-        setCourses(coursesData);
-        setProgramOptions(programsData);
-        setSemesterOptions(semestersData);
-        
-        setFormData(prev => ({
-          ...prev,
-          programId: programsData[0]?.id || 0,
-          semesterId: semestersData[0]?.id || 0
-        }));
-      } catch (err) {
-        console.error(err);
-        setError('Something went wrong while loading data. Please try again.');
-      } finally {
-        setLoadingOptions(false);
-        setLoading(prev => ({ ...prev, courses: false }));
+  const handleGetSingleImage = async () => {
+    setLoading(true);
+    setError(null);
+    setSingleImageUrl(null);
+    try {
+      const result = await getImageUrl(targetId, imageType);
+      if (result.success && result.imageUrl) {
+        setSingleImageUrl(result.imageUrl);
+        setError(null);
+      } else if (result.error) {
+        setError(result.error);
+        setSingleImageUrl(null);
       }
-    };
-
-    loadInitialData();
-  }, []);
-
-  // Reset form when create modal closes
-  useEffect(() => {
-    if (!isCreateModalOpen) {
-      setFormData({
-        name: '',
-        code: '',
-        credits: 3,
-        programId: programOptions[0]?.id || 0,
-        semesterId: semesterOptions[0]?.id || 0,
-      });
-      setError(null);
-    }
-  }, [isCreateModalOpen, programOptions, semesterOptions]);
-
-  // Sort courses
-  const sortedCourses = [...courses].sort((a, b) => {
-    if (sortConfig.key === 'name') {
-      return sortConfig.direction === 'asc' 
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
-    }
-    if (sortConfig.key === 'code') {
-      return sortConfig.direction === 'asc'
-        ? a.code.localeCompare(b.code)
-        : b.code.localeCompare(a.code);
-    }
-    if (sortConfig.key === 'credits') {
-      return sortConfig.direction === 'asc' 
-        ? Number(a.credits) - Number(b.credits) 
-        : Number(b.credits) - Number(a.credits);
-    }
-    return 0;
-  });
-
-  // Filter courses based on search term
-  const filteredCourses = sortedCourses.filter(course =>
-    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.program.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Move selected course to top
-  const displayedCourses = selectedCourse
-    ? [selectedCourse, ...filteredCourses.filter(c => c.id !== selectedCourse.id)]
-    : filteredCourses;
-
-  const handleSort = (key: string) => {
-    setSortConfig(prev => ({
-      key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
-  // Load course details when selected
-  const handleSelectCourse = async (courseId: number) => {
-    try {
-      setLoading(prev => ({ ...prev, details: true }));
-      setError(null);
-      
-      const details = await getCourseDetails(courseId);
-      setSelectedCourse(details);
-      setIsDetailsModalOpen(true);
-      setEditMode(false);
-      setFormData({
-        name: details.name,
-        code: details.code,
-        credits: details.credits,
-        description: details.description || '',
-        programId: details.program.id,
-        semesterId: details.semester.id,
-        lecturerId: details.lecturer?.id
-      });
-    } catch (err) {
-      console.error(err);
-      setError('Unable to load course details. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'An unknown error occurred.');
+      setSingleImageUrl(null);
     } finally {
-      setLoading(prev => ({ ...prev, details: false }));
+      setLoading(false);
     }
   };
 
-  const openLecturerModal = async () => {
+  const handleGetMultipleImages = async () => {
+    setLoading(true);
+    setError(null);
+    setMultipleImageResults([]);
     try {
-      setLoadingLecturers(true);
-      const lecturers = await getAllLecturers();
-      setLecturerOptions(lecturers);
-      setIsLecturerModalOpen(true);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to load lecturers. Please try again.');
+      // Create the single argument (array of requests) that getMultipleImageUrls expects
+      const requests = [
+        { targetId, imageType: 'student-passport' as ImageType },
+        { targetId, imageType: 'student-id' as ImageType },
+      ];
+      const response = await getMultipleImageUrls(requests);
+
+      // Check if the overall action was successful and the results array exists
+      if (response.success && response.results) {
+        // Filter the results to only include successful image fetches
+        const successfulResults = response.results.filter(
+          (res): res is SuccessfulImageResult =>
+            res.success && typeof res.imageUrl === 'string' && (res.imageType === 'student-passport' || res.imageType === 'student-id'),
+        );
+
+        // Map the filtered, type-safe results to the correct state shape
+        setMultipleImageResults(
+          successfulResults.map((res) => ({
+            imageUrl: res.imageUrl,
+            imageType: res.imageType,
+          })),
+        );
+        setError(null);
+      } else if (response.error) {
+        // Handle the case where the overall action failed
+        setError(response.error);
+        setMultipleImageResults([]);
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unknown error occurred.');
+      setMultipleImageResults([]);
     } finally {
-      setLoadingLecturers(false);
+      setLoading(false);
     }
-  };
-
-  const handleSelectLecturer = (lecturerId: number) => {
-    if (!selectedCourse) return;
-    handleAssignLecturer(lecturerId);
-    setIsLecturerModalOpen(false);
-  };
-
-  // Create new course
-  const handleCreateCourse = async () => {
-    if (!formData.name.trim() || !formData.code.trim()) {
-      setError('Course name and code are required.');
-      return;
-    }
-
-    if (!formData.programId || !formData.semesterId) {
-      setError('Please select both program and semester.');
-      return;
-    }
-
-    try {
-      setLoading(prev => ({ ...prev, create: true }));
-      setError(null);
-
-      const newCourse = await createCourse(formData);
-      setCourses(prev => [...prev, newCourse]);
-      setIsCreateModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to create course. Please try again.');
-    } finally {
-      setLoading(prev => ({ ...prev, create: false }));
-    }
-  };
-
-  // Update course
-  const handleUpdateCourse = async () => {
-    if (!selectedCourse || !formData.name.trim() || !formData.code.trim()) {
-      setError('Course name and code are required.');
-      return;
-    }
-
-    try {
-      setLoading(prev => ({ ...prev, update: true }));
-      setError(null);
-
-      const updatedCourse = await updateCourse(selectedCourse.id, formData);
-      
-      setCourses(prev => prev.map(course => 
-        course.id === selectedCourse.id ? updatedCourse : course
-      ));
-      
-      setSelectedCourse(updatedCourse);
-      setEditMode(false);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to update course. Please try again.');
-    } finally {
-      setLoading(prev => ({ ...prev, update: false }));
-    }
-  };
-
-  // Assign lecturer to course
-  const handleAssignLecturer = async (lecturerId: number) => {
-    if (!selectedCourse) return;
-
-    try {
-      setError(null);
-      const updatedCourse = await assignCourseLecturer(selectedCourse.id, lecturerId);
-      
-      setCourses(prev => prev.map(course => 
-        course.id === selectedCourse.id ? updatedCourse : course
-      ));
-      
-      setSelectedCourse(updatedCourse);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to assign lecturer. Please try again.');
-    }
-  };
-
-  // Remove lecturer from course
-  const handleRemoveLecturer = async () => {
-    if (!selectedCourse || !selectedCourse.lecturer) return;
-
-    try {
-      setError(null);
-      const updatedCourse = await removeCourseLecturer(selectedCourse.id);
-      
-      setCourses(prev => prev.map(course => 
-        course.id === selectedCourse.id ? updatedCourse : course
-      ));
-      
-      setSelectedCourse(updatedCourse);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to remove lecturer. Please try again.');
-    }
-  };
-
-  // Delete course
-  const handleDeleteCourse = async () => {
-    if (!selectedCourse) return;
-
-    try {
-      setError(null);
-      await deleteCourse(selectedCourse.id);
-      
-      setCourses(prev => prev.filter(course => course.id !== selectedCourse.id));
-      setSelectedCourse(null);
-      setIsDetailsModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      setError('Unable to delete course. Please try again.');
-    }
-  };
-
-  const SortIcon = ({ columnKey }: { columnKey: string }) => {
-    if (sortConfig.key !== columnKey) return <FiChevronUp className="opacity-30" />;
-    return sortConfig.direction === 'asc' ? <FiChevronUp /> : <FiChevronDown />;
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Course Management</h1>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center gap-2"
-        >
-          <FiPlus size={16} /> New Course
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-white dark:text-gray-100 p-4 sm:p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-center">
+          Image Action Test Page 🧪
+        </h1>
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+        {/* Single Image Test Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Get Single Image</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-6">
+            <div className="flex flex-col">
+              <label htmlFor="targetId" className="mb-1 font-medium">
+                Target ID
+              </label>
+              <input
+                id="targetId"
+                type="number"
+                value={targetId}
+                onChange={(e) => setTargetId(Number(e.target.value))}
+                className="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:border-gray-600"
+                placeholder="e.g., 132"
+                disabled={loading}
+              />
+            </div>
+            <div className="flex flex-col">
+              <label htmlFor="imageType" className="mb-1 font-medium">
+                Image Type
+              </label>
+              <div className="relative">
+                <select
+                  id="imageType"
+                  value={imageType}
+                  onChange={(e) => setImageType(e.target.value as ImageType)}
+                  className="w-full p-2 border rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 pr-8"
+                  disabled={loading}
+                >
+                  {imageTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                  <svg
+                    className="h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={handleGetSingleImage}
+              className="mt-6 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+              disabled={loading}
+            >
+              {loading ? 'Fetching...' : 'Get Image URL'}
+            </button>
+          </div>
+          {singleImageUrl && (
+            <div className="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900/50">
+              <h3 className="text-lg font-semibold mb-2">Result:</h3>
+              <p className="break-words mb-4 text-sm sm:text-base">
+                <span className="font-medium">URL:</span> {singleImageUrl}
+              </p>
+              <div className="relative h-64 w-full max-w-sm mx-auto border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+                <Image
+                  src={singleImageUrl}
+                  alt={`${imageType} for ID ${targetId}`}
+                  layout="fill"
+                  objectFit="contain"
+                  priority
+                />
+              </div>
+            </div>
+          )}
+          {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
         </div>
-      )}
+
+        <div className="w-full h-px bg-gray-300 dark:bg-gray-700 my-8"></div>
+
+        {/* Multiple Images Test Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-semibold mb-4">
+            Get Multiple Images
+          </h2>
+          <p className="mb-4 text-gray-700 dark:text-gray-300">
+            This will fetch the **student-passport** and **student-id** images for
+            the hardcoded student ID **132** using `getMultipleImageUrls`.
+          </p>
+          <button
+            onClick={handleGetMultipleImages}
+            className="px-4 py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Fetching...' : 'Get Multiple Images'}
+          </button>
+
+          {multipleImageResults.length > 0 && (
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {multipleImageResults.map((result, index) => (
+                <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900/50">
+                  <h4 className="text-lg font-semibold mb-2">
+                    {result.imageType}
+                  </h4>
+                  <p className="break-words text-sm mb-4">
+                    <span className="font-medium">URL:</span> {result.imageUrl}
+                  </p>
+                  <div className="relative h-52 w-full mx-auto border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+                    <Image
+                      src={result.imageUrl}
+                      alt={`${result.imageType}`}
+                      layout="fill"
+                      objectFit="contain"
+                      priority
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
