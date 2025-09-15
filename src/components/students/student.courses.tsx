@@ -25,7 +25,7 @@ import {
   FiXCircle,
   FiChevronDown,
   FiChevronUp,
-  FiEye,
+  FiEye, 
   FiSearch,
   FiX,
   FiGrid,
