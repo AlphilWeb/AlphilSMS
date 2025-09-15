@@ -6,7 +6,7 @@ import {
   getDepartmentDetails,
   createDepartment,
   updateDepartmentName,
-  // assignHeadOfDepartment,
+  assignHeadOfDepartment,
   removeHeadOfDepartment,
   getDepartmentStaff,
   getDepartmentPrograms,
@@ -49,6 +49,22 @@ export default function AdminDepartmentsClient() {
     key: 'name',
     direction: 'asc'
   });
+
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  const handleDeleteDepartment = async (departmentId: number) => {
+  try {
+    setError(null);
+    await deleteDepartment(departmentId);
+    
+    setDepartments(prev => prev.filter(dept => dept.id !== departmentId));
+    setSelectedDepartment(null);
+    setIsDetailsModalOpen(false);
+    setDeleteConfirmation('');
+  } catch (err) {
+    handleError(err, 'Unable to delete department. Please try again later.');
+  }
+};
 
   // Friendly error handler (uses ActionError message if present, otherwise a fallback)
   const handleError = (err: unknown, fallbackMessage: string) => {
@@ -218,48 +234,50 @@ export default function AdminDepartmentsClient() {
   };
 
   // Assign head of department (UI-only; server call commented out above)
-  const handleAssignHead = async (staffId: number) => {
-    if (!selectedDepartment) return;
+const handleAssignHead = async (staffId: number) => {
+  if (!selectedDepartment) return;
 
-    try {
-      setError(null);
-      // const updatedDept = await assignHeadOfDepartment(selectedDepartment.id, staffId);
-      
-      const newHead = staff.find(s => s.id === staffId);
-      
-      setDepartments(prev => prev.map(dept => 
-        dept.id === selectedDepartment.id 
-          ? { 
-              ...dept, 
-              headOfDepartment: newHead ? {
-                id: newHead.id,
-                firstName: newHead.firstName,
-                lastName: newHead.lastName,
-                email: newHead.email
-              } : null
-            } 
-          : dept
-      ));
-      
-      setSelectedDepartment(prev => prev ? { 
-        ...prev, 
-        headOfDepartment: newHead ? {
-          id: newHead.id,
-          firstName: newHead.firstName,
-          lastName: newHead.lastName,
-          email: newHead.email
-        } : null
-      } : null);
-      
-      setStaff(prev => prev.map(member => ({
-        ...member,
-        isHead: member.id === staffId
-      })));
-    } catch (err) {
-      handleError(err, 'Unable to assign head. Please try again later.');
-    }
-  };
-
+  try {
+    setError(null);
+    const updatedDept = await assignHeadOfDepartment(selectedDepartment.id, staffId);
+    console.log('Assigned head:', updatedDept);
+    
+    // Update departments list
+    const newHead = staff.find(s => s.id === staffId);
+    setDepartments(prev => prev.map(dept => 
+      dept.id === selectedDepartment.id 
+        ? { 
+            ...dept, 
+            headOfDepartment: newHead ? {
+              id: newHead.id,
+              firstName: newHead.firstName,
+              lastName: newHead.lastName,
+              email: newHead.email
+            } : null
+          } 
+        : dept
+    ));
+    
+    // Update selected department
+    setSelectedDepartment(prev => prev ? { 
+      ...prev, 
+      headOfDepartment: newHead ? {
+        id: newHead.id,
+        firstName: newHead.firstName,
+        lastName: newHead.lastName,
+        email: newHead.email
+      } : null
+    } : null);
+    
+    // Update staff list to reflect new head
+    setStaff(prev => prev.map(member => ({
+      ...member,
+      isHead: member.id === staffId
+    })));
+  } catch (err) {
+    handleError(err, 'Unable to assign head. Please try again later.');
+  }
+};
   // Remove head of department
   const handleRemoveHead = async () => {
     if (!selectedDepartment || !selectedDepartment.headOfDepartment) return;
@@ -285,21 +303,7 @@ export default function AdminDepartmentsClient() {
     }
   };
 
-  // Delete department
-  const handleDeleteDepartment = async () => {
-    if (!selectedDepartment) return;
 
-    try {
-      setError(null);
-      await deleteDepartment(selectedDepartment.id);
-      
-      setDepartments(prev => prev.filter(dept => dept.id !== selectedDepartment.id));
-      setSelectedDepartment(null);
-      setIsDetailsModalOpen(false);
-    } catch (err) {
-      handleError(err, 'Unable to delete department. Please try again later.');
-    }
-  };
 
   const SortIcon = ({ columnKey }: { columnKey: string }) => {
     if (sortConfig.key !== columnKey) return <FiChevronUp className="opacity-30" />;
@@ -585,7 +589,7 @@ export default function AdminDepartmentsClient() {
                   </div>
                   
                   <button
-                    onClick={handleDeleteDepartment}
+                    onClick={() => setSelectedDepartment(selectedDepartment)}
                     className="text-red-600 hover:text-red-800 p-1"
                     title="Delete department"
                   >
@@ -744,6 +748,68 @@ export default function AdminDepartmentsClient() {
           </div>
         </div>
       )}
+
+        {/* Delete Confirmation Modal */}
+        {selectedDepartment && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Confirm Deletion
+                </h3>
+                <button 
+                  onClick={() => setSelectedDepartment(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                  <h4 className="font-semibold text-red-800 mb-2">Warning: Deleting this department will permanently delete:</h4>
+                  <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                    <li>All programs in this department</li>
+                    <li>All courses in those programs</li>
+                    <li>All staff assigned to this department</li>
+                    <li>All students in this department</li>
+                    <li>All enrollments, assignments, quizzes, and materials related to these courses</li>
+                    <li>All financial records (invoices, payments) for affected students</li>
+                  </ul>
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type &quot;delete {selectedDepartment.name}&quot; to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder={`delete ${selectedDepartment.name}`}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 p-4 border-t">
+                <button
+                  onClick={() => setSelectedDepartment(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteDepartment(selectedDepartment.id)}
+                  disabled={deleteConfirmation !== `delete ${selectedDepartment.name}`}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:bg-red-300 disabled:cursor-not-allowed"
+                >
+                  Delete Department
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
