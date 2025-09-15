@@ -1,4 +1,4 @@
-// componentsadmin/dashboardadmin/dashboard-client-component.tsx
+// componentsadminadmin-client-component.tsx
 'use client';
 
 import Link from 'next/link';
@@ -39,7 +39,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Users",
       count: counts.userCount,
       icon: FiUsers,
-      href: "admin/dashboard/staff",
+      href: "admin/staff",
       category: "management",
       trend: "",
       description: "System users"
@@ -48,7 +48,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Students",
       count: counts.studentCount,
       icon: FiUser,
-      href: "admin/dashboard/students",
+      href: "admin/students",
       category: "academic",
       trend: "",
       description: "Active students"
@@ -57,7 +57,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Staff",
       count: counts.staffCount,
       icon: FiBriefcase,
-      href: "admin/dashboard/staff",
+      href: "admin/staff",
       category: "academic",
       trend: "",
       description: "Teaching staff"
@@ -66,7 +66,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Departments",
       count: counts.departmentCount,
       icon: FiHome,
-      href: "admin/dashboard/departments",
+      href: "admin/departments",
       category: "academic",
       trend: "",
       description: "Academic departments"
@@ -75,7 +75,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Programs",
       count: counts.programCount,
       icon: FiBookOpen,
-      href: "admin/dashboard/programs",
+      href: "admin/programs",
       category: "academic",
       trend: "",
       description: "Certificate programs"
@@ -84,7 +84,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Semesters",
       count: counts.semesterCount,
       icon: FiCalendar,
-      href: "admin/dashboard/semesters",
+      href: "admin/semesters",
       category: "academic",
       trend: "Current",
       description: "Active semesters"
@@ -93,7 +93,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Courses",
       count: counts.courseCount,
       icon: FiBook,
-      href: "admin/dashboard/courses",
+      href: "admin/courses",
       category: "academic",
       trend: "",
       description: "Available courses"
@@ -102,7 +102,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Enrollments",
       count: counts.enrollmentCount,
       icon: FiList,
-      href: "admin/dashboard/enrollments",
+      href: "admin/enrollments",
       category: "academic",
       trend: "",
       description: "Current enrollments"
@@ -111,7 +111,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Grades",
       count: counts.gradeCount,
       icon: FiAward,
-      href: "admin/dashboard/grades",
+      href: "admin/grades",
       category: "academic",
       trend: "Updated",
       description: "Grade records"
@@ -120,7 +120,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Transcripts",
       count: counts.transcriptCount,
       icon: FiClipboard,
-      href: "admin/dashboard/transcripts",
+      href: "admin/transcripts",
       category: "academic",
       trend: "",
       description: "Student transcripts"
@@ -129,7 +129,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Timetables",
       count: counts.timetableCount,
       icon: FiClock,
-      href: "admin/dashboard/timetables",
+      href: "admin/timetables",
       category: "academic",
       trend: "Current",
       description: "Class schedules"
@@ -138,7 +138,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Fee Structures",
       count: counts.feeStructureCount,
       icon: FiDollarSign,
-      href: "admin/dashboard/feeStructures",
+      href: "admin/feeStructures",
       category: "financial",
       trend: "Active",
       description: "Fee plans"
@@ -147,7 +147,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Invoices",
       count: counts.invoiceCount,
       icon: FiFileText,
-      href: "admin/dashboard/invoices",
+      href: "admin/invoices",
       category: "financial",
       trend: "",
       description: "Generated invoices"
@@ -156,7 +156,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Payments",
       count: counts.paymentCount,
       icon: FiCreditCard,
-      href: "admin/dashboard/payments",
+      href: "admin/payments",
       category: "financial",
       trend: "",
       description: "Processed payments"
@@ -165,7 +165,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "Staff Salaries",
       count: counts.staffSalaryCount,
       icon: FiDollarSign,
-      href: "admin/dashboard/staffSalaries",
+      href: "admin/staffSalaries",
       category: "financial",
       trend: "Monthly",
       description: "Salary records"
@@ -174,7 +174,7 @@ export default function DashboardClientComponent({ counts }: DashboardClientComp
       title: "User Logs",
       count: counts.userLogCount,
       icon: FiActivity,
-      href: "admin/dashboard/userLogs",
+      href: "admin/userLogs",
       category: "management",
       trend: "Recent",
       description: "Activity logs"
