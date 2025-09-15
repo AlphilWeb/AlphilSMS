@@ -1007,31 +1007,12 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Document Viewer Modal */}
-      {isViewerOpen && currentDocument && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-2 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full h-full md:max-w-6xl md:max-h-[90vh] md:h-auto overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-200">
-              <h2 className="text-lg md:text-2xl font-bold text-gray-800 truncate">
-                {currentDocument.title}
-              </h2>
-              <button
-                onClick={() => setIsViewerOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto p-2 md:p-4">
-              <DocumentViewer 
-                document={currentDocument} 
-                onClose={() => setIsViewerOpen(false)} 
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      
+    {isViewerOpen && currentDocument && (
+      <DocumentViewer 
+        document={currentDocument} 
+        onClose={() => setIsViewerOpen(false)} 
+      />
+    )}      
     </div>
   );
 }

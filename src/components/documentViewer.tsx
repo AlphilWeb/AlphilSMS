@@ -46,13 +46,13 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
       <div 
-        className="fixed inset-0 bg-gray-500 opacity-75 backdrop-blur-sm"
+        className="absolute inset-0"
         onClick={onClose}
       />
       
-      <div className="relative bg-white rounded-xl shadow-2xl w-full h-full sm:h-[90vh] sm:max-h-[90vh] sm:max-w-[90vw] sm:w-auto flex flex-col">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full h-full max-h-[95vh] max-w-[95vw] flex flex-col">
         <div className="flex justify-between items-center border-b p-4 sm:p-6 flex-shrink-0">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate max-w-[70%]">
             {document.title}
