@@ -139,48 +139,56 @@ export default function StudentCourseManager({
   }, []);
 
   // Fetch course details when selected or view mode changes
-  useEffect(() => {
-    if (!selectedCourse) return;
+useEffect(() => {
+  if (!selectedCourse) return;
 
-    const fetchCourseDetails = async () => {
+  const fetchCourseDetails = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Always fetch assignments and quizzes for the selected course
+      const [assigns, quizs] = await Promise.all([
+        getCourseAssignments(selectedCourse.id),
+        getCourseQuizzes(selectedCourse.id)
+      ]);
+      setAssignments(assigns);
+      setQuizzes(quizs);
+      
+      // Only fetch course materials if in course view mode
+      if (materialsViewMode === 'course') {
+        const mats = await getCourseMaterials(selectedCourse.id);
+        setMaterials(mats);
+      }
+      
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load course details');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchCourseDetails();
+}, [selectedCourse, materialsViewMode]);
+
+  // Toggle between course and program view
+  const toggleMaterialsView = async () => {
+    if (materialsViewMode === 'course') {
+      // Switching to program view - fetch program materials
       try {
         setIsLoading(true);
-        
-        if (materialsViewMode === 'course') {
-          // Fetch only current course materials
-          const [mats, assigns, quizs] = await Promise.all([
-            getCourseMaterials(selectedCourse.id),
-            getCourseAssignments(selectedCourse.id),
-            getCourseQuizzes(selectedCourse.id)
-          ]);
-          setMaterials(mats);
-          setAssignments(assigns);
-          setQuizzes(quizs);
-        } else {
-          // Fetch all program materials (already cached) and current course assignments/quizzes
-          const [assigns, quizs] = await Promise.all([
-            getCourseAssignments(selectedCourse.id),
-            getCourseQuizzes(selectedCourse.id)
-          ]);
-          setAssignments(assigns);
-          setQuizzes(quizs);
-          // Materials are already set from allProgramMaterials
-        }
-        
-        setError(null);
+        const programMats = await getProgramMaterials();
+        setAllProgramMaterials(programMats);
+        setMaterialsViewMode('program');
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load course details');
+        setError(err instanceof Error ? err.message : 'Failed to load program materials');
       } finally {
         setIsLoading(false);
       }
-    };
-
-    fetchCourseDetails();
-  }, [selectedCourse, materialsViewMode]);
-
-  // Toggle between course and program view
-  const toggleMaterialsView = () => {
-    setMaterialsViewMode(prev => prev === 'course' ? 'program' : 'course');
+    } else {
+      // Switching back to course view
+      setMaterialsViewMode('course');
+    }
   };
 
   const handleCourseSelect = (course: EnrolledCourse) => {
