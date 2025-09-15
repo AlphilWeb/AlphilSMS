@@ -405,7 +405,10 @@ useEffect(() => {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-48 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div
+              key={i}
+              className="h-48 bg-gray-100 rounded-lg animate-pulse"
+            ></div>
           ))}
         </div>
       ) : courses.length === 0 ? (
@@ -416,31 +419,34 @@ useEffect(() => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
-            <div 
-              key={course.id} 
+            <div
+              key={course.id}
               className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 cursor-pointer transition-all hover:shadow-md hover:border-pink-300"
               onClick={() => handleCourseSelect(course)}
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 text-lg mb-1">{course.name}</h3>
+                  <h3 className="font-semibold text-gray-900 text-lg mb-1">
+                    {course.name}
+                  </h3>
                   <p className="text-sm text-gray-500">{course.code}</p>
                 </div>
                 <span className="px-2 py-1 text-xs font-semibold rounded-full bg-pink-100 text-pink-800 whitespace-nowrap">
                   {course.credits} cr
                 </span>
               </div>
-              
+
               <div className="space-y-2 text-sm text-gray-600">
                 <p className="truncate">{course.programName}</p>
                 <p className="truncate">{course.semesterName}</p>
-                
+
                 {course.lecturer && (
                   <p className="mt-2">
-                    <span className="font-medium">Lecturer:</span> {course.lecturer.firstName} {course.lecturer.lastName}
+                    <span className="font-medium">Lecturer:</span>{" "}
+                    {course.lecturer.firstName} {course.lecturer.lastName}
                   </p>
                 )}
-                
+
                 <div className="flex justify-between items-center pt-3 mt-3 border-t border-gray-100">
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
@@ -462,6 +468,73 @@ useEffect(() => {
           ))}
         </div>
       )}
+
+      {/* Program-wide materials view */}
+{materialsViewMode === "program" && (
+  <div className="mt-8">
+    <h2 className="text-lg font-semibold text-gray-700 mb-4">
+      Program Materials
+    </h2>
+
+      {Object.entries(
+        allProgramMaterials.reduce<Record<string, Record<string, CourseMaterial[]>>>(
+          (acc, mat: CourseMaterial) => {
+            const sem = mat.semesterName || "Unknown Semester";
+            if (!acc[sem]) acc[sem] = {};
+            const courseName = mat.courseName || "Unknown Course";
+            if (!acc[sem][courseName]) acc[sem][courseName] = [];
+            acc[sem][courseName].push(mat);
+            return acc;
+          },
+          {}
+        )
+      ).map(([semester, courses]) => (
+      <div key={semester} className="mb-6">
+        <h3 className="text-md font-bold text-gray-600 mb-2">{semester}</h3>
+
+            {Object.entries(courses as Record<string, CourseMaterial[]>).map(
+              ([course, mats]) => (
+            <div key={course} className="mb-4">
+              <h4 className="text-sm font-semibold text-gray-500 mb-2">
+                {course}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mats.map((mat: CourseMaterial) => (
+                  <div
+                    key={mat.id}
+                    className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all"
+                  >
+                    <h5 className="font-semibold text-gray-900">{mat.title}</h5>
+                    <p className="text-sm text-gray-500">{mat.type}</p>
+
+                    {/* Inline content rendering */}
+                    {mat.type === "notes" && mat.content && typeof mat.content === "object" && 'html' in mat.content
+                      ? (mat.content as { html: string }).html
+                      : mat.content && typeof mat.content === "string"
+                      ? mat.content
+                      : ''}
+
+                    {/* PDF viewer button */}
+                    {mat.type === "pdf" && (
+                      <button
+                        className="mt-2 px-3 py-1 text-sm rounded-md bg-pink-100 text-pink-700 hover:bg-pink-200 transition-colors"
+                        onClick={() => handleViewMaterial(mat)}
+                      >
+                        View PDF
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    ))}
+  </div>
+)}
+
+
 
       {/* Course Details Modal */}
       {showCourseModal && selectedCourse && (
@@ -958,6 +1031,7 @@ useEffect(() => {
           </div>
         </div>
       )}
+      
     </div>
   );
 }
