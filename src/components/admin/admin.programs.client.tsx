@@ -55,6 +55,8 @@ export default function AdminProgramsClient() {
     direction: 'asc'
   });
 
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
   // Fetch all programs and departments on component mount
   useEffect(() => {
     const loadInitialData = async () => {
@@ -85,7 +87,6 @@ export default function AdminProgramsClient() {
     loadInitialData();
   }, []);
 
-  // Filter programs based on search term
 // Filter programs based on search term
 useEffect(() => {
   const filtered = programs.filter(program => 
@@ -309,16 +310,15 @@ useEffect(() => {
   };
 
   // Delete program
-  const handleDeleteProgram = async () => {
-    if (!selectedProgram) return;
-
+  const handleDeleteProgram = async (programId: number) => {
     try {
       setError(null);
-      await deleteProgram(selectedProgram.id);
+      await deleteProgram(programId);
       
-      setPrograms(prev => prev.filter(prog => prog.id !== selectedProgram.id));
+      setPrograms(prev => prev.filter(prog => prog.id !== programId));
       setSelectedProgram(null);
       setIsDetailsModalOpen(false);
+      setDeleteConfirmation('');
     } catch (err) {
       setError(err instanceof ActionError ? err.message : 'Failed to delete program');
     }
@@ -721,7 +721,7 @@ useEffect(() => {
                   </div>
                   
                   <button
-                    onClick={handleDeleteProgram}
+                    onClick={() => setSelectedProgram(selectedProgram)}
                     className="text-red-600 hover:text-red-800 p-1"
                     title="Delete program"
                   >
@@ -869,6 +869,66 @@ useEffect(() => {
           </div>
         </div>
       )}
+        {/* Delete Confirmation Modal */}
+        {selectedProgram && (
+          <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Confirm Deletion
+                </h3>
+                <button 
+                  onClick={() => setSelectedProgram(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                  <h4 className="font-semibold text-red-800 mb-2">Warning: Deleting this program will permanently delete:</h4>
+                  <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                    <li>All courses in this program</li>
+                    <li>All students enrolled in this program</li>
+                    <li>All fee structures for this program</li>
+                    <li>All enrollments, assignments, and course materials</li>
+                    <li>All student transcripts and grades</li>
+                  </ul>
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type &quot;delete {selectedProgram.name}&quot; to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder={`delete ${selectedProgram.name}`}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 p-4 border-t">
+                <button
+                  onClick={() => setSelectedProgram(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteProgram(selectedProgram.id)}
+                  disabled={deleteConfirmation !== `delete ${selectedProgram.name}`}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:bg-red-300 disabled:cursor-not-allowed"
+                >
+                  Delete Program
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
