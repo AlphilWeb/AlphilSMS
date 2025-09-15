@@ -60,6 +60,8 @@ export default function AdminSemestersClient() {
     direction: 'asc'
   });
 
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
   // Fetch all semesters on component mount
   useEffect(() => {
     const loadSemesters = async () => {
@@ -250,20 +252,21 @@ export default function AdminSemestersClient() {
   };
 
   // Delete semester
-  const handleDeleteSemester = async () => {
-    if (!selectedSemester) return;
+const handleDeleteSemester = async () => {
+  if (!selectedSemester) return;
 
-    try {
-      setError(null);
-      await deleteSemester(selectedSemester.id);
-      
-      setSemesters(prev => prev.filter(sem => sem.id !== selectedSemester.id));
-      setSelectedSemester(null);
-      setIsDetailsModalOpen(false);
-    } catch (err) {
-      setError(err instanceof ActionError ? err.message : 'Failed to delete semester');
-    }
-  };
+  try {
+    setError(null);
+    await deleteSemester(selectedSemester.id);
+    
+    setSemesters(prev => prev.filter(sem => sem.id !== selectedSemester.id));
+    setSelectedSemester(null);
+    setIsDetailsModalOpen(false);
+    setDeleteConfirmation('');
+  } catch (err) {
+    setError(err instanceof ActionError ? err.message : 'Failed to delete semester');
+  }
+};
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -532,7 +535,7 @@ export default function AdminSemestersClient() {
                         <FiEdit2 size={18} />
                       </button>
                       <button
-                        onClick={handleDeleteSemester}
+                        onClick={() => setDeleteConfirmation('show')}
                         className="text-red-600 hover:text-red-800 p-2"
                         title="Delete semester"
                       >
@@ -869,6 +872,70 @@ export default function AdminSemestersClient() {
                     Create Semester
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation && selectedSemester && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Confirm Deletion
+              </h3>
+              <button 
+                onClick={() => setDeleteConfirmation('')}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                <h4 className="font-semibold text-red-800 mb-2">Warning: Deleting this semester will permanently delete:</h4>
+                <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                  <li>All courses scheduled for this semester</li>
+                  <li>All enrollments for this semester</li>
+                  <li>All timetables for this semester</li>
+                  <li>All fee structures for this semester</li>
+                  <li>All invoices and academic calendar events</li>
+                  <li>All transcripts for this semester</li>
+                </ul>
+              </div>
+              
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type &quot;delete {selectedSemester.name}&quot; to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder={`delete ${selectedSemester.name}`}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 p-4 border-t">
+              <button
+                onClick={() => setDeleteConfirmation('')}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteSemester();
+                  setDeleteConfirmation('');
+                }}
+                disabled={deleteConfirmation !== `delete ${selectedSemester.name}`}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:bg-red-300 disabled:cursor-not-allowed"
+              >
+                Delete Semester
               </button>
             </div>
           </div>
