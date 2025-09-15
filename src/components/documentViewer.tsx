@@ -52,7 +52,7 @@ export default function DocumentViewer({ document, onClose }: DocumentViewerProp
         onClick={onClose}
       />
       
-      <div className="relative bg-white rounded-xl shadow-2xl w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-[95vw] sm:w-auto flex flex-col">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full h-full sm:h-[90vh] sm:max-h-[90vh] sm:max-w-[90vw] sm:w-auto flex flex-col">
         <div className="flex justify-between items-center border-b p-4 sm:p-6 flex-shrink-0">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate max-w-[70%]">
             {document.title}
