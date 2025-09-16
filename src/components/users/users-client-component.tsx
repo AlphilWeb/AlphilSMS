@@ -227,13 +227,13 @@ export default function UsersClientComponent({ initialUsers, roles }: UsersClien
                         <td className="p-4 font-medium">{user.id}</td>
                         <td className="p-4">
 {user.photoUrl ? (
-  <div className="w-10 h-10 rounded-full overflow-hidden">
+  <div className="w-10 h-10 overflow-hidden">
     <Image
       src={user.photoUrl}
       alt={`${user.fullName || user.email} photo`}
       width={40}
       height={40}
-      className="object-cover"
+      className="object-contain"
     />
   </div>
 ) : (
@@ -521,7 +521,7 @@ export default function UsersClientComponent({ initialUsers, roles }: UsersClien
       alt={`${showDetails} photo`}
       width={40}
       height={40}
-      className="object-cover"
+      className="object-contain"
     />
   </div>
 ) : (
