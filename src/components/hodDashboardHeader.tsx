@@ -134,7 +134,7 @@ export default function HodDashboardHeader() {
                     alt="User avatar"
                     width={32}
                     height={32}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 </div>
                 <div className="hidden md:block text-left">
