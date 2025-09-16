@@ -176,7 +176,7 @@ export default function StudentDashboardHeader() {
                       alt="User avatar"
                       width={32}
                       height={32}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       onLoad={() => setImageLoading(false)}
                       onError={() => setImageLoading(false)}
                     />
