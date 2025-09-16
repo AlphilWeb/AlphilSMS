@@ -16,13 +16,13 @@ export default function WelcomeBanner({
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center">
-        <div className="relative h-16 w-16 rounded-full bg-gray-200 overflow-hidden mr-4">
+        <div className="relative h-16 w-16 bg-gray-200 overflow-hidden mr-4">
           <Image
             src={avatarUrl || '/default-avatar.jpg'}
             alt="Bursar avatar"
             width={64}
             height={64}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
         </div>
         
