@@ -163,7 +163,7 @@ export default function LecturerProfileSection({ profileData }: {
                   src={avatarUrl}
                   alt="Profile photo"
                   fill
-                  className="object-cover"
+                  className="object-contain"
                   onLoad={() => setAvatarLoading(false)}
                   onError={() => {
                     console.error("Profile image failed to load");
