@@ -31,7 +31,6 @@ import {
   FiGrid,
   FiLayers
 } from 'react-icons/fi';
-// import { FaChalkboardTeacher } from 'react-icons/fa';
 import { getDocumentViewerUrl } from '@/lib/actions/view.document.action';
 import dynamic from 'next/dynamic';
 const DocumentViewer = dynamic(() => import('../documentViewer'), { ssr: false });
@@ -52,7 +51,6 @@ interface StudentCourseManagerProps {
 }
 
 export default function StudentCourseManager({
-  // enrolledCourses: initialEnrolledCourses,
 }: StudentCourseManagerProps) {
   const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(null);
   const [courses, setCourses] = useState<EnrolledCourse[]>([]);
@@ -355,10 +353,6 @@ useEffect(() => {
     <div className="container mx-auto px-4 py-8">
 {/* Header */}
 <div className="flex justify-between items-center mb-8">
-  {/* <div className="flex items-center gap-3">
-    <FaChalkboardTeacher className="h-8 w-8 text-pink-600" />
-    <h1 className="text-3xl font-bold text-gray-800">My Courses</h1>
-  </div> */}
   
   {/* Add the toggle button here */}
   <button
