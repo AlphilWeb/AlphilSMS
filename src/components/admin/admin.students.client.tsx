@@ -827,7 +827,7 @@ useEffect(() => {
             <Image 
               src={filePreviews[field]} 
               alt={label}
-              className="h-20 w-20 object-cover rounded border"
+              className="h-20 w-20 object-contain border"
             />
             <button
               // type="button"
