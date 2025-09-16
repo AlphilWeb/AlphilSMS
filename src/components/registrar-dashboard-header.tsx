@@ -177,7 +177,7 @@ export default function RegistrarDashboardHeader() {
                       alt="User avatar"
                       width={32}
                       height={32}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-xs text-gray-500">
