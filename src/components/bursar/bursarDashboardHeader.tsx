@@ -125,7 +125,7 @@ export default function BursarDashboardHeader() {
                     alt="User avatar"
                     width={32}
                     height={32}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 </div>
                 {!isLoading && bursarData && (
