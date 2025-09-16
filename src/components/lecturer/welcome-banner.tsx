@@ -15,12 +15,12 @@ export default function WelcomeBanner({
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       <div className="p-6 md:flex md:items-center md:justify-between">
         <div className="flex items-center">
-          <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-pink-500">
+          <div className="relative h-16 w-16 overflow-hidden border-2 border-pink-500">
             <Image
               src={avatarUrl}
               alt={`${firstName}'s avatar`}
               fill
-              className="object-cover"
+              className="object-contain"
               sizes="64px"
             />
           </div>
