@@ -61,7 +61,7 @@ export default function ProfileSection({ profileData }: {
       <div className="flex flex-col md:flex-row gap-6">
         {/* Profile Image + Change Password Toggle */}
         <div className="w-full md:w-1/3">
-          <div className="bg-gray-50 rounded-lg p-4 flex flex-col items-center">
+          <div className="bg-gray-50 p-4 flex flex-col items-center">
             <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4">
               {imageLoading ? (
                 <Skeleton className="w-full h-full rounded-full" />
@@ -70,7 +70,7 @@ export default function ProfileSection({ profileData }: {
                   src={avatarUrl}
                   alt="Profile photo"
                   fill
-                  className="object-cover"
+                  className="object-contain"
                   onLoad={() => setImageLoading(false)}
                   onError={() => setImageLoading(false)}
                 />
