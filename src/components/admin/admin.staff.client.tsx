@@ -941,7 +941,7 @@ useEffect(() => {
                         src={filePreviews.passportPhoto}
                         width={80}
                         height={80}
-                        className="h-20 w-20 object-cover rounded"
+                        className="h-20 w-20 object-contain "
                         alt="Passport preview"
                       />
                       <button
@@ -970,7 +970,7 @@ useEffect(() => {
   src={filePreviews.nationalIdPhoto}
   width={80}
   height={80}
-  className="h-20 w-20 object-cover rounded"
+  className="h-20 w-20 object-contain rounded"
   alt="National ID preview"
 />
                       <button
@@ -1385,7 +1385,7 @@ useEffect(() => {
   src={filePreviews.passportPhoto}
   width={80}
   height={80}
-  className="h-20 w-20 object-cover rounded"
+  className="h-20 w-20 object-contain "
   alt="Passport preview"
 />
                       <button
@@ -1414,7 +1414,7 @@ useEffect(() => {
   src={filePreviews.nationalIdPhoto}
   width={80}
   height={80}
-  className="h-20 w-20 object-cover rounded"
+  className="h-20 w-20 object-contain"
   alt="National ID preview"
 />
                       <button
