@@ -54,15 +54,15 @@ export default function WelcomeBanner({
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex flex-col md:flex-row md:items-center gap-6">
         {/* Student Photo */}
-        <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-emerald-100">
+        <div className="relative w-24 h-24  overflow-hidden border-2 border-emerald-100">
           {loading ? (
-            <Skeleton className="w-full h-full rounded-full" />
+            <Skeleton className="w-full h-full " />
           ) : avatarUrl ? (
             <Image
               src={avatarUrl}
               alt="Student photo"
               fill
-              className="object-cover"
+              className="object-contain"
               sizes="96px" // helps with optimization
             />
           ) : (
