@@ -720,13 +720,13 @@ useEffect(() => {
                     )}
                   </div>
                   
-                  <button
-                    onClick={() => setSelectedProgram(selectedProgram)}
-                    className="text-red-600 hover:text-red-800 p-1"
-                    title="Delete program"
-                  >
-                    <FiTrash2 size={18} />
-                  </button>
+                    <button
+                      onClick={() => setDeleteConfirmation('delete')}
+                      className="text-red-600 hover:text-red-800 p-1 cursor-pointer"
+                      title="Delete program"
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
                 </div>
 
                 <div className="mt-6 grid grid-cols-3 gap-4">
@@ -870,7 +870,7 @@ useEffect(() => {
         </div>
       )}
         {/* Delete Confirmation Modal */}
-        {selectedProgram && (
+        {deleteConfirmation !== '' && selectedProgram && (
           <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b">
@@ -878,7 +878,7 @@ useEffect(() => {
                   Confirm Deletion
                 </h3>
                 <button 
-                  onClick={() => setSelectedProgram(null)}
+                  onClick={() => setDeleteConfirmation('delete')}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   <FiX size={20} />
@@ -913,7 +913,7 @@ useEffect(() => {
               
               <div className="flex justify-end gap-3 p-4 border-t">
                 <button
-                  onClick={() => setSelectedProgram(null)}
+                  onClick={() => setDeleteConfirmation('')}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
                 >
                   Cancel
