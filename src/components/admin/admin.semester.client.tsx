@@ -528,14 +528,20 @@ const handleDeleteSemester = async () => {
                   {!editMode && (
                     <div className="flex gap-2 ml-4">
                       <button
-                        onClick={() => setEditMode(true)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent triggering the row click
+                          setEditMode(true);
+                        }}
                         className="text-blue-500 hover:text-blue-800 p-2"
                         title="Edit semester"
                       >
                         <FiEdit2 size={18} />
                       </button>
                       <button
-                        onClick={() => setDeleteConfirmation('show')}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent triggering the row click
+                          setDeleteConfirmation('show');
+                        }}
                         className="text-red-600 hover:text-red-800 p-2"
                         title="Delete semester"
                       >
