@@ -470,55 +470,132 @@ useEffect(() => {
       Program Materials
     </h2>
 
-      {Object.entries(
-        allProgramMaterials.reduce<Record<string, Record<string, CourseMaterial[]>>>(
-          (acc, mat: CourseMaterial) => {
-            const sem = mat.semesterName || "Unknown Semester";
-            if (!acc[sem]) acc[sem] = {};
-            const courseName = mat.courseName || "Unknown Course";
-            if (!acc[sem][courseName]) acc[sem][courseName] = [];
-            acc[sem][courseName].push(mat);
-            return acc;
-          },
-          {}
-        )
-      ).map(([semester, courses]) => (
+    {Object.entries(
+      allProgramMaterials.reduce<Record<string, Record<string, CourseMaterial[]>>>(
+        (acc, mat: CourseMaterial) => {
+          const sem = mat.semesterName || "Unknown Semester";
+          if (!acc[sem]) acc[sem] = {};
+          const courseName = mat.courseName || "Unknown Course";
+          if (!acc[sem][courseName]) acc[sem][courseName] = [];
+          acc[sem][courseName].push(mat);
+          return acc;
+        },
+        {}
+      )
+    ).map(([semester, courses]) => (
       <div key={semester} className="mb-6">
         <h3 className="text-md font-bold text-gray-600 mb-2">{semester}</h3>
 
-            {Object.entries(courses as Record<string, CourseMaterial[]>).map(
-              ([course, mats]) => (
+        {Object.entries(courses as Record<string, CourseMaterial[]>).map(
+          ([course, mats]) => (
             <div key={course} className="mb-4">
               <h4 className="text-sm font-semibold text-gray-500 mb-2">
                 {course}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mats.map((mat: CourseMaterial) => (
-                  <div
-                    key={mat.id}
-                    className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all"
-                  >
-                    <h5 className="font-semibold text-gray-900">{mat.title}</h5>
-                    <p className="text-sm text-gray-500">{mat.type}</p>
-
-                    {/* Inline content rendering */}
-                    {mat.type === "notes" && mat.content && typeof mat.content === "object" && 'html' in mat.content
-                      ? (mat.content as { html: string }).html
-                      : mat.content && typeof mat.content === "string"
-                      ? mat.content
-                      : ''}
-
-                    {/* PDF viewer button */}
-                    {mat.type === "pdf" && (
-                      <button
-                        className="mt-2 px-3 py-1 text-sm rounded-md bg-pink-100 text-pink-700 hover:bg-pink-200 transition-colors"
-                        onClick={() => handleViewMaterial(mat)}
+                {mats.map((mat: CourseMaterial) => {
+                  const isExpanded = expandedMaterialIds.has(mat.id);
+                  const lecturerName = mat.uploadedBy 
+                    ? `${mat.uploadedBy.firstName || ''} ${mat.uploadedBy.lastName || ''}`.trim()
+                    : 'Unknown Lecturer';
+                  
+                  return (
+                    <div
+                      key={mat.id}
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all"
+                    >
+                      {/* Card Header */}
+                      <div 
+                        className="flex justify-between items-start p-4 cursor-pointer hover:bg-gray-50"
+                        onClick={() => toggleExpanded(mat.id)}
                       >
-                        View PDF
-                      </button>
-                    )}
-                  </div>
-                ))}
+                        <div className="flex-1">
+                          <h5 className="font-semibold text-gray-900 mb-1">{mat.title}</h5>
+                          <div className="space-y-1">
+                            {/* Lecturer Info */}
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <span className="font-medium">Lecturer:</span>
+                              <span>{lecturerName}</span>
+                            </div>
+                            {/* Course Info */}
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
+                              <span className="font-medium">Course:</span>
+                              <span>{mat.courseName || course}</span>
+                            </div>
+                            {/* Course Code */}
+                            {mat.courseCode && (
+                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                                <span className="font-medium">Code:</span>
+                                <span>{mat.courseCode}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs px-2 py-1 bg-pink-100 text-pink-800 rounded-full capitalize">
+                              {mat.type.replace('_', ' ')}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Uploaded {formatDate(mat.uploadedAt)}
+                            </span>
+                            {mat.viewed && (
+                              <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                                Viewed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-2">
+                          {mat.type !== "notes" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewMaterial(mat);
+                              }}
+                              className="text-pink-600 hover:text-pink-800 p-1"
+                              title="View"
+                            >
+                              <FiEye size={16} />
+                            </button>
+                          )}
+                          {isExpanded ? (
+                            <FiChevronUp className="text-gray-500" size={16} />
+                          ) : (
+                            <FiChevronDown className="text-gray-500" size={16} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card Content - Collapsible */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 border-t border-gray-100">
+                          {mat.type === "notes" ? (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                              <div 
+                                className="prose prose-sm max-w-none text-black" 
+                                dangerouslySetInnerHTML={{ 
+                                  __html: mat.content && typeof mat.content === 'object' && 'html' in mat.content 
+                                    ? (mat.content as { html: string }).html 
+                                    : mat.content && typeof mat.content === 'string' 
+                                      ? mat.content 
+                                      : 'No content available'
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                onClick={() => handleViewMaterial(mat)}
+                                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors text-sm"
+                              >
+                                View Material
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )
@@ -527,7 +604,6 @@ useEffect(() => {
     ))}
   </div>
 )}
-
 
 
       {/* Course Details Modal */}
