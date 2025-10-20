@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
       path: '/',
     });
-
+ 
     return res;
   } catch (error) {
     console.error('[LOGIN_ERROR]', error);
